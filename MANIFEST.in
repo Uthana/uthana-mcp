@@ -1,0 +1,3 @@
+include README.md ACCEPTANCE.md COVERAGE.md LIVE-ACCEPTANCE-2026-09-14.md
+include test.sh .flake8 pyproject.toml requirements-dev.txt
+recursive-include tests *.py
