@@ -13,12 +13,16 @@ needs a separate authenticated remote transport; this package does not supply on
 
 ## Install and connect
 
-From this standalone repository, using Python 3.11 or later:
+From this standalone repository, with Python 3.11 or later, Git, and
+[uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install .
+uv sync --locked
 ```
+
+This creates `.venv` and installs the package, runtime dependencies, and development
+tools from `pyproject.toml` and the committed `uv.lock`. For a server-only environment,
+use `uv sync --locked --no-dev`.
 
 This installs the exact Python-client revision used in
 [client PR #9](https://github.com/Uthana/uthana-python-client/pull/9).
@@ -328,25 +332,38 @@ This repository provides `test.sh` for local use and invocation from Buildkite.
 It does not contain a GitHub Actions workflow. From the repository root:
 
 ```sh
-/opt/uve/bin/python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pip install --no-deps --no-build-isolation .
-MCP_PYTHON="$PWD/.venv/bin/python" ./test.sh
+uv sync --locked
+uv run --locked ./test.sh
 ```
 
-External users can substitute their Python 3.11+ executable for `/opt/uve/bin/python3`;
-Uthana's full internal environment is not required. The selected interpreter runs
-all checks, including subprocess protocol tests. The runner changes to its own
-directory, so Buildkite can call it from another working directory. Its build
-uses already-installed dependencies and makes no package-installation or network
-requests. Buildkite must provision the environment and invoke the script; adding
-this file does not connect a pipeline automatically.
+`uv sync` without flags also works; `--locked` fails if the project declaration and
+lock disagree. The `dev` dependency group is included by default, so no extra install
+step or requirements file is needed. To select a particular interpreter, pass
+`--python 3.11` (or `/opt/uve/bin/python3`) to `uv sync`. Uthana's full internal
+environment is not required.
 
-The development lock is generated with `pip-compile --extra dev --strip-extras --allow-unsafe
---output-file requirements-dev.txt pyproject.toml`, following Uthana's pip-tools
-convention. The shared uve environment currently pins older Pydantic and Pillow
-versions. Use the isolated environment above; do not install MCP dependencies over
-shared uve's pins. Changes to uve itself require their own dependency review.
+The selected interpreter runs all checks, including subprocess protocol tests.
+The runner changes to its own directory, so Buildkite can invoke it from another
+working directory:
+
+```sh
+MCP_PYTHON=/absolute/path/to/repo/.venv/bin/python /absolute/path/to/repo/test.sh
+```
+
+The script itself uses already-installed dependencies and makes no package-installation
+or network requests. Buildkite must provision the environment and invoke the script;
+a hosted pipeline is not connected automatically.
+
+All direct runtime and development dependencies are declared in `pyproject.toml`;
+`uv.lock` records the resolved versions and sources for reproducible installation.
+To change a dependency, edit `pyproject.toml` (or use `uv add` / `uv add --dev`), run
+`uv lock`, rerun the checks, and commit both files. The Python-client Git pin is
+also part of the package metadata, so other Python installers retain the same
+required client revision. Replace it with a released version after client review
+and release.
+
+Keep the MCP environment isolated. Shared uve currently pins older Pydantic and
+Pillow versions; no shared dependency pins need to change for this setup.
 
 These standalone checks need no backend services, credentials, or model account.
 They cover real stdio sessions and image content, API contracts through the shared
