@@ -31,12 +31,20 @@ Tony's review moves backend queries, upload encoding, response handling, and
 missing capabilities into the existing Uthana Python client. The MCP uses public
 client modules and retains its tool schemas, receipt recovery, product guidance,
 and normalized errors. The standalone repository has a Buildkite-callable
-`test.sh`, its own formatting configuration, and isolated Python 3.11 dependencies
-following the team's pip-tools convention. Shared uve pins are not modified.
+`test.sh`, its own formatting configuration, and isolated Python 3.11 dependencies.
+Runtime and development dependencies are declared in `pyproject.toml`; `uv.lock`
+replaces the separate requirements lock following Tony's dependency review.
+Shared uve pins are not modified.
 
 The standalone package passes **266 offline tests on Python 3.11.14**, including
 real stdio sessions. `test.sh` also passes formatting/static checks and builds a
 wheel and source archive without an isolated build environment.
+
+The September 15 dependency follow-up passes the same 266 tests after a fresh
+`uv sync --locked` installation with uv 0.12.14. Default `uv sync` includes the
+runtime package and test/build tools; the client is still pinned to the same
+review commit. This follow-up changes dependency declarations, the lock, and
+setup documentation, with no MCP tool implementation changes.
 
 Regression tests exercise the real client with synthetic HTTP, including no
 initialization telemetry, legacy completed-receipt replay without submission,
