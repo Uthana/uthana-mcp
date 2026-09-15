@@ -52,8 +52,8 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 
 | Tool | What it does |
 | --- | --- |
-| `generate_motion` | Text-to-motion V3; returns a job ID |
-| `generate_motion_v2` | Text-to-motion V2; returns a motion ID |
+| `generate_motion` | Text-to-motion V3; usual starting point, including styled, compound, and acrobatic motion; returns a job ID |
+| `generate_motion_v2` | Text-to-motion V2; fast basic motions, placeholders, and previz; returns a motion ID |
 | `generate_locomotion` | Walk/run cycles from style, strides, speed, and direction |
 | `list_locomotion_styles` | Available locomotion styles |
 | `estimate_model_cost` | USD estimate from current model rates |

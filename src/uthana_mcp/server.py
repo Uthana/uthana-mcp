@@ -179,7 +179,11 @@ def create_server(operations=None):
         ] = 4,
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
     ) -> dict[str, Any]:
-        "Submit a text-to-motion V3 job for compound actions or substantially different choreography. Returns a job ID; poll get_job. Preserve the user prompt."
+        """Generate with text-to-motion V3, the usual starting point unless a fast basic placeholder is wanted.
+        Prefer V3 for compound actions, performance style, expressive motion, and acrobatics or inversions
+        such as cartwheels, even when they are a single action. Inference typically takes roughly 1-2 minutes,
+        with longer waits possible. Returns a job ID; poll get_job. See workflow model-selection guidance.
+        """
         return await ops().generate(request_id, prompt, duration_seconds, character_id)
 
     @tool(annotations=WRITE)
@@ -200,7 +204,11 @@ def create_server(operations=None):
         ] = 4,
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
     ) -> dict[str, Any]:
-        "Generate a simple action with text-to-motion V2. Returns a motion ID directly. Inspect its metadata and preview."
+        """Generate a fast basic motion with text-to-motion V2, typically around 5 seconds of inference.
+        Use for placeholders, previsualization, or basic walks, turns, runs, and jumps when speed matters.
+        Prefer V3 for general generation, compound actions, performance style, and acrobatics such as
+        cartwheels. Returns a motion ID directly; timing is approximate. See workflow model-selection guidance.
+        """
         return await ops().generate_v2(request_id, prompt, duration_seconds, character_id)
 
     @tool(annotations=READ)

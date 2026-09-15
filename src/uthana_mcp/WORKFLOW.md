@@ -18,11 +18,18 @@ This server calls Uthana staging. The host supplies reasoning, user interaction,
 
 ## Generate and review
 
-Preserve the requested action and respect a chosen model. Otherwise:
+Preserve the requested action and respect a chosen model. Otherwise, start with text-to-motion V3 (TTM V3), `generate_motion`, unless the request clearly favors a fast basic motion or the specialized locomotion tool. Choose by motion complexity and intended use, not by the number of verbs in the prompt:
 
-- A simple action such as walk starts with text-to-motion V2 (TTM V2), `generate_motion_v2`.
-- Compound actions or substantially different choreography use text-to-motion V3 (TTM V3), `generate_motion`.
-- A request for loopable travel takes precedence: use `generate_locomotion` for walk/run cycles and select a style from `list_locomotion_styles`.
+| User need | Starting point | Expected inference time |
+| --- | --- | --- |
+| General motion generation, compound actions, or a requested performance style or expressive quality | TTM V3, `generate_motion` | Roughly 1-2 minutes |
+| Acrobatics or inverted motion, including a cartwheel or flip, even when described as one action | TTM V3, `generate_motion` | Roughly 1-2 minutes |
+| A quick placeholder, previsualization (previz), or a basic walk, turn, run, or jump where speed matters more than detail | Text-to-motion V2 (TTM V2), `generate_motion_v2` | Around 5 seconds |
+| A straightforward loopable walk/run cycle using an available locomotion style | `generate_locomotion`; select a style from `list_locomotion_styles` | Depends on the request; no fixed estimate here |
+
+V1 and V2 are the fast options for basic motions and placeholders; V1 has no generation tool in this MCP. A V1 pricing entry does not make it callable. A successful response can still miss the requested action, so inspect the result before calling it suitable.
+
+These inference times are approximate expectations, not guarantees, generated motion durations, or timeout settings. Queueing and service conditions can make calls take longer. Briefly explain the speed/quality tradeoff when choosing a model. Do not silently replace a requested model or a styled/complex motion with a faster basic result. If a requested model is unsuitable, explain the limitation.
 
 Text generation defaults to Tar and four seconds. V2 accepts 4-10 seconds in 0.4-second increments; V3 accepts whole seconds from 4 to 10. Both accept at most 1000 prompt characters. Explain incompatible inputs instead of silently changing the motion or model.
 
