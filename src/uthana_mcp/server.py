@@ -182,7 +182,8 @@ def create_server(operations=None):
         """Generate with text-to-motion V3, the usual starting point unless a fast basic placeholder is wanted.
         Prefer V3 for compound actions, performance style, expressive motion, and acrobatics or inversions
         such as cartwheels, even when they are a single action. Inference typically takes roughly 1-2 minutes,
-        with longer waits possible. Returns a job ID; poll get_job. See workflow model-selection guidance.
+        with longer waits possible. Includes finger animation. Returns a job ID; poll get_job.
+        See workflow model-selection guidance.
         """
         return await ops().generate(request_id, prompt, duration_seconds, character_id)
 
@@ -206,6 +207,7 @@ def create_server(operations=None):
     ) -> dict[str, Any]:
         """Generate a fast basic motion with text-to-motion V2, typically around 5 seconds of inference.
         Use for placeholders, previsualization, or basic walks, turns, runs, and jumps when speed matters.
+        Does not generate finger animation; use V3 when finger motion matters.
         Prefer V3 for general generation, compound actions, performance style, and acrobatics such as
         cartwheels. Returns a motion ID directly; timing is approximate. See workflow model-selection guidance.
         """
