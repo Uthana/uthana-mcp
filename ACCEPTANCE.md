@@ -55,7 +55,7 @@ the new client path. No new paid generation is needed for offline migration test
 
 ## September 15: image creation and simplified looping
 
-The current dependency pins [client PR #10](https://github.com/Uthana/uthana-python-client/pull/10)
+The initial image/loop revision pinned [client PR #10](https://github.com/Uthana/uthana-python-client/pull/10)
 at `7921e2a01cdf2dd1c05b68ae2b196ade7ec986d4`, stacked on client PR #9.
 
 This follow-up adds `create_character_from_image` and `create_looped_motion`,
@@ -90,6 +90,35 @@ Remaining live acceptance:
    follow-up changes the SDK and MCP only.
 
 No paid model calls or image uploads were performed for this follow-up.
+
+## September 15: two-motion stitching
+
+The current client dependency pins PR #10 at
+`5c934a183ae18b47de63160e3933f6810939a74b`.
+The same feature PR now adds `create_stitched_motion`, bringing discovery to
+22 tools. **313 offline MCP tests pass**, including real stdio two-motion calls,
+shared-client request serialization, both-source preservation, stale bundle and
+invalid pose/timing rejection, confirmed-rejection retries, pending/unknown and
+cancelled requests, and recovery after post-write metadata failure. Existing
+trim/save/loop verification regressions still pass. The shared client passes
+**165 offline tests**, plus lint/format, mypy, and package builds. A fresh
+`uv sync --locked --no-dev` starts without credentials, discovers all 22 tools,
+and reads the workflow with test dependencies absent. Lock/static checks and
+wheel/source builds pass; the source archive includes the stitching guide.
+
+The tool uses the enhanced preview API, not the deprecated legacy stitch endpoint.
+Both clips require host-supplied poses and common-character/scene preparation;
+there is no automatic pose sampler or spatial aligner in this change. Test poses
+are deliberately synthetic. The result states that pose inputs are not independently
+verified; successful native metadata checks are not proof of good transitions.
+
+Remaining acceptance is to prepare real samples of two selected staging motions,
+submit one authorized stitch, record the new ID/native duration/actual debit,
+and inspect repeated playback across the join for pose/facing discontinuities,
+foot contact, floor height, and root travel. The separate agent needs stitching
+allowlist/price/timeout handling and a validated sampling skill first. Multi-clip
+sequences require fresh samples after each pairwise join. No paid stitch or new
+motion upload was run for this revision.
 
 ## Cleanup regression evidence
 

@@ -66,6 +66,7 @@ def receipt_billing(operation, args):
         "video": args.get("model"),
         "character_from_image": "character-gen-1.0",
         "loop": "stitch-loop-2.0",
+        "stitch": "stitch-loop-2.0",
     }.get(operation)
     if operation == "upload_character" and args.get("auto_rig") is True:
         model = "autorig"

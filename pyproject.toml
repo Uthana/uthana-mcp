@@ -10,7 +10,7 @@ description = "Local staging MCP adapter for Uthana animation operations"
 requires-python = ">=3.11"
 dependencies = [
     # Shared-client additions awaiting review in Uthana/uthana-python-client#9 and #10.
-    "uthana @ git+https://github.com/Uthana/uthana-python-client.git@7921e2a01cdf2dd1c05b68ae2b196ade7ec986d4",
+    "uthana @ git+https://github.com/Uthana/uthana-python-client.git@5c934a183ae18b47de63160e3933f6810939a74b",
     "mcp==1.30.0",
     "httpx==0.28.1",
     "Pillow==12.3.0",

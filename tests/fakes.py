@@ -28,7 +28,7 @@ class FakeAPI:
 
     def __init__(self):
         self.calls = []
-        self.motions = {"motion1": native()}
+        self.motions = {"motion1": native(), "motion2": native("motion2")}
         self.fail_verification = False
 
     async def close(self):
@@ -79,6 +79,11 @@ class FakeAPI:
     async def finalize_character_image(self, prepared, name):
         self.calls.append(("finalize_image", {"prepared": prepared, "name": name}))
         return {"character_id": prepared["character_id"], "auto_rig_confidence": 0.9}
+
+    async def stitch(self, character_id, prefix, suffix):
+        self.calls.append(("stitch", {"character_id": character_id, "prefix": prefix, "suffix": suffix}))
+        self.motions["stitched1"] = native("stitched1", count=300)
+        return {"motion_id": "stitched1", "character_id": character_id}
 
     async def loop(self, **args):
         self.calls.append(("loop", args))

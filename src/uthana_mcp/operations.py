@@ -13,6 +13,7 @@ from PIL import Image
 
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
+from .stitching import StitchClip, api_clip
 from .store import Store
 from .validation import TAR, identifier, number, text
 
@@ -153,7 +154,7 @@ class Operations:
         if status["state"] != "complete" or not isinstance(result, dict):
             return status
         status["result"] = {**result, "replayed": True}
-        if status["operation"] in {"trim", "save", "loop"}:
+        if status["operation"] in {"trim", "save", "loop", "stitch"}:
             status["result"] = self.recovered_saved(status["result"])
         if result.get("artifact_id"):
             try:
@@ -179,13 +180,14 @@ class Operations:
         result = {**receipt, "verification_status": "unverified"}
         for field in ("verification_error", "verification_errors", "verification_note", "saved"):
             result.pop(field, None)
-        if receipt["motion_id"] == receipt["source_motion_id"]:
+        originals = receipt.get("sources", [receipt["source"]])
+        if receipt["motion_id"] in {source["motion_id"] for source in originals}:
             return self.record_saved_verification(
                 {**result, "verification_status": "failed", "verification_error": "Source ID was returned as result"}
             )
         try:
             saved = await self.api.motion(receipt["motion_id"])
-            source = await self.api.motion(receipt["source_motion_id"])
+            sources = [await self.api.motion(original["motion_id"]) for original in originals]
         except Exception:
             return self.record_saved_verification(
                 {
@@ -195,9 +197,10 @@ class Operations:
             )
         original = receipt["source"]
         errors = []
-        if (source["bundle_id"], source["bundle_sha256"]) != (original["bundle_id"], original["bundle_sha256"]):
-            errors.append("Source bundle identity changed")
-        if saved["bundle_id"] == original["bundle_id"]:
+        for source, prior in zip(sources, originals):
+            if (source["bundle_id"], source["bundle_sha256"]) != (prior["bundle_id"], prior["bundle_sha256"]):
+                errors.append("Source bundle identity changed")
+        if saved["bundle_id"] in {prior["bundle_id"] for prior in originals}:
             errors.append("Result does not have its own bundle")
         if "expected_frame_count" in receipt:
             if saved["frame_count"] != receipt["expected_frame_count"] or saved["fps"] != original["fps"]:
@@ -343,6 +346,49 @@ class Operations:
             }
 
         receipt = await self.store.mutation(request_id, "loop", args, invoke)
+        return await self.verify_saved(receipt)
+
+    async def stitch(self, request_id, prefix, suffix, character_id=TAR, stitch_duration=2.0, prompt=""):
+        identifier(character_id)
+        number(stitch_duration, 0.1, 3)
+        if not isinstance(prompt, str) or len(prompt) > 1000:
+            raise ValueError("Stitch prompt must be text of at most 1000 characters")
+        # Validate/copy the complete sampled input before any API access.
+        clips = [StitchClip.model_validate(clip).model_dump() for clip in (prefix, suffix)]
+        for clip in clips:
+            if clip["sampled_character_id"] != character_id:
+                raise ValueError("Both clips must be sampled on the selected character")
+            clip["source_bundle_sha256"] = clip["source_bundle_sha256"].lower()
+        completed = self.store.completed(request_id, "stitch")
+        args = {
+            "prefix": clips[0],
+            "suffix": clips[1],
+            "character_id": character_id,
+            "stitch_duration": stitch_duration,
+            "prompt": prompt,
+        }
+        if completed:
+            return self.recovered_saved(self.store.replay(request_id, "stitch", args))
+        sources = [await self.api.motion(clip["motion_id"]) for clip in clips]
+        params = [api_clip(clip, source, character_id, stitch_duration, prompt) for clip, source in zip(clips, sources)]
+
+        async def invoke():
+            result = await self.api.stitch(character_id, params[0], params[1])
+            return {
+                **result,
+                "source_motion_id": clips[0]["motion_id"],
+                "source_motion_ids": [clip["motion_id"] for clip in clips],
+                "source": sources[0],
+                "sources": sources,
+                "stitch_duration_seconds": stitch_duration,
+                "requested_intervals_seconds": [[clip["start_seconds"], clip["end_seconds"]] for clip in clips],
+                "pose_samples_source": "host_supplied_not_independently_verified",
+                "loop_intended": False,
+                "review_status": "unreviewed",
+                "preview_api": True,
+            }
+
+        receipt = await self.store.mutation(request_id, "stitch", args, invoke)
         return await self.verify_saved(receipt)
 
     async def characters(self, offset=0, limit=50):

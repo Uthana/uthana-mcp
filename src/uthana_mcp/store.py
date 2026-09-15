@@ -119,8 +119,8 @@ class Store:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT operation,state,result FROM requests WHERE id=?", (request_id,)).fetchone()
-            if row is None or row[0] not in {"trim", "save", "loop"} or row[1] != "complete":
-                raise ValueError("Verification requires a completed trim, save, or loop receipt")
+            if row is None or row[0] not in {"trim", "save", "loop", "stitch"} or row[1] != "complete":
+                raise ValueError("Verification requires a completed native-edit receipt")
             result = json.loads(row[2])
             previous = result.get("previous_verification")
             # An unavailable metadata read cannot overturn a conclusive earlier finding.

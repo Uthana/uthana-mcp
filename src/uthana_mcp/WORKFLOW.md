@@ -133,6 +133,48 @@ previous submission, and never execute the three review suggestions unasked.
   verified metadata alone do not establish seamless motion. Review suggestions
   remain suggestions unless the user requests further changes.
 
+## Stitch two existing motions
+
+Use create_stitched_motion for an explicitly requested join between an existing
+leading clip (prefix) and trailing clip (suffix). It is a priced preview API,
+separate from create_looped_motion and simple trim/save. Estimate stitch-loop-2.0
+for generated output seconds; transition seconds alone are not the billable
+quantity. Respect existing user scope/spending instructions.
+
+Required preparation:
+
+1. Select the two motion IDs and one target character. Get native metadata for
+   each using get_motion. Preserve its bundle ID/hash and actual sample times.
+2. Use a capable motion loader/skill to load both animations on that character,
+   preserving timing, and position them together in a shared world scene. Evaluate
+   the root transform and pelvis states at zero, the selected start, and selected
+   end. Supply actual world positions in meters (Y up, x/z horizontal), unit
+   x/y/z/w quaternions, and hip-derived facing yaw in radians. Do not infer these
+   values from prompts/APNGs or fill placeholders to make a call succeed.
+3. Supply each clip's motion_id, sampled_character_id, source_bundle_id/hash,
+   start_seconds/end_seconds, root_node_world_pos/rot, and at_zero_time,
+   at_lower_trim_time, at_upper_trim_time pelvis states. Each pelvis state has
+   pelvis_world_pos, pelvis_world_rot, and hips_forward_facing_world_yaw.
+   The server checks source identity and derives trim fractions from native
+   duration. End times must be at or before the final native sample; prefix end
+   slightly before the boundary is recommended by the API. Selected intervals
+   must span at least one frame interval.
+4. Call create_stitched_motion with a durable request ID, transition duration
+   from 0.1–3 seconds (default 2), and optional prompt (default empty). Allow at
+   least 420 seconds at the host, longer for transfers. Read get_request_status
+   after failure. Never evade unresolved state by changing the request ID.
+5. Inspect returned timing and actual playback around the join: pose/facing
+   continuity, foot contact, floor height, and root travel. Metadata verification
+   checks both source bundles and the new bundle; it does not prove stitch quality
+   or independently validate supplied poses. Review suggestions do not authorize
+   another generation. To build a longer sequence, sample the new result before
+   any explicitly requested subsequent stitch.
+
+If the host lacks a motion loader, explain the missing preparation capability;
+the MCP does not include a pose sampler or automatic spatial alignment. The
+separate agent requires allowlist, pricing, timeout, and pose-preparation skill
+integration to use this tool. This API surface alone is not end-to-end acceptance.
+
 ## Video and two-character retargeting
 
 - generate_motion_from_video uploads a user-selected MP4/MOV/WebM and returns a

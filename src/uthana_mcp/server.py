@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .api import UthanaAPI
 from .operations import Operations
+from .stitching import StitchClip
 from .validation import STAGING, TAR
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
@@ -264,6 +265,31 @@ def create_server(operations=None):
             loop_mode,
             zone_mode,
             target,
+        )
+
+    @server.tool(annotations=WRITE)
+    async def create_stitched_motion(
+        request_id: Id,
+        prefix: StitchClip,
+        suffix: StitchClip,
+        character_id: Id = TAR,
+        stitch_duration: Annotated[float, Field(strict=True, ge=0.1, le=3, allow_inf_nan=False)] = 2.0,
+        prompt: Annotated[str, Field(max_length=1000)] = "",
+    ) -> dict[str, Any]:
+        """Join a leading and trailing motion using the enhanced stitching preview API.
+
+        Requires real root/pelvis samples on the SAME target character, placed in a shared scene,
+        at zero, start_seconds, and end_seconds. Y is up; x/z are horizontal meters, rotations are
+        unit x/y/z/w quaternions, yaw is radians. Get source bundle IDs/hashes via get_motion before
+        sampling. Never invent poses from text/APNGs or use zero placeholders. This tool does not
+        load/sample or automatically align animations. The host needs a capable motion loader/skill.
+        Trim times must lie within actual native samples. Creates a separate saved motion, checks both
+        sources, and preserves IDs on verification failure. Stitching is priced per generated output
+        second (stitch-loop-2.0), not just the transition. Allow at least 420 seconds at the host.
+        Read receipts after uncertain outcomes; do not resubmit. Inspect actual playback at the join.
+        """
+        return await ops().stitch(
+            request_id, prefix.model_dump(), suffix.model_dump(), character_id, stitch_duration, prompt
         )
 
     @server.tool(annotations=READ)

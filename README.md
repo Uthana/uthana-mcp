@@ -1,7 +1,7 @@
 # Uthana MCP staging pilot
 
 This package lets a local coding-agent host generate and inspect Uthana motions,
-trim or loop them into saved native revisions, generate characters from images,
+trim, loop, or stitch them into saved native revisions, generate characters from images,
 upload videos and rigged characters, and
 find recent saved motions, inspect usage, and export retargeted animation. It is a draft for engineering review, not a released
 or production-validated integration.
@@ -112,6 +112,7 @@ update the existing public website index.
 | `upload_character` | Upload selected FBX/GLB with compatibility warnings; `auto_rig=false` for rigged Mixamo files |
 | `create_character_from_image` | Selected PNG/JPEG to a generated rigged character; resumable preparation receipt |
 | `create_looped_motion` | New native closed/open loop from an existing motion using the preview API |
+| `create_stitched_motion` | Join two existing clips using supplied sampled poses; preserve both sources and recover the new native motion |
 | `list_characters` | Accessible character IDs in bounded result pages |
 | `list_motions` | Name search and listing within the API's recent motion window, with source labels and filters |
 | `get_usage` | Read-only organization PAYG USD balance/rates and separate monthly allowances |
@@ -119,7 +120,7 @@ update the existing public website index.
 | `save_motion` | Register host-edited, self-contained animated GLTF as a native revision |
 | `download_motion` | Retargeted FBX/GLB/BVH; 24/30/60 FPS, mesh, speed, torso-only, in-place, and Roblox options |
 
-The pilot exposes 21 tools. Resource: `uthana://workflow`. Prompt: `review_motion`.
+The pilot exposes 22 tools. Resource: `uthana://workflow`. Prompt: `review_motion`.
 The review prompt asks the host to check the original requirements and identify
 the three most useful improvements from actual visual evidence. It does not
 execute suggestions. This guidance is not a server-side approval system; the
@@ -195,6 +196,34 @@ additions. Its current 210-second MCP timeout and 600-second overall default are
 too short for the worst-case image workflow. These MCP changes do not claim that
 agent integration or new paid live acceptance is complete.
 
+## Stitch two existing motions
+
+`create_stitched_motion(request_id, prefix, suffix, character_id, stitch_duration,
+prompt)` joins the leading and trailing clip through the **enhanced preview API**.
+It creates a separate saved motion and checks both original bundles. Transition
+duration defaults to 2 seconds, bounded from 0.1 to 3; prompt defaults to empty.
+Allow at least 420 seconds at the host (360-second HTTP phase limits, 15 to connect).
+
+Each clip requires actual world-space root/pelvis samples from a motion loader,
+plus the native source bundle ID/hash and trim times. Both must be sampled on the
+same target character and placed in a shared scene. The MCP derives duration and
+trim fractions from native metadata, rejects stale bundle identity and invalid
+sample times, and validates finite values/unit quaternions before submission.
+It cannot establish that supplied poses match real frames: receipts explicitly
+label them as host supplied, and the result remains unreviewed.
+
+See [STITCHING.md](STITCHING.md) for the full input contract and preparation/review
+workflow. This tool does not automatically sample or align two motions from IDs
+alone. A capable host motion loader/skill is required; APNGs and text descriptions
+are insufficient to construct accurate pose inputs. Longer sequences require
+explicit pairwise stitches with fresh samples of each newly created result.
+
+Stitching uses `stitch-loop-2.0` pricing per generated output second, not merely
+transition length. Known result IDs survive metadata failures; completed calls
+replay locally, while pending/unknown submissions remain blocked. The separate
+agent needs the new tool in its allowlist, price handling, and skills, plus a pose
+preparation integration and suitable timeout, before claiming end-to-end support.
+
 ## Source/API boundaries
 
 - `server.py`: protocol schemas, annotations, workflow resource, image content, and review prompt.
@@ -218,7 +247,7 @@ The client additions are proposed in
 [uthana-python-client PR #10](https://github.com/Uthana/uthana-python-client/pull/10),
 which builds on [PR #9](https://github.com/Uthana/uthana-python-client/pull/9).
 This review candidate pins its exact commit
-`7921e2a01cdf2dd1c05b68ae2b196ade7ec986d4` in `pyproject.toml` and the development
+`5c934a183ae18b47de63160e3933f6810939a74b` in `pyproject.toml` and the development
 lock. Replace the VCS pin with the reviewed published version after the client
 team's release; published client 0.4.1 alone lacks these additions. Client initialization telemetry is disabled here, preserving
 keyless discovery and preventing incidental network calls. Staging-only access,
@@ -306,7 +335,7 @@ snapshot and internal product interview log are not copied into this package.
   Key rotation creates a new namespace; reconcile old work before repeating it.
 - `get_request_status` recovers completed receipts and known job/motion IDs from
   local state without calling Uthana. Repeating a completed operation with the
-  same request ID and arguments returns its original result. Trim/save/loop recovery
+  same request ID and arguments returns its original result. Trim/save/loop/stitch recovery
   uses the historical source identity and reports `verification_status=not_rechecked`;
   it does not repeat native metadata checks or establish visual quality.
   Repeating `save_motion` still validates the supplied file's bytes. If the original
