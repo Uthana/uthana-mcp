@@ -21,6 +21,17 @@ class UthanaAPI:
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((domain + ":" + key).encode()).hexdigest()
+        # The current API has no upstream character pagination. Isolate its
+        # larger, bounded catalog response from all mutation/metadata limits.
+        self.catalog_client = Uthana(
+            key,
+            domain=domain,
+            timeout=httpx.Timeout(180, connect=15),
+            telemetry=False,
+            trust_env=False,
+            transport=transport,
+            max_response_bytes=16 * 1024 * 1024,
+        )
         self.client = Uthana(
             key,
             domain=domain,
@@ -33,19 +44,24 @@ class UthanaAPI:
 
     async def close(self):
         self.client.close()
+        self.catalog_client.close()
 
-    async def _call(self, function, *args, read_only=False, mutation_field=None, **kwargs):
+    async def _call(self, function, *args, read_only=False, mutation_field=None, resource=None, **kwargs):
         if read_only and mutation_field:
             raise ValueError("A mutation cannot use read-only error handling")
         try:
             return await function(*args, **kwargs)
         except UthanaError as error:
             if error.kind == "graphql" and isinstance(error.response_data, dict):
-                raise graphql_error(error.response_data, mutation_field, read_only=read_only) from None
+                raise graphql_error(
+                    error.response_data, mutation_field, read_only=read_only, resource=resource
+                ) from None
             if error.kind == "http":
                 status = error.status_code
                 if read_only:
-                    category = {401: "authentication", 403: "permission", 429: "rate_limit"}.get(status, "http_error")
+                    category = {401: "authentication", 403: "permission", 404: "not_found", 429: "rate_limit"}.get(
+                        status, "http_error"
+                    )
                     raise read_error(category, http_status=status) from None
                 if status in (401, 403):
                     category = "authentication" if status == 401 else "permission"
@@ -66,7 +82,11 @@ class UthanaAPI:
                 if error.kind == "response_too_large"
                 else "Uthana returned an invalid API response"
             )
-            raise APIError(message, outcome="not_applicable" if read_only else "unknown") from None
+            raise APIError(
+                message,
+                category="response_too_large" if error.kind == "response_too_large" else "provider_error",
+                outcome="not_applicable" if read_only else "unknown",
+            ) from None
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
             if read_only:
                 raise read_error("connection") from None
@@ -130,15 +150,15 @@ class UthanaAPI:
         return await self._call(self.client.org.get_prices, read_only=True)
 
     async def job(self, job_id):
-        job = await self._call(self.client.jobs.get, identifier(job_id), read_only=True)
+        job = await self._call(self.client.jobs.get, identifier(job_id), read_only=True, resource="job")
         if not job:
-            raise APIError("Job not found or inaccessible")
+            raise read_error("not_found")
         return normalize_job(job)
 
     async def motion(self, motion_id):
-        motion = await self._call(self.client.motions.get, identifier(motion_id), read_only=True)
+        motion = await self._call(self.client.motions.get, identifier(motion_id), read_only=True, resource="motion")
         if not motion:
-            raise APIError("Motion not found or inaccessible")
+            raise read_error("not_found")
         result = motion_metadata(motion)
         if result["motion_id"] != motion_id:
             raise APIError("Motion metadata returned a different motion ID")
@@ -250,7 +270,17 @@ class UthanaAPI:
         return {"motion_id": identifier(result["id"]), "character_id": character_id}
 
     async def characters(self):
-        return await self._call(self.client.characters.list, read_only=True)
+        try:
+            return await self._call(self.catalog_client.characters.list, read_only=True)
+        except APIError as error:
+            if error.category == "response_too_large":
+                raise APIError(
+                    "Character catalog exceeds 16 MiB. The API has no upstream pagination; "
+                    "smaller limit values cannot reduce this response. Contact Uthana support.",
+                    category="catalog_too_large",
+                    outcome="not_applicable",
+                ) from None
+            raise
 
     async def motion_catalog(self):
         return await self._call(self.client.motions.catalog, read_only=True)

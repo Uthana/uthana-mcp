@@ -23,7 +23,7 @@ PUBLISHED_MODELS = {
 
 def estimate_cost(rates, model, quantity):
     if model not in PUBLISHED_MODELS:
-        raise ValueError("Choose a published model; an unknown model is not automatically a free tool")
+        raise ValueError("model must be one of: " + ", ".join(PUBLISHED_MODELS))
     quantity = number(quantity, 0, 3600)
     if quantity == 0:
         raise ValueError("quantity must be positive")

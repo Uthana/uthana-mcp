@@ -15,19 +15,19 @@ class Vector3(BaseModel):
     """World position in meters, Y up; x/z are horizontal."""
 
     model_config = ConfigDict(extra="forbid")
-    x: Scalar
-    y: Scalar
-    z: Scalar
+    x: Annotated[Scalar, Field(description="World X position in meters, -1000000 to 1000000; Y is vertical.")]
+    y: Annotated[Scalar, Field(description="World Y position in meters, -1000000 to 1000000; Y is vertical.")]
+    z: Annotated[Scalar, Field(description="World Z position in meters, -1000000 to 1000000; Y is vertical.")]
 
 
 class Quaternion(BaseModel):
     """Sampled world rotation in x/y/z/w order, approximately unit length."""
 
     model_config = ConfigDict(extra="forbid")
-    x: Unit
-    y: Unit
-    z: Unit
-    w: Unit
+    x: Annotated[Unit, Field(description="Quaternion x component, -1 to 1; total length must be within 0.001 of 1.")]
+    y: Annotated[Unit, Field(description="Quaternion y component, -1 to 1; total length must be within 0.001 of 1.")]
+    z: Annotated[Unit, Field(description="Quaternion z component, -1 to 1; total length must be within 0.001 of 1.")]
+    w: Annotated[Unit, Field(description="Quaternion w component, -1 to 1; total length must be within 0.001 of 1.")]
 
     @model_validator(mode="after")
     def unit_length(self):
@@ -40,9 +40,16 @@ class PelvisState(BaseModel):
     """Pelvis world transform and hip-derived facing yaw in radians."""
 
     model_config = ConfigDict(extra="forbid")
-    pelvis_world_pos: Vector3
-    pelvis_world_rot: Quaternion
-    hips_forward_facing_world_yaw: Scalar
+    pelvis_world_pos: Annotated[
+        Vector3, Field(description="Pelvis world position in meters, Y up; include all ancestor scale transforms.")
+    ]
+    pelvis_world_rot: Annotated[Quaternion, Field(description="Pelvis world rotation as a unit x/y/z/w quaternion.")]
+    hips_forward_facing_world_yaw: Annotated[
+        Scalar,
+        Field(
+            description="Hip-derived facing yaw in radians, -1000000 to 1000000. Calibrate the unresolved hip-axis convention described in STITCHING.md."
+        ),
+    ]
 
 
 class StitchClip(BaseModel):
@@ -53,22 +60,38 @@ class StitchClip(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
-    motion_id: Id
-    sampled_character_id: Id
-    source_bundle_id: Id
-    source_bundle_sha256: Annotated[str, Field(pattern=r"^[a-fA-F0-9]{64}$")]
-    start_seconds: Seconds
-    end_seconds: Seconds
-    root_node_world_pos: Vector3
-    root_node_world_rot: Quaternion
-    at_zero_time: PelvisState
-    at_lower_trim_time: PelvisState
-    at_upper_trim_time: PelvisState
+    motion_id: Annotated[Id, Field(description="Existing motion ID for this clip.")]
+    sampled_character_id: Annotated[
+        Id, Field(description="Character used to evaluate these poses; must match character_id.")
+    ]
+    source_bundle_id: Annotated[Id, Field(description="Native source-file ID returned by get_motion before sampling.")]
+    source_bundle_sha256: Annotated[
+        Annotated[str, Field(pattern=r"^[a-fA-F0-9]{64}$")],
+        Field(description="64 hexadecimal digits identifying the source file returned by get_motion."),
+    ]
+    start_seconds: Annotated[
+        Seconds, Field(description="Native sample time in seconds, 0-1000000, less than end_seconds.")
+    ]
+    end_seconds: Annotated[
+        Seconds,
+        Field(
+            description="Native sample time in seconds, greater than start_seconds and no later than last_sample_seconds."
+        ),
+    ]
+    root_node_world_pos: Annotated[
+        Vector3, Field(description="Root world position in meters, Y up; include all ancestor scale transforms.")
+    ]
+    root_node_world_rot: Annotated[Quaternion, Field(description="Root world rotation as a unit x/y/z/w quaternion.")]
+    at_zero_time: Annotated[PelvisState, Field(description="Pelvis state evaluated at time zero.")]
+    at_lower_trim_time: Annotated[PelvisState, Field(description="Pelvis state evaluated at start_seconds.")]
+    at_upper_trim_time: Annotated[PelvisState, Field(description="Pelvis state evaluated at end_seconds.")]
 
     @model_validator(mode="after")
     def ordered_times(self):
         if self.start_seconds >= self.end_seconds:
-            raise ValueError("Require start_seconds < end_seconds")
+            raise ValueError(
+                f"start_seconds must be less than end_seconds (received {self.start_seconds}, {self.end_seconds})"
+            )
         return self
 
 

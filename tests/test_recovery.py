@@ -190,7 +190,7 @@ async def test_save_replay_and_recovery_when_original_file_is_gone(tmp_path):
     assert (
         recovered["result"]["motion_id"] == "saved1" and recovered["result"]["verification_status"] == "not_rechecked"
     )
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError, match="file_path must name a readable regular file"):
         await ops.save("save", str(source), "motion1", "mixamo1", "Saved")
 
 

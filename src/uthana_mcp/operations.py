@@ -52,7 +52,7 @@ class Operations:
     async def locomotion_styles(self):
         styles = await self.api.locomotion_styles()
         if not isinstance(styles, list) or not all(isinstance(s, str) and s.strip() for s in styles):
-            raise ValueError("Locomotion styles unavailable")
+            raise ValueError("Locomotion styles unavailable from Uthana. Retry the read later.")
         return {"styles": styles}
 
     async def locomotion(
@@ -89,7 +89,7 @@ class Operations:
     async def estimate_cost(self, model, quantity):
         # Validation precedes the read, and no generation or billing mutation is performed.
         if model not in PUBLISHED_MODELS:
-            raise ValueError("Choose a published model")
+            raise ValueError("model must be one of: " + ", ".join(sorted(PUBLISHED_MODELS)))
         number(quantity, 0, 3600)
         return estimate_cost(await self.api.prices(), model, quantity)
 
@@ -103,7 +103,9 @@ class Operations:
         source = completed["source"] if completed else await self.api.motion(motion_id)
         duration = source["duration_seconds"]
         if not 0 <= start_seconds < end_seconds <= duration:
-            raise ValueError("Require 0 <= start_seconds < end_seconds <= actual native duration")
+            raise ValueError(
+                f"start_seconds must be >= 0 and less than end_seconds; end_seconds must be at most {duration:.3f} seconds (received {start_seconds}, {end_seconds})"
+            )
         start, end = start_seconds / duration, end_seconds / duration
         start_frame, end_frame = int(start * source["frame_count"]), int(end * source["frame_count"])
         if start_frame == end_frame:
@@ -151,6 +153,19 @@ class Operations:
         """Recover IDs and cached exports without input files or any upstream dependency."""
         status = self.store.get_request(request_id)
         result = status.get("result")
+        if status.get("operation") == "upload_character" and status["state"] in {"pending", "unknown"}:
+            status["inspection"] = (status.get("progress") or {}).get(
+                "inspection",
+                {
+                    "tool": "list_characters",
+                    "arguments": {"query": "", "limit": 50},
+                },
+            )
+            status["next_action"] = (
+                "Inspect list_characters using the original upload name. A name match is only a candidate; verify it in Uthana. Contact support with the request ID if unresolved."
+            )
+        if result and result.get("job_id"):
+            status["job_status_note"] = "Submission status is historical; use get_job for the current job state."
         if status["state"] != "complete" or not isinstance(result, dict):
             return status
         status["result"] = {**result, "replayed": True}
@@ -217,18 +232,27 @@ class Operations:
     def read_input(self, filename, extensions, max_bytes=MAX_UPLOAD_BYTES):
         if self.input_directory is None:
             raise ValueError("Configure UTHANA_MCP_INPUT_DIR to enable local-file uploads")
-        path = Path(filename).expanduser().resolve(strict=True)
-        if not path.is_relative_to(self.input_directory) or path.suffix.lower() not in extensions:
-            raise ValueError("Choose a supported file inside UTHANA_MCP_INPUT_DIR")
-        # Open without following a final symlink; read a bounded snapshot used for both hashing and upload.
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-        with os.fdopen(fd, "rb") as f:
-            info = os.fstat(f.fileno())
-            if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
-                raise ValueError(f"Upload must be a regular file no larger than {max_bytes // (1024 * 1024)} MiB")
-            data = f.read(max_bytes + 1)
-        if not data or len(data) > max_bytes:
-            raise ValueError(f"Upload must contain 1 byte to {max_bytes // (1024 * 1024)} MiB")
+        try:
+            path = Path(filename).expanduser().resolve(strict=True)
+            if not path.is_relative_to(self.input_directory):
+                raise ValueError("file_path must be inside UTHANA_MCP_INPUT_DIR")
+            if path.suffix.lower() not in extensions:
+                formats = ", ".join(sorted(extensions))
+                detail = "; .gltf means self-contained JSON, not binary .glb" if extensions == {".gltf"} else ""
+                raise ValueError(f"file_path must use {formats} inside UTHANA_MCP_INPUT_DIR{detail}")
+            # Open without following a final symlink; read a bounded snapshot used for both hashing and upload.
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, "rb") as f:
+                info = os.fstat(f.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
+                    raise ValueError(f"Upload must be a regular file no larger than {max_bytes // (1024 * 1024)} MiB")
+                data = f.read(max_bytes + 1)
+            if not data or len(data) > max_bytes:
+                raise ValueError(f"Upload must contain 1 byte to {max_bytes // (1024 * 1024)} MiB")
+        except (OSError, RuntimeError):
+            raise ValueError(
+                "file_path must name a readable regular file inside UTHANA_MCP_INPUT_DIR on the MCP server"
+            ) from None
         return path.name, data, hashlib.sha256(data).hexdigest()
 
     async def video(self, request_id, file_path, name, model="video-to-motion-2.0"):
@@ -245,9 +269,21 @@ class Operations:
             raise ValueError("auto_rig must be a boolean")
         filename, data, digest = self.read_input(file_path, {".fbx", ".glb"})
         args = {"content_sha256": digest, "filename": filename, "name": name, "auto_rig": auto_rig}
-        return await self.store.mutation(
-            request_id, "upload_character", args, lambda: self.api.upload_character(filename, data, name, auto_rig)
-        )
+
+        async def invoke():
+            self.store.record_progress(
+                request_id,
+                "upload_character",
+                {
+                    "stage": "upload_requested",
+                    "name": name,
+                    "content_sha256": digest,
+                    "inspection": {"tool": "list_characters", "arguments": {"query": name, "limit": 50}},
+                },
+            )
+            return await self.api.upload_character(filename, data, name, auto_rig)
+
+        return await self.store.mutation(request_id, "upload_character", args, invoke)
 
     async def create_character_from_image(self, request_id, file_path, name):
         text(name)
@@ -302,7 +338,9 @@ class Operations:
         number(trim_end_pct, 0, 1)
         number(zone_duration, 0, 3)
         if trim_start_pct >= trim_end_pct or zone_duration <= 0:
-            raise ValueError("Require start < end and 0 < zone_duration <= 3 seconds")
+            raise ValueError(
+                f"trim_start_pct must be less than trim_end_pct and zone_duration must be > 0 and <= 3 seconds (received {trim_start_pct}, {trim_end_pct}, {zone_duration})"
+            )
         if loop_mode not in {"closed", "open"} or zone_mode not in {"modify", "extend"}:
             raise ValueError("Choose closed/open and modify/extend")
         if zone_end_position is not None:
@@ -391,13 +429,20 @@ class Operations:
         receipt = await self.store.mutation(request_id, "stitch", args, invoke)
         return await self.verify_saved(receipt)
 
-    async def characters(self, offset=0, limit=50):
+    async def characters(self, offset=0, limit=50, query=""):
+        if not isinstance(query, str) or len(query) > 200:
+            raise ValueError("query must be text of at most 200 characters")
         page_bounds(offset, limit)
         rows = await self.api.characters()
+        scanned = len(rows)
+        rows = [row for row in rows if query.casefold() in str(row.get("name", "")).casefold()]
         page = rows[offset : offset + limit]
         return {
             "characters": [{"character_id": identifier(row["id"]), "name": row.get("name")} for row in page],
             "next_offset": offset + limit if offset + limit < len(rows) else None,
+            "pagination": "local_bounded_catalog",
+            "scanned_count": scanned,
+            "scope_note": "The API returns a full catalog capped at 16 MiB. Name filtering and paging occur locally; concurrent changes can shift offsets.",
         }
 
     async def motions(self, query="", source="available", method=None, offset=0, limit=20):

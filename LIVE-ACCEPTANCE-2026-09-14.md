@@ -2,7 +2,7 @@
 
 The coding assistant completed a small live workflow through the real local stdio
 MCP server: V2 walk, compound V3 action, locomotion walk, native trim, preview,
-retargeted GLB export, and request recovery. Actual generation debits totalled
+retargeted GLB export, and request recovery. Actual generation debits totaled
 **$0.5705**. The tested free operations added no debit. The export review found a
 prompt mismatch and identified three improvements; none was executed.
 
@@ -22,7 +22,7 @@ motion quality, native host installation, or a production release.
 - A private staging key initially failed authentication. After replacement,
   account access succeeded. The authentication message was verified against the
   real failure. No secret, account balance, or unrelated ledger entry is included here.
-- The account has PAYG enabled and an admin role. Its export-eligibility result
+- The account has pay-as-you-go (PAYG) enabled and an admin role. Its export-eligibility result
   used the admin exemption; legacy quota and non-admin denial cases remain untested.
 
 The original requests were preserved before viewing outputs:
@@ -48,9 +48,7 @@ forward travel, continuous loop velocity, or artifact-free retargeting.
 
 The actual V2 APNG has 40 frames and all encoded frame delays are zero. V3 also
 has 40 frames; locomotion has 24 and the trim has 38. The previous adapter therefore
-reported every timestamp and total duration as zero. Backend inspection found
-`tools/apng/src/index.ts` explicitly encodes zero delays. The renderer's usual
-10 FPS default is not reliable provenance for an individual cached APNG.
+reported every timestamp and total duration as zero. The encoded files themselves contain zero delays. Assuming a renderer frame rate would not establish timing for an individual cached APNG.
 
 The adapter now reports `timing_status=unavailable`, null timestamps, and null
 preview duration when delays are missing, zero, or unusable. Frame indexes remain
@@ -109,13 +107,13 @@ These times refer to the **trimmed export**, not APNG timestamps. Front and side
 views were inspected at 0, 0.5, 1, 1.5, 2, 2.5, 3, and 3.733333588 seconds.
 
 1. **Align the running travel with the character's facing, 0–1 s.** The reference
-   side view shows the run travelling backward. Pelvis displacement is about
+   side view shows the run traveling backward. Pelvis displacement is about
    0.50 m opposite the standing foot-to-ball facing estimate. That facing estimate
    is a geometric approximation, corroborated visually. The requested forward
    run is therefore not fully satisfied in this sample.
 2. **Smooth the run-to-jump transition, 1.5–2 s.** The run visibly settles into a
    separate deep two-foot crouch before the jump. A more continuous transition
-   would make the compound action read as one performance.
+   would make the compound action read as one motion.
 3. **Make the final landing hold clearer and longer, 3–3.733 s.** The bent-knee
    landing straightens toward neutral by the endpoint. A deliberate pause in the
    chosen final pose would communicate the requested hold more clearly. The
@@ -130,7 +128,7 @@ Sparse sampling is not a complete contact, collision, or deformation assessment.
 
 All nine live `payg_prices` entries mapped by the MCP match the current
 [official pricing page](https://uthana.com/pricing), checked September 14, 2026:
-TTM 1/2/3 = $0.02/$0.03/$0.10 per output second; VTM 2.0/2.1 = $0.05/s;
+Text-to-motion (TTM) 1/2/3 = $0.02/$0.03/$0.10 per output second; video-to-motion (V2M) 2.0/2.1 = $0.05/s;
 locomotion = $0.02/s; stitching/looping = $0.01/s; auto-rig = $0.15/rig;
 character generation = $0.75/character. The page supplies no character-generation
 version or numeric credits-to-USD conversion; `1.0` is the backend/MCP mapping.

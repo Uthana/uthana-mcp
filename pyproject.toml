@@ -6,10 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "uthana-mcp"
 version = "0.1.0"
 readme = "README.md"
-description = "Local staging MCP adapter for Uthana animation operations"
+description = "Local staging MCP adapter for Uthana motion operations"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "Uthana, Inc."}]
 requires-python = ">=3.11"
 dependencies = [
-    # Shared-client additions awaiting review in Uthana/uthana-python-client#9 and #10.
+    # Temporary source pin until the shared client has a reviewed release.
     "uthana @ git+https://github.com/Uthana/uthana-python-client.git@5c934a183ae18b47de63160e3933f6810939a74b",
     "mcp==1.30.0",
     "httpx==0.28.1",
@@ -30,6 +33,12 @@ dev = [
     "flake8==7.3.0",
 ]
 
+[project.urls]
+Homepage = "https://uthana.com"
+Documentation = "https://uthana.com/docs/api"
+Repository = "https://github.com/Uthana/uthana-mcp"
+Issues = "https://github.com/Uthana/uthana-mcp/issues"
+
 [project.scripts]
 uthana-mcp = "uthana_mcp.server:main"
 
@@ -42,6 +51,10 @@ uthana_mcp = ["WORKFLOW.md"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.black]
+target-version = ["py311"]
+line-length = 120
 
 [tool.ruff]
 line-length = 120
