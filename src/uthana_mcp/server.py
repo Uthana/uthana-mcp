@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent, TextContent, ToolAnnotations
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .api import UthanaAPI
 from .operations import Operations
@@ -20,6 +20,15 @@ Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+
+
+class ZoneEndPosition(BaseModel):
+    """The preview API's planar target coordinates; y is not vertical height."""
+
+    model_config = ConfigDict(extra="forbid")
+    x: Annotated[float, Field(strict=True, ge=-1e6, le=1e6, allow_inf_nan=False)]
+    y: Annotated[float, Field(strict=True, ge=-1e6, le=1e6, allow_inf_nan=False)]
+    facing_angle: Annotated[float, Field(strict=True, ge=-1e6, le=1e6, allow_inf_nan=False)] | None = None
 
 
 def create_server(operations=None):
@@ -209,6 +218,53 @@ def create_server(operations=None):
         Allow more than 360 seconds in the host tool timeout for this synchronous upload.
         """
         return await ops().upload_character(request_id, file_path, name, auto_rig)
+
+    @server.tool(annotations=WRITE)
+    async def create_character_from_image(request_id: Id, file_path: str, name: Name) -> dict[str, Any]:
+        """Create a rigged character from an explicitly selected PNG/JPEG inside UTHANA_MCP_INPUT_DIR.
+
+        Published character-generation pricing applies; this is not a free rigged-file upload.
+        Image limit: 16 MiB, 16 megapixels, one frame. Preparation and generation are separate upstream
+        stages. Progress saves the prepared character ID before generation; it is not a finished character.
+        Allow at least 1080 seconds overall in the host for both stages, longer for slow transfer.
+        After interruption inspect get_request_status; never start a new request to recover an unknown outcome.
+        """
+        return await ops().create_character_from_image(request_id, file_path, name)
+
+    @server.tool(annotations=WRITE)
+    async def create_looped_motion(
+        request_id: Id,
+        motion_id: Id,
+        character_id: Id = TAR,
+        trim_start_pct: Annotated[float, Field(ge=0, le=1, strict=True)] = 0.0,
+        trim_end_pct: Annotated[float, Field(gt=0, le=1, strict=True)] = 1.0,
+        zone_duration: Annotated[float, Field(gt=0, le=3, strict=True)] = 2.0,
+        loop_mode: Literal["closed", "open"] = "closed",
+        zone_mode: Literal["modify", "extend"] = "modify",
+        zone_end_position: ZoneEndPosition | None = None,
+    ) -> dict[str, Any]:
+        """Create a new looped revision of an existing motion using the simplified preview API. May charge.
+
+        Published stitch/loop pricing is per generated output second, not just zone_duration.
+        Trim values are fractions from 0 to 1, not seconds or 0–100 percentages. Closed returns to the
+        start; open continues travel. Modify edits existing frames; extend adds a transition. Open-loop
+        targets use API planar x/y coordinates and optional facing_angle in radians; omit for inferred travel.
+        The backend samples poses; no fabricated pose data is needed. Preserve the source and request ID.
+        Allow at least 420 seconds in the host. A returned ID/metadata check does not certify a seamless loop;
+        review the resulting motion across repeated cycles. This preview API may change.
+        """
+        target = zone_end_position.model_dump(exclude_none=True) if zone_end_position is not None else None
+        return await ops().loop(
+            request_id,
+            motion_id,
+            character_id,
+            trim_start_pct,
+            trim_end_pct,
+            zone_duration,
+            loop_mode,
+            zone_mode,
+            target,
+        )
 
     @server.tool(annotations=READ)
     async def list_characters(

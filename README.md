@@ -1,7 +1,8 @@
 # Uthana MCP staging pilot
 
 This package lets a local coding-agent host generate and inspect Uthana motions,
-trim them into saved native revisions, upload videos and rigged characters, and
+trim or loop them into saved native revisions, generate characters from images,
+upload videos and rigged characters, and
 find recent saved motions, inspect usage, and export retargeted animation. It is a draft for engineering review, not a released
 or production-validated integration.
 
@@ -25,6 +26,7 @@ tools from `pyproject.toml` and the committed `uv.lock`. For a server-only envir
 use `uv sync --locked --no-dev`.
 
 This installs the exact Python-client revision used in
+[client PR #10](https://github.com/Uthana/uthana-python-client/pull/10), stacked on
 [client PR #9](https://github.com/Uthana/uthana-python-client/pull/9).
 That client change is awaiting review; published client 0.4.1 alone does not
 contain the additions. Git must be installed to resolve this temporary VCS pin.
@@ -108,6 +110,8 @@ update the existing public website index.
 | `get_preview_frame` | One decoded image plus frame index, timing when available, motion ID, and character ID |
 | `generate_motion_from_video` | Upload selected MP4/MOV/WebM; V2M 2.0 or 2.1 job |
 | `upload_character` | Upload selected FBX/GLB with compatibility warnings; `auto_rig=false` for rigged Mixamo files |
+| `create_character_from_image` | Selected PNG/JPEG to a generated rigged character; resumable preparation receipt |
+| `create_looped_motion` | New native closed/open loop from an existing motion using the preview API |
 | `list_characters` | Accessible character IDs in bounded result pages |
 | `list_motions` | Name search and listing within the API's recent motion window, with source labels and filters |
 | `get_usage` | Read-only organization PAYG USD balance/rates and separate monthly allowances |
@@ -115,7 +119,7 @@ update the existing public website index.
 | `save_motion` | Register host-edited, self-contained animated GLTF as a native revision |
 | `download_motion` | Retargeted FBX/GLB/BVH; 24/30/60 FPS, mesh, speed, torso-only, in-place, and Roblox options |
 
-The pilot exposes 19 tools. Resource: `uthana://workflow`. Prompt: `review_motion`.
+The pilot exposes 21 tools. Resource: `uthana://workflow`. Prompt: `review_motion`.
 The review prompt asks the host to check the original requirements and identify
 the three most useful improvements from actual visual evidence. It does not
 execute suggestions. This guidance is not a server-side approval system; the
@@ -151,6 +155,46 @@ the MCP before this cleanup; the cleanup adds offline regressions without new
 paid generations. The prototype UI has not migrated to this layer. Sparse image
 reviews do not establish complete motion quality or native host installation.
 
+## Image characters and existing-motion loops
+
+`create_character_from_image(request_id, file_path, name)` accepts one PNG/JPEG
+inside `UTHANA_MCP_INPUT_DIR`, bounded at 16 MiB and 16 megapixels. The extension
+must match its content; animated images are rejected. It uploads a validated byte
+snapshot, persists `progress.stage=image_prepared` with the intermediate character
+ID and image key, then generates/rigs the character with fingers included. Only
+`stage=character_created` is a completed character; confidence is not a visual review.
+
+Set the host deadline to **at least 1080 seconds**, longer for slow transfers.
+Preparation uses 360-second HTTP phase limits; finalization uses 660 seconds,
+with 15 seconds to connect. On a confirmed finalization rejection, an explicit
+same-ID/same-argument retry resumes from the saved image. Pending/unknown outcomes
+block resubmission. Use `get_request_status` to inspect progress or recover a result
+when the original image is unavailable. Do not generate again under a new ID to
+work around an uncertain outcome.
+
+`create_looped_motion(request_id, motion_id, ...)` calls the simplified
+[preview looping API](https://uthana.com/docs/api/capabilities/stitch-loop-motions).
+It creates a new saved motion and checks native metadata/source preservation.
+Trim bounds are fractions from 0 to 1; transition duration is greater than zero
+and at most 3 seconds in this pilot. Defaults are the full motion, a 2-second
+transition, `loop_mode=closed`, and `zone_mode=modify`. Closed loops return to the
+start, while open loops continue travel. Modify changes existing frames; extend
+adds transition frames. An optional open-loop target contains planar `x`, `y`,
+and optional `facing_angle` in radians; omitted targets use inferred travel.
+Allow at least 420 seconds at the host. The API is unstable and may change.
+
+Both tools retain their published prices. Estimate `character-gen-1.0` per
+character or `stitch-loop-2.0` per generated output second, using live rates.
+Loop transition duration alone is not the billable output duration. Actual cost
+remains unknown in receipts until measured. Preview/review the output before
+claiming character quality or a seamless loop.
+
+The separate agent PR still needs its tool allowlist, price/preflight handling,
+selected-image handling, skills, and timeouts updated before it can use these
+additions. Its current 210-second MCP timeout and 600-second overall default are
+too short for the worst-case image workflow. These MCP changes do not claim that
+agent integration or new paid live acceptance is complete.
+
 ## Source/API boundaries
 
 - `server.py`: protocol schemas, annotations, workflow resource, image content, and review prompt.
@@ -171,9 +215,10 @@ other integrations can reuse them. The MCP contains no parallel API transport or
 backend query documents and calls no private SDK methods.
 
 The client additions are proposed in
-[uthana-python-client PR #9](https://github.com/Uthana/uthana-python-client/pull/9).
+[uthana-python-client PR #10](https://github.com/Uthana/uthana-python-client/pull/10),
+which builds on [PR #9](https://github.com/Uthana/uthana-python-client/pull/9).
 This review candidate pins its exact commit
-`38fb2089d1c2c2ab2a785d85d5937b511569ec38` in `pyproject.toml` and the development
+`7921e2a01cdf2dd1c05b68ae2b196ade7ec986d4` in `pyproject.toml` and the development
 lock. Replace the VCS pin with the reviewed published version after the client
 team's release; published client 0.4.1 alone lacks these additions. Client initialization telemetry is disabled here, preserving
 keyless discovery and preventing incidental network calls. Staging-only access,
@@ -261,7 +306,7 @@ snapshot and internal product interview log are not copied into this package.
   Key rotation creates a new namespace; reconcile old work before repeating it.
 - `get_request_status` recovers completed receipts and known job/motion IDs from
   local state without calling Uthana. Repeating a completed operation with the
-  same request ID and arguments returns its original result. Trim/save recovery
+  same request ID and arguments returns its original result. Trim/save/loop recovery
   uses the historical source identity and reports `verification_status=not_rechecked`;
   it does not repeat native metadata checks or establish visual quality.
   Repeating `save_motion` still validates the supplied file's bytes. If the original

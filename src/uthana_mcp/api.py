@@ -8,7 +8,7 @@ import hashlib
 
 import httpx
 from uthana import Uthana
-from uthana.types import UthanaError
+from uthana.types import CharacterPreviewResult, UthanaError
 
 from .errors import APIError, graphql_error, read_error
 from .validation import STAGING, identifier, motion_metadata, normalize_job
@@ -181,6 +181,62 @@ class UthanaAPI:
             "compatibility_warning": warning[:2000] or None,
             "compatibility_warning_truncated": len(warning) > 2000,
         }
+
+    async def prepare_character_image(self, filename, content):
+        result = await self._call(
+            self.client.characters.prepare_from_image_bytes,
+            filename,
+            content,
+            max_bytes=16 * 1024 * 1024,
+            timeout=httpx.Timeout(360, connect=15),
+            mutation_field="create_image_from_image",
+        )
+        image_key = result.previews[0].get("key")
+        if not isinstance(image_key, str) or not image_key.strip() or len(image_key) > 1024:
+            raise APIError("Uthana returned an invalid prepared image key")
+        return {"stage": "image_prepared", "character_id": identifier(result.character_id), "image_key": image_key}
+
+    async def finalize_character_image(self, prepared, name):
+        pending = CharacterPreviewResult(character_id=prepared["character_id"], previews=[], prompt="")
+        result = await self._call(
+            self.client.characters.generate_from_image,
+            pending,
+            prepared["image_key"],
+            name=name,
+            include_fingers=True,
+            timeout=httpx.Timeout(660, connect=15),
+            mutation_field="create_character_from_image",
+        )
+        character_id = identifier(result.character["id"])
+        if character_id != prepared["character_id"]:
+            raise APIError("Character generation returned a different character ID; inspect the prepared ID")
+        return {"character_id": character_id, "auto_rig_confidence": result.auto_rig_confidence}
+
+    async def loop(
+        self,
+        motion_id,
+        character_id,
+        trim_start_pct,
+        trim_end_pct,
+        zone_duration,
+        loop_mode,
+        zone_mode,
+        zone_end_position,
+    ):
+        result = await self._call(
+            self.client.motions.create_looped_motion,
+            character_id,
+            motion_id,
+            trim_start_pct=trim_start_pct,
+            trim_end_pct=trim_end_pct,
+            zone_duration=zone_duration,
+            loop_mode=loop_mode,
+            zone_mode=zone_mode,
+            zone_end_position=zone_end_position,
+            timeout=httpx.Timeout(360, connect=15),
+            mutation_field="create_looped_motion",
+        )
+        return {"motion_id": identifier(result["id"]), "character_id": character_id}
 
     async def characters(self):
         return await self._call(self.client.characters.list, read_only=True)

@@ -6,6 +6,7 @@ import json
 import os
 import stat
 import time
+import warnings
 from pathlib import Path
 
 from PIL import Image
@@ -152,7 +153,7 @@ class Operations:
         if status["state"] != "complete" or not isinstance(result, dict):
             return status
         status["result"] = {**result, "replayed": True}
-        if status["operation"] in {"trim", "save"}:
+        if status["operation"] in {"trim", "save", "loop"}:
             status["result"] = self.recovered_saved(status["result"])
         if result.get("artifact_id"):
             try:
@@ -210,7 +211,7 @@ class Operations:
             }
         )
 
-    def read_input(self, filename, extensions):
+    def read_input(self, filename, extensions, max_bytes=MAX_UPLOAD_BYTES):
         if self.input_directory is None:
             raise ValueError("Configure UTHANA_MCP_INPUT_DIR to enable local-file uploads")
         path = Path(filename).expanduser().resolve(strict=True)
@@ -220,11 +221,11 @@ class Operations:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         with os.fdopen(fd, "rb") as f:
             info = os.fstat(f.fileno())
-            if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_UPLOAD_BYTES:
-                raise ValueError("Upload must be a regular file no larger than 128 MiB")
-            data = f.read(MAX_UPLOAD_BYTES + 1)
-        if not data or len(data) > MAX_UPLOAD_BYTES:
-            raise ValueError("Upload must contain 1 byte to 128 MiB")
+            if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
+                raise ValueError(f"Upload must be a regular file no larger than {max_bytes // (1024 * 1024)} MiB")
+            data = f.read(max_bytes + 1)
+        if not data or len(data) > max_bytes:
+            raise ValueError(f"Upload must contain 1 byte to {max_bytes // (1024 * 1024)} MiB")
         return path.name, data, hashlib.sha256(data).hexdigest()
 
     async def video(self, request_id, file_path, name, model="video-to-motion-2.0"):
@@ -244,6 +245,105 @@ class Operations:
         return await self.store.mutation(
             request_id, "upload_character", args, lambda: self.api.upload_character(filename, data, name, auto_rig)
         )
+
+    async def create_character_from_image(self, request_id, file_path, name):
+        text(name)
+        filename, data, digest = self.read_input(file_path, {".png", ".jpg", ".jpeg"}, 16 * 1024 * 1024)
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(io.BytesIO(data)) as image:
+                    expected = "PNG" if Path(filename).suffix.lower() == ".png" else "JPEG"
+                    if image.format != expected or image.width * image.height > 16_000_000:
+                        raise ValueError("Choose a PNG/JPEG image no larger than 16 megapixels")
+                    if getattr(image, "n_frames", 1) != 1:
+                        raise ValueError("Choose a single-frame reference image")
+                    image.verify()
+        except (OSError, SyntaxError, Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
+            raise ValueError("Choose a valid PNG/JPEG reference image") from error
+        args = {"filename": filename, "content_sha256": digest, "name": name}
+
+        async def invoke():
+            # A confirmed rejection in finalization can retry that stage without
+            # creating a second preview/character. Unknown outcomes remain blocked.
+            prepared = self.store.get_request(request_id).get("progress")
+            if prepared is None:
+                prepared = await self.api.prepare_character_image(filename, data)
+                self.store.record_progress(request_id, "character_from_image", prepared)
+            result = await self.api.finalize_character_image(prepared, name)
+            return {
+                **result,
+                "name": name,
+                "source_image_sha256": digest,
+                "review_status": "unreviewed",
+                "stage": "character_created",
+            }
+
+        return await self.store.mutation(request_id, "character_from_image", args, invoke)
+
+    async def loop(
+        self,
+        request_id,
+        motion_id,
+        character_id=TAR,
+        trim_start_pct=0.0,
+        trim_end_pct=1.0,
+        zone_duration=2.0,
+        loop_mode="closed",
+        zone_mode="modify",
+        zone_end_position=None,
+    ):
+        identifier(motion_id)
+        identifier(character_id)
+        number(trim_start_pct, 0, 1)
+        number(trim_end_pct, 0, 1)
+        number(zone_duration, 0, 3)
+        if trim_start_pct >= trim_end_pct or zone_duration <= 0:
+            raise ValueError("Require start < end and 0 < zone_duration <= 3 seconds")
+        if loop_mode not in {"closed", "open"} or zone_mode not in {"modify", "extend"}:
+            raise ValueError("Choose closed/open and modify/extend")
+        if zone_end_position is not None:
+            if (
+                loop_mode != "open"
+                or not isinstance(zone_end_position, dict)
+                or not {"x", "y"} <= zone_end_position.keys() <= {"x", "y", "facing_angle"}
+            ):
+                raise ValueError("An open-loop target requires x/y and optional facing_angle")
+            for value in zone_end_position.values():
+                number(value, -1e6, 1e6)
+        completed = self.store.completed(request_id, "loop")
+        source = completed["source"] if completed else await self.api.motion(motion_id)
+        args = {
+            "motion_id": motion_id,
+            "character_id": character_id,
+            "trim_start_pct": trim_start_pct,
+            "trim_end_pct": trim_end_pct,
+            "zone_duration": zone_duration,
+            "loop_mode": loop_mode,
+            "zone_mode": zone_mode,
+            "zone_end_position": zone_end_position,
+            "source_bundle_id": source["bundle_id"],
+            "source_bundle_sha256": source["bundle_sha256"],
+        }
+        if completed:
+            return self.recovered_saved(self.store.replay(request_id, "loop", args))
+
+        async def invoke():
+            provider_args = {k: v for k, v in args.items() if not k.startswith("source_bundle_")}
+            result = await self.api.loop(**provider_args)
+            return {
+                **result,
+                "source_motion_id": motion_id,
+                "source": source,
+                "loop_intended": True,
+                "loop_mode": loop_mode,
+                "zone_mode": zone_mode,
+                "review_status": "unreviewed",
+                "preview_api": True,
+            }
+
+        receipt = await self.store.mutation(request_id, "loop", args, invoke)
+        return await self.verify_saved(receipt)
 
     async def characters(self, offset=0, limit=50):
         page_bounds(offset, limit)

@@ -53,6 +53,44 @@ V2/V3/locomotion routing, uploads, previews, and export options. Historical live
 results below predate the client migration and do not prove live acceptance of
 the new client path. No new paid generation is needed for offline migration tests.
 
+## September 15: image creation and simplified looping
+
+The current dependency pins [client PR #10](https://github.com/Uthana/uthana-python-client/pull/10)
+at `7921e2a01cdf2dd1c05b68ae2b196ade7ec986d4`, stacked on client PR #9.
+
+This follow-up adds `create_character_from_image` and `create_looped_motion`,
+bringing discovery to 21 tools. **289 offline MCP tests pass** on Python 3.11.14,
+including real stdio invocation of both tools, actual shared-client serialization
+against synthetic HTTP, and package builds. A fresh `uv sync --locked --no-dev` installation
+resolves the exact client commit, starts without credentials, discovers all 21
+tools, and reads the bundled workflow with development tools absent. `uv lock
+--check` passes. The shared-client follow-up passes
+144 offline tests and its formatting, lint, and type checks.
+
+New regressions cover image content/size validation before upload, persisted
+preparation IDs, confirmed-rejection resume without reupload, uncertain outcomes
+and cancellation, database migration, loop modes/targets/fraction validation,
+source preservation checks, local replay, recoverable post-write metadata failure,
+and priced-but-unmeasured receipts. These are synthetic-provider checks, not
+proof of live generated character quality or a seamless loop.
+
+Remaining live acceptance:
+
+1. Use a deliberately selected reference image to generate one staging character;
+   record intermediate/final IDs, duration, actual charge, and inspect the rig.
+   Retarget a known motion and inspect the resulting asset.
+2. Loop an existing staging motion; inspect actual output duration and repeated
+   playback for continuity. Exercise closed/modify first, then open/extend if
+   needed, recording inputs and charges separately.
+3. Confirm host deadlines of at least 1080 seconds for image creation and 420 for
+   looping, extending for slow transfer. Test recovery by inspecting receipts,
+   without deliberately repeating an uncertain paid mutation.
+4. Update and test the separate agent's allowlist, pricing, input selection,
+   skills, and timeouts before claiming that agent can use these tools. This
+   follow-up changes the SDK and MCP only.
+
+No paid model calls or image uploads were performed for this follow-up.
+
 ## Cleanup regression evidence
 
 The pre-review cleanup adds real stdio retries with omitted versus explicit

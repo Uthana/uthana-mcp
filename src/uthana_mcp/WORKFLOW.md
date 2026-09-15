@@ -107,6 +107,32 @@ previous submission, and never execute the three review suggestions unasked.
   retains source lineage. It does not synthesize arm edits or translate arbitrary
   GLB/FBX into an editable rig. Inspect the newly saved motion before export.
 
+## Image characters and existing-motion loops
+
+- For a selected reference image, use create_character_from_image with an explicit
+  name and persistent request ID. The file must be inside the selected-input
+  directory: a single-frame PNG/JPEG, at most 16 MiB and 16 megapixels. This is
+  priced character generation, not the free upload of an already-rigged character.
+  Estimate character-gen-1.0 for one character using current rates.
+- The two synchronous stages can take many minutes. Allow at least 1080 seconds
+  at the host, plus extra transfer time. get_request_status preserves the
+  intermediate character ID/image key after preparation. image_prepared is not a
+  finished character. A confirmed finalization rejection may explicitly resume
+  the same request; unknown/pending results require staging inspection and must
+  not be retried under another ID. Completed results remain unreviewed.
+- To loop an existing performance, use create_looped_motion. New loopable travel
+  still starts with generate_locomotion when appropriate. Looping uses the
+  preview/unstable simplified API and preserves the source as a separate motion.
+  Trim percentages are fractions, not seconds. Choose closed to return to the
+  start or open to continue travel; choose modify to change existing frames or
+  extend to add transition frames. Optional open targets use planar x/y and a
+  facing_angle in radians. Omit targets for inferred travel.
+- Estimate stitch-loop-2.0 using expected generated output seconds, not merely
+  zone_duration. Allow at least 420 seconds at the host. Verify output timing,
+  source preservation, and repeated playback at the seam; a returned ID and
+  verified metadata alone do not establish seamless motion. Review suggestions
+  remain suggestions unless the user requests further changes.
+
 ## Video and two-character retargeting
 
 - generate_motion_from_video uploads a user-selected MP4/MOV/WebM and returns a
