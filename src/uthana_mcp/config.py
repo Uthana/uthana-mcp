@@ -5,7 +5,7 @@ import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .validation import STAGING, api_domain
+from .validation import PRODUCTION, api_domain
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class Settings:
     @classmethod
     def from_env(cls):
         return cls(
-            domain=api_domain(os.environ.get("UTHANA_DOMAIN", STAGING)),
+            domain=api_domain(os.environ.get("UTHANA_DOMAIN", PRODUCTION)),
             data_dir=os.environ.get("UTHANA_MCP_DATA_DIR", str(Path.home() / ".local/state/uthana-mcp")),
             input_dir=os.environ.get("UTHANA_MCP_INPUT_DIR") or None,
             key=os.environ.get("UTHANA_API_KEY", ""),

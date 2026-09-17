@@ -4,7 +4,7 @@ This guide targets Linux and macOS with Codex or Claude Code. macOS and native h
 
 ## Install the supplied version
 
-You need Git, Python 3.11 or later, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Use the approved repository/package and exact release revision supplied with your invitation. This development branch is not a published partner release. Do not install from a moving branch or request access to internal development repositories just to follow this guide.
+You need Git, Python 3.11 or later, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Use the approved repository/package and exact release revision supplied with your invitation. An unmerged development branch is a review candidate, not a published release. Do not install from a moving branch or request access to internal development repositories just to follow this guide.
 
 In the supplied checkout:
 
@@ -13,6 +13,14 @@ uv sync --locked --no-dev
 ```
 
 The shared client is temporarily pinned to a Git commit. Git must be able to reach its public repository. Keep this checkout and its `.venv` in a permanent location. Record the absolute path to `.venv/bin/uthana-mcp`; moving the checkout requires updating your host configuration.
+
+## Select the API environment
+
+Production (`uthana.com`) is the default. Keep the explicit production setting in the examples so the intended account is visible. Staging users must set `UTHANA_DOMAIN=staging.uthana.com` before upgrading from a staging-default version. For an authorized developer box, set a single-label hostname such as `devbox.uthana.dev` and use the key issued for that environment.
+
+The shared Python client constructs the HTTPS URLs. Schemes, ports, paths, other domains, and multi-label developer hosts are rejected. Redirects and authentication failures never cause a fallback to another environment. Initialization and the workflow resource report the selected hostname.
+
+Pass environment variables through the coding host configuration. The connector does not automatically load a project `.env`; this avoids silently selecting settings from an unrelated working directory. A launcher may explicitly load a trusted private `.env` before starting the server. Never commit it.
 
 ## Store your own API key
 

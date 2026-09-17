@@ -8,7 +8,7 @@ from uthana_mcp.validation import motion_metadata, normalize_job
 
 
 @pytest.mark.parametrize(
-    "domain", ["example.com", "staging.uthana.dev", "https://staging.uthana.com", "staging.uthana.com.evil"]
+    "domain", ["example.com", "staging.uthana.dev.evil", "https://staging.uthana.com", "staging.uthana.com.evil"]
 )
 def test_rejects_unapproved_domains(domain):
     with pytest.raises(ValueError):
@@ -63,7 +63,7 @@ def test_native_metadata_validation():
         motion_metadata(motion)
 
 
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com"])
+@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
 async def test_api_graphql_documents_and_export_routes(domain):
     requests = []
 
@@ -105,7 +105,7 @@ async def test_api_graphql_documents_and_export_routes(domain):
 
 
 @pytest.mark.parametrize("auto_rig", [False, True])
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com"])
+@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
 async def test_multipart_upload_and_save_contracts(auto_rig, domain):
     def respond(request):
         content = request.content.decode()
@@ -140,7 +140,7 @@ async def test_multipart_upload_and_save_contracts(auto_rig, domain):
 
 
 @pytest.mark.parametrize("status", [302, 401, 500])
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com"])
+@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
 async def test_errors_do_not_expose_body_or_follow_redirects(status, domain):
     requests = []
 
@@ -173,7 +173,7 @@ async def test_partial_graphql_errors_never_count_as_success():
         await api.close()
 
 
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com"])
+@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
 async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
     seen = []
 

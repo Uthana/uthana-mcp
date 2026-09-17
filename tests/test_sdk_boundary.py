@@ -39,7 +39,7 @@ async def test_old_completed_receipt_replays_without_sdk_submission(tmp_path):
     def forbidden(request):
         raise AssertionError("Switching to the shared client must not regenerate existing work")
 
-    api = UthanaAPI("fake", transport=httpx.MockTransport(forbidden))
+    api = UthanaAPI("fake", "staging.uthana.com", transport=httpx.MockTransport(forbidden))
     try:
         result = await Operations(api, tmp_path).generate("existing", "Walk", 4.0)
         assert result == {**original, "replayed": True}

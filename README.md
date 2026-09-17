@@ -16,13 +16,13 @@ This installs the package and development tools from `pyproject.toml` and `uv.lo
 
 The shared Python client is temporarily pinned to a Git commit until a reviewed client release includes the required APIs. Git is needed for this dependency. The lockfile records the exact revision; the pin will be replaced with a released version after review.
 
-The host starts `.venv/bin/uthana-mcp` as a stdio server. Tool discovery and the workflow resource work without credentials; Uthana operations require a key for the selected environment, supplied through a private file or the host environment.
+The host starts `.venv/bin/uthana-mcp` as a stdio server. **Production is the default.** Existing staging configurations must explicitly set `UTHANA_DOMAIN=staging.uthana.com` before upgrading. Tool discovery and the workflow resource work without credentials; Uthana operations require a key for the selected environment, supplied through a private file or the host environment.
 
 | Variable | Purpose |
 | --- | --- |
 | `UTHANA_API_KEY` | API key for the selected environment; use this or the private file option |
 | `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600; not a symlink |
-| `UTHANA_DOMAIN` | Defaults to `staging.uthana.com`; set `uthana.com` explicitly for production; all other values are rejected |
+| `UTHANA_DOMAIN` | Defaults to `uthana.com`; use `staging.uthana.com` or an explicit `<host>.uthana.dev` developer hostname to override |
 | `UTHANA_MCP_DATA_DIR` | Persistent private state; defaults to `~/.local/state/uthana-mcp` |
 | `UTHANA_MCP_INPUT_DIR` | Selected input files on the server machine; uploads disabled when absent |
 

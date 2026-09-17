@@ -15,16 +15,16 @@ def settings(path=None, key=""):
     return Settings(PRODUCTION, "/unused", None, key, str(path) if path else None)
 
 
-def test_default_stays_staging_and_settings_capture_environment(monkeypatch):
+def test_default_is_production_and_settings_capture_environment(monkeypatch):
     monkeypatch.delenv("UTHANA_DOMAIN", raising=False)
     monkeypatch.setenv("UTHANA_API_KEY", "private-test-key")
     original = Settings.from_env()
-    monkeypatch.setenv("UTHANA_DOMAIN", PRODUCTION)
+    monkeypatch.setenv("UTHANA_DOMAIN", STAGING)
     monkeypatch.setenv("UTHANA_API_KEY", "changed")
-    assert original.domain == STAGING
+    assert original.domain == PRODUCTION
     assert original.api_key() == "private-test-key"
     assert "private-test-key" not in repr(original)
-    assert Settings.from_env().domain == PRODUCTION
+    assert Settings.from_env().domain == STAGING
 
 
 @pytest.mark.parametrize(
@@ -125,18 +125,24 @@ async def test_production_errors_never_fall_back_or_leak(status):
 
 
 @pytest.mark.parametrize("link_domain,expected", [(PRODUCTION, "a" * 12), (STAGING, None), ("uthana.com.evil", None)])
-async def test_production_support_reference_matches_selected_origin(link_domain, expected):
+@pytest.mark.parametrize("domain", [PRODUCTION, "devbox.uthana.dev"])
+async def test_support_reference_matches_selected_origin(link_domain, expected, domain):
     def respond(request):
-        assert request.url.host == PRODUCTION
+        assert request.url.host == domain
         return httpx.Response(
             200,
             json={
                 "data": {"create_character": None},
-                "errors": [{"message": "private traceback", "link": f"https://{link_domain}/tb/{'a' * 12}"}],
+                "errors": [
+                    {
+                        "message": "private traceback",
+                        "link": f"https://{domain if link_domain == PRODUCTION else link_domain}/tb/{'a' * 12}",
+                    }
+                ],
             },
         )
 
-    api = UthanaAPI("fake", PRODUCTION, transport=httpx.MockTransport(respond))
+    api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
     try:
         with pytest.raises(APIError) as exc:
             await api.upload_character("rig.glb", b"fixture", "Rig", False)
@@ -160,3 +166,78 @@ async def test_key_file_not_read_for_discovery_and_configuration_stays_fixed(mon
     assert len(await server.list_tools()) == 22
     with pytest.raises(Exception, match="UTHANA_API_KEY_FILE"):
         await server._tool_manager.get_tool("get_usage").run({})
+
+
+@pytest.mark.parametrize("domain", ["devbox.uthana.dev", "test-2.uthana.dev"])
+async def test_developer_environment_routes_through_sdk_and_reports_origin(monkeypatch, tmp_path, domain):
+    from uthana_mcp.server import create_server
+
+    seen = []
+
+    def respond(request):
+        seen.append((request.url.scheme, request.url.host))
+        return httpx.Response(200, json={"data": {"create_text_to_motion_job": {"job": {"id": "job1"}}}})
+
+    api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
+    production = UthanaAPI("fake", PRODUCTION, transport=httpx.MockTransport(respond))
+    try:
+        assert api.scope != production.scope
+        assert str(api.client.base_url) == f"https://{domain}"
+        assert str(api.catalog_client.base_url) == f"https://{domain}"
+        await api.generate("Walk", 4, TAR)
+        assert seen == [("https", domain)]
+        monkeypatch.setenv("UTHANA_DOMAIN", domain)
+        monkeypatch.delenv("UTHANA_API_KEY", raising=False)
+        monkeypatch.delenv("UTHANA_API_KEY_FILE", raising=False)
+        server = create_server()
+        assert domain in server._mcp_server.instructions
+        assert len(await server.list_tools()) == 22
+        result = await server.read_resource("uthana://workflow")
+        assert domain in str(result)
+    finally:
+        await api.close()
+        await production.close()
+
+
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "uthana.dev",
+        "a.b.uthana.dev",
+        "devbox.uthana.dev.evil",
+        "devbox.uthana.dev:443",
+        "devbox.uthana.dev/path",
+        "user@devbox.uthana.dev",
+        "devbox.uthana.dev?x=y",
+        "-dev.uthana.dev",
+        "dev-.uthana.dev",
+        "localhost",
+        "127.0.0.1",
+        "https://devbox.uthana.dev",
+        "x" * 64 + ".uthana.dev",
+        "dev_box.uthana.dev",
+        "devbox.uthana.dev\n",
+        None,
+        [],
+    ],
+)
+def test_invalid_developer_origin_rejected(domain):
+    with pytest.raises(ValueError, match="UTHANA_DOMAIN"):
+        UthanaAPI("secret", domain)
+
+
+@pytest.mark.parametrize("status", [401, 403, 302, 307])
+async def test_developer_errors_do_not_redirect_credentials_or_fall_back(status):
+    seen = []
+
+    def respond(request):
+        seen.append(request.url.host)
+        return httpx.Response(status, text="private", headers={"location": "https://uthana.com/graphql"})
+
+    api = UthanaAPI("secret", "devbox.uthana.dev", transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(APIError):
+            await api.generate("Walk", 4, TAR)
+        assert seen == ["devbox.uthana.dev"]
+    finally:
+        await api.close()
