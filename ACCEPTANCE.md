@@ -1,46 +1,44 @@
-# MCP acceptance status
+# MCP acceptance procedure
 
-This record supports engineering review of the staging MCP. The September 14 [live acceptance record](LIVE-ACCEPTANCE-2026-09-14.md) covers text generation, locomotion, trimming, previews, export, and receipt recovery. It is historical evidence for those cases, not a complete release certification.
+Use this procedure to evaluate a specific connector revision and coding host. Record outcomes separately from these reusable instructions. Passing offline tests does not establish live API access, animation quality, or successful import into another application.
 
-## September 15 review fixes
+## Prepare
 
-| Finding | Change or disposition |
-| --- | --- |
-| Character listing exceeds the response cap | Separate 16 MiB catalog read, name filtering, bounded output pages, explicit scope and oversize error |
-| Requested upstream pagination | Deferred: staging introspection exposes no paging arguments on `characters`; requires an API and shared-client change |
-| Internal documentation references | Removed from package documentation |
-| License and metadata | Apache-2.0 license, package author and project URLs; temporary SDK commit pin documented |
-| Unresolved character upload | Saved upload name and inspection call; safe processing-error summaries and opaque support reference; recovery preserves uncertain state |
-| Historical upload root cause | Unresolved: its receipt discarded the original error details and saved no character ID. The fixture has a skeleton, so an unrigged-file diagnosis is not established. No duplicate submission was made |
-| Tool input descriptions | Descriptions on every tool parameter and nested pose field, with units and constraints |
-| Long synchronous calls | MCP start, activity, and completion notifications when requested; consistent host deadlines |
-| Missing motion/job and file-path errors | Specific not-found mapping for observed missing-resource responses; sanitized local-file errors |
-| Global review directive | Removed; optional review prompt retains its own format |
-| Documentation language | Short README, canonical workflow rules, consistent terminology and ASCII ranges |
-| Stitch sampling | Documented observed root-scale trap and unresolved hip-yaw convention; no fabricated sampling defaults |
+Record the connector and Python-client revisions, host/version, OS, active API domain, and enabled capabilities. Use a tester-controlled account, an explicitly authorized spending limit, and a persistent private state directory. Keep keys, private asset identifiers, billing records, and raw media outside public reports.
 
-The catalog workaround restores the reported account's listing but is not upstream pagination. The 16 MiB bound remains a finite ceiling. True pagination is still a release dependency for larger catalogs.
+Create or select accessible fixtures using [the prompt catalog](PROMPT-TESTS.md). A fixture ID from another account or environment is not portable. Before each paid case, inspect current prices and the requested quantity. Estimates are not measured charges; never infer zero cost from a missing value.
 
-For ambiguous character processing failures, the server cannot establish whether a partial character was created. It returns inspection guidance instead of treating the failure as a safe retry. A matching character name alone is insufficient to reconcile a request. Exact diagnosis of the historical failed upload requires upstream trace/log inspection or support.
+## Offline checks
 
-## Verification
+```sh
+uv sync --locked
+uv run --locked ./test.sh
+```
 
-`uv run --locked ./test.sh` runs offline protocol, SDK boundary, persistence, validation, formatting, lint, and package-build checks. Tests exercise response-size limits, name-filtered recovery, safe error mapping, complete parameter descriptions, and progress behavior including interruption.
+These run protocol, shared-client boundary, validation, recovery, formatting, lint, and packaging checks without calling Uthana models. Record the actual result for the revision under test, rather than keeping a fixed test count in this procedure.
 
-The revision passed 340 offline tests, lint/format checks, and source/wheel builds. The wheel contains the license, author, project URLs, and workflow resource.
+## Live checks
 
-Live verification through the revised stdio MCP used staging reads only. `list_characters(limit=1)` returned one result from 46,324 accessible characters. Name filtering returned a bounded recovery page. Missing motion, job, and preview IDs returned `category=not_found`. No model or character-generation submission was made in this pass.
+1. Discover the tools and read `uthana://workflow` without credentials. Then configure the selected environment's key, confirm the reported environment, and read account usage and characters. Start with `list_characters(limit=1)` and report its bounded catalog scope.
+2. Run the prompt catalog's generation cases within the approved budget. Poll asynchronous jobs to a usable motion ID, distinguish terminal failures from unresolved results, and record the chosen model and rationale.
+3. Read native metadata and inspect preview frames before, during, and after relevant events. Judge action fidelity separately from successful tool execution. Report frame indexes when preview timing is unavailable.
+4. Trim and inspect a separate result, leaving its source intact. Register a valid editor-produced GLTF when that fixture is available. Verify source identity and returned result IDs.
+5. Upload a selected video and rigged character; inspect their actual usability. Exercise image creation, loop, and stitch only with required entitlements, fixtures, and host skills. An experimental case with unmet prerequisites is blocked, not passed.
+6. Export the requested character, format, frame rate, and mesh options. Inspect the actual export; native previews do not show export-only changes. Import into the named destination to claim destination compatibility.
+7. Restart the connector and inspect/replay completed requests with their original IDs and arguments. Verify that generation is not submitted again. On an unknown outcome, inspect the receipt/job and reconcile before retrying. Do not intentionally interrupt paid work without authorization.
+8. Check missing resource and invalid local-file behavior. Errors must be actionable and avoid revealing credentials or raw filesystem details. With separately authorized accounts, verify private assets cannot be accessed across account boundaries.
+9. In each supported native host, verify image display, usable export paths, long-call deadlines, progress, restart recovery, and input-directory restrictions. Generic stdio tests do not establish native host behavior. Allow at least 420 seconds for character upload, loop and stitch, and 1080 seconds for image creation; transfers may need longer.
 
-The paid pre-release runbook remains a separate reviewer pass. It covers live execution of all 22 tools and is expected to cost approximately $1.80. That estimate is not a measured charge for this revision.
+## Record results
 
-## Remaining acceptance work
+For each catalog case record: prompt variant, prerequisite fixture references, expected behavior, observed tool sequence, API/protocol result, visual result, destination-import result if relevant, estimate, measured usage if attributable, and pass/fail/blocked with a reason. Record exact revisions and any operation/job IDs in private evidence.
 
-- Rerun the live runbook against the revised MCP and inspect the uploaded character's usability.
-- Resolve the historical upload through upstream diagnostics; preserve its existing unknown receipt.
-- Add upstream character pagination, then replace the bounded catalog workaround through the shared client.
-- Confirm the stitching hip-yaw convention and validate a host pose sampler against scale and facing.
-- Verify destination imports, including Roblox Studio, with supported characters.
-- Record native coding-host setup and timeout/progress behavior; bridge-based stdio checks alone do not establish every host's behavior.
-- Replace the temporary Python-client Git pin after a reviewed release.
+A connector case can pass while a generated motion fails its quality rubric. Do not present a model's missed action as a successful user outcome or assume it is necessarily a connector defect. Conversely, unsupported capabilities should be explained without fabricated execution.
 
-A fixed JSON output contract, authenticated remote hosting, and production rollout remain outside this review pass. No deployment or billing-setting change is part of acceptance.
+## Limitations to exercise
+
+- Character listing reads a catalog capped at 16 MiB before filtering locally. Smaller output pages do not make the upstream read smaller. Motion search covers a bounded recent window.
+- An ambiguous character upload may have created a partial asset. Use receipt inspection guidance and compare catalog candidates; a matching name alone does not prove completion or authorize a duplicate upload.
+- Stitching requires a validated host sampler, correct ancestor scale, and calibrated facing. See [the stitching contract](STITCHING.md). Typed inputs alone do not establish correct poses.
+- Model entitlements and export eligibility vary by account. Normal-user behavior must be tested separately from administrator behavior.
+- The temporary client commit pin, supported environments, and platform requirements are described in [README.md](README.md). Validate the released dependency before advertising a new connector release.
