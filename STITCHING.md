@@ -75,9 +75,9 @@ A live staging export used a root scale of approximately **0.0116**. A sampler t
 
 A correct loader composes the full transform hierarchy, including root and ancestor translation, rotation, and scale, before extracting world positions. Checking character height and pelvis height in meters provides a useful unit check. This repository does not include a pose sampler or silently rescale supplied coordinates.
 
-The API calls for hip-derived facing yaw but does not fully specify hip-axis order, cross-product order, or yaw zero direction. Reversing the hip vector flips facing by pi radians. The live review used a candidate convention of `forward = (right_hip - left_hip) cross up`, then `atan2(forward.x, forward.z)` (zero toward +Z, positive toward +X). That is an observed sampler convention, not a confirmed upstream contract.
+The API calls for hip-derived facing yaw but does not fully specify hip-axis order, cross-product order, or yaw zero direction. Reversing the hip vector flips facing by pi radians. One candidate convention is `forward = (right_hip - left_hip) cross up`, then `atan2(forward.x, forward.z)` (zero toward +Z, positive toward +X). This is not a confirmed upstream contract; validate it before using it.
 
-Integration needs a character with known forward facing to calibrate hip selection, vector order, and signs, followed by playback inspection of the join. An upstream convention clarification and a validated host sampler remain open work. The MCP cannot infer the intended yaw from a scalar or certify pose correctness.
+Integration needs a character with known forward facing to calibrate hip selection, vector order, and signs, followed by playback inspection of the join. Use an upstream-confirmed convention or a validated host sampler before submitting a stitch. The MCP cannot infer the intended yaw from a scalar or certify pose correctness.
 
 ## Execution and verification
 

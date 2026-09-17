@@ -37,7 +37,7 @@ Text generation defaults to Tar and four seconds. V2 accepts 4-10 seconds in 0.4
 
 V3 and video-to-motion (V2M) return job IDs; poll `get_job` about every 15 seconds. A finished job without a motion ID remains unresolved. V2 and locomotion return motion IDs directly. Locomotion duration follows strides and contacts rather than a requested number of seconds. Its speed is measured on the standard-height UE5 reference mannequin (Manny); taller or shorter characters scale accordingly.
 
-`replayed` reports local MCP receipt reuse only. `replayed=false` means the MCP called Uthana; it does not establish that Uthana created a new job or charged for new work. Uthana may deduplicate an identical video submitted under a new request ID and return a previously finished job. This occurred with no additional charge in staging testing, but future reuse or zero cost is not guaranteed. Inspect the returned job with `get_job` and use measured billing evidence for charge claims.
+`replayed` reports local MCP receipt reuse only. `replayed=false` means the MCP called Uthana; it does not establish that Uthana created a new job or charged for new work. Uthana may deduplicate an identical video submitted under a new request ID and return a previously finished job. Upstream reuse and zero cost are not guaranteed. Inspect the returned job with `get_job` and use measured billing evidence for charge claims.
 
 Read native timing with `get_motion`, then inspect frames before, during, and after relevant events using `get_preview` and `get_preview_frame`. Retain all user constraints when assessing the result.
 

@@ -1,6 +1,6 @@
 # Uthana MCP
 
-This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. This is a local beta candidate for engineering review; see [partner setup](PARTNER-SETUP.md) and [beta acceptance](BETA-ACCEPTANCE.md) before distributing it.
+This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. See [partner setup](PARTNER-SETUP.md) for local installation and [acceptance](BETA-ACCEPTANCE.md) for environment and host verification.
 
 The host supplies the reasoning model and any editing or pose-sampling skills. The server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and local stdio transport. A browser-hosted connector requires a separate authenticated remote transport.
 
@@ -79,7 +79,7 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 
 The server exposes 22 tools, the `uthana://workflow` resource, and the optional `review_motion` prompt.
 
-## Pricing and pilot limits
+## Pricing and limitations
 
 The [workflow](src/uthana_mcp/WORKFLOW.md) defines pricing, request recovery, and review behavior. The [coverage guide](COVERAGE.md) lists limitations, including local character pagination and the host's responsibility for stitching pose samples. Looping and stitching use preview APIs whose contracts can change.
 
@@ -88,8 +88,8 @@ The [workflow](src/uthana_mcp/WORKFLOW.md) defines pricing, request recovery, an
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)
 - [API coverage](COVERAGE.md)
 - [Stitching pose contract](STITCHING.md)
-- [Acceptance status](ACCEPTANCE.md)
-- [Recorded staging evidence](LIVE-ACCEPTANCE-2026-09-14.md)
+- [Acceptance procedure](ACCEPTANCE.md)
+- [Example prompts and expected outcomes](PROMPT-TESTS.md)
 - [Public API documentation](https://uthana.com/docs/api)
 
 Context7 can provide optional documentation lookup alongside this operational MCP. Uthana's library identifier is `/websites/uthana_api`; documentation versions can differ from the installed tool schema.
