@@ -1,12 +1,12 @@
 # Uthana MCP
 
-This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. It is a staging draft for engineering review.
+This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. This is a local beta candidate for engineering review; see [partner setup](PARTNER-SETUP.md) and [beta acceptance](BETA-ACCEPTANCE.md) before distributing it.
 
 The host supplies the reasoning model and any editing or pose-sampling skills. The server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and local stdio transport. A browser-hosted connector requires a separate authenticated remote transport.
 
 ## Install and connect
 
-Requirements: Linux, Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Windows is not yet tested or supported.
+Targets: Linux and macOS (macOS verification pending), Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Windows is not yet tested or supported.
 
 ```sh
 uv sync --locked
@@ -16,12 +16,13 @@ This installs the package and development tools from `pyproject.toml` and `uv.lo
 
 The shared Python client is temporarily pinned to a Git commit until a reviewed client release includes the required APIs. Git is needed for this dependency. The lockfile records the exact revision; the pin will be replaced with a released version after review.
 
-The host starts `.venv/bin/uthana-mcp` as a stdio server. Tool discovery and the workflow resource work without credentials; Uthana operations require a staging key supplied through the host's private environment.
+The host starts `.venv/bin/uthana-mcp` as a stdio server. Tool discovery and the workflow resource work without credentials; Uthana operations require a key for the selected environment, supplied through a private file or the host environment.
 
 | Variable | Purpose |
 | --- | --- |
-| `UTHANA_API_KEY` | Staging API key |
-| `UTHANA_DOMAIN` | Defaults to `staging.uthana.com`; other domains are rejected |
+| `UTHANA_API_KEY` | API key for the selected environment; use this or the private file option |
+| `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600; not a symlink |
+| `UTHANA_DOMAIN` | Defaults to `staging.uthana.com`; set `uthana.com` explicitly for production; all other values are rejected |
 | `UTHANA_MCP_DATA_DIR` | Persistent private state; defaults to `~/.local/state/uthana-mcp` |
 | `UTHANA_MCP_INPUT_DIR` | Selected input files on the server machine; uploads disabled when absent |
 
@@ -32,14 +33,15 @@ A host-neutral connection descriptor, with field names adapted to the host:
   "command": "/absolute/path/to/venv/bin/uthana-mcp",
   "args": [],
   "env": {
-    "UTHANA_DOMAIN": "staging.uthana.com",
+    "UTHANA_DOMAIN": "uthana.com",
+    "UTHANA_API_KEY_FILE": "/absolute/path/to/private-api-key",
     "UTHANA_MCP_DATA_DIR": "/absolute/path/to/private-state",
     "UTHANA_MCP_INPUT_DIR": "/absolute/path/to/selected-inputs"
   }
 }
 ```
 
-The key belongs in the host's protected environment, outside this descriptor and Git. Inputs and exported files live on the server machine; remote hosts need a way to transfer those files.
+Only the key file path belongs in this descriptor. Keep the key itself outside prompts and Git; setting both key options is an error. Restart the server after changing environment or credentials. Production operations use the customer account and its credits. Authentication failures never switch environments. Inputs and exported files live on the server machine; remote hosts need a way to transfer those files.
 
 | Operation | Host tool timeout |
 | --- | --- |
@@ -98,6 +100,6 @@ Context7 can provide optional documentation lookup alongside this operational MC
 uv run --locked ./test.sh
 ```
 
-The checks run offline tests, formatting, lint, and package builds. Live model acceptance is a separate staging run that incurs model charges.
+The checks run offline tests, formatting, lint, and package builds. Live model acceptance is a separate explicitly configured run that incurs model charges; tests must not silently select production.
 
 Licensed under [Apache-2.0](LICENSE).

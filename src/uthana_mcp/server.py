@@ -4,11 +4,9 @@ import asyncio
 import base64
 import inspect
 import json
-import os
 from contextlib import asynccontextmanager
 from importlib.metadata import version
 from importlib.resources import files
-from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -17,10 +15,11 @@ from mcp.types import ImageContent, TextContent, ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
 from .api import UthanaAPI
+from .config import Settings
 from .errors import APIError
 from .operations import Operations
 from .stitching import StitchClip
-from .validation import STAGING, TAR
+from .validation import TAR
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
@@ -117,13 +116,16 @@ async def with_progress(ctx, operation, label):
 def create_server(operations=None):
     """Dependency injection supports a real stdio client test with an offline provider."""
     runtime = operations
+    settings = Settings.from_env()
+    domain = (
+        inspect.getattr_static(operations.api, "domain", settings.domain) if operations is not None else settings.domain
+    )
 
     def ops():
         nonlocal runtime
         if runtime is None:
-            api = UthanaAPI(os.environ.get("UTHANA_API_KEY", ""), os.environ.get("UTHANA_DOMAIN", STAGING))
-            directory = os.environ.get("UTHANA_MCP_DATA_DIR", str(Path.home() / ".local/state/uthana-mcp"))
-            runtime = Operations(api, directory, os.environ.get("UTHANA_MCP_INPUT_DIR"))
+            api = UthanaAPI(settings.api_key(), settings.domain)
+            runtime = Operations(api, settings.data_dir, settings.input_dir)
         return runtime
 
     @asynccontextmanager
@@ -135,10 +137,10 @@ def create_server(operations=None):
                 await runtime.api.close()
 
     server = FastMCP(
-        "Uthana staging",
+        f"Uthana ({domain})",
         lifespan=lifespan,
         instructions=(
-            "Read uthana://workflow before your first operation. Staging environment only. "
+            f"Configured API environment: {domain}. Read uthana://workflow before your first operation. "
             "Follow its request recovery and untrusted-data rules."
         ),
     )
@@ -159,7 +161,7 @@ def create_server(operations=None):
         mime_type="text/markdown",
     )
     def workflow() -> str:
-        return files("uthana_mcp").joinpath("WORKFLOW.md").read_text()
+        return f"Active API environment: {domain}.\n\n" + files("uthana_mcp").joinpath("WORKFLOW.md").read_text()
 
     @tool(annotations=WRITE)
     async def generate_motion(

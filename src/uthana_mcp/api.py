@@ -1,7 +1,7 @@
 """MCP result normalization over the shared Uthana Python client's public modules.
 
 The client owns API documents, multipart handling, routes, and HTTP transport.
-This layer applies staging configuration and conservative, redacted MCP outcomes.
+This layer applies explicit environment configuration and conservative, redacted MCP outcomes.
 """
 
 import hashlib
@@ -11,13 +11,12 @@ from uthana import Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .errors import APIError, graphql_error, read_error
-from .validation import STAGING, identifier, motion_metadata, normalize_job
+from .validation import STAGING, api_domain, identifier, motion_metadata, normalize_job
 
 
 class UthanaAPI:
     def __init__(self, key: str, domain: str = STAGING, *, transport=None):
-        if domain != STAGING:
-            raise ValueError("This pilot requires UTHANA_DOMAIN=staging.uthana.com; no production fallback")
+        self.domain = api_domain(domain)
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((domain + ":" + key).encode()).hexdigest()
@@ -54,7 +53,7 @@ class UthanaAPI:
         except UthanaError as error:
             if error.kind == "graphql" and isinstance(error.response_data, dict):
                 raise graphql_error(
-                    error.response_data, mutation_field, read_only=read_only, resource=resource
+                    error.response_data, mutation_field, read_only=read_only, resource=resource, domain=self.domain
                 ) from None
             if error.kind == "http":
                 status = error.status_code
@@ -65,7 +64,11 @@ class UthanaAPI:
                     raise read_error(category, http_status=status) from None
                 if status in (401, 403):
                     category = "authentication" if status == 401 else "permission"
-                    action = "Correct the staging API key" if status == 401 else "Check account and asset permissions"
+                    action = (
+                        "Check the API key for the configured Uthana environment"
+                        if status == 401
+                        else "Check account and asset permissions"
+                    )
                     raise APIError(
                         f"Uthana rejected this request (HTTP {status}). {action}.",
                         category=category,

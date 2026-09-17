@@ -2,6 +2,8 @@
 
 import re
 
+from .validation import STAGING, api_domain
+
 
 class APIError(RuntimeError):
     def __init__(
@@ -34,7 +36,10 @@ class APIError(RuntimeError):
 
 
 REJECTIONS = {
-    "LoginRequired": ("authentication", "Uthana rejected authentication. Correct the staging API key."),
+    "LoginRequired": (
+        "authentication",
+        "Uthana rejected authentication. Check the API key for the configured Uthana environment.",
+    ),
     "RoleRequired": ("permission", "Uthana rejected this request because the account lacks permission."),
     "UserAccessRequired": ("permission", "Uthana rejected access to the requested asset."),
     "RegionRestricted": ("region", "Uthana rejected this model for the account's region."),
@@ -44,7 +49,7 @@ REJECTIONS = {
 
 READ_FAILURES = {
     "not_found": "Motion, character, or job not found or not accessible to this account. Verify the ID.",
-    "authentication": "Uthana could not authenticate this read request. Correct the staging API key.",
+    "authentication": "Uthana could not authenticate this read request. Check the API key for the configured Uthana environment.",
     "permission": "Uthana denied this read request. Check account and asset permissions.",
     "region": "Uthana denied this read request for the account's region.",
     "balance": "Uthana denied this read request because the account has insufficient balance.",
@@ -62,7 +67,8 @@ def read_error(category="graphql_error", *, http_status=None):
     return APIError(message, category=category, outcome="not_applicable", http_status=http_status)
 
 
-def graphql_error(result, mutation_field=None, *, read_only=False, resource=None):
+def graphql_error(result, mutation_field=None, *, read_only=False, resource=None, domain=STAGING):
+    domain = api_domain(domain)
     errors = result.get("errors")
     recognized = (
         isinstance(errors, list)
@@ -103,7 +109,7 @@ def graphql_error(result, mutation_field=None, *, read_only=False, resource=None
         for error in rows:
             link = error.get("link", "") if isinstance(error, dict) else ""
             match = (
-                re.fullmatch(r"https://staging\.uthana\.com/tb/([a-f0-9]{12,64})", link)
+                re.fullmatch(rf"https://{re.escape(domain)}/tb/([a-f0-9]{{12,64}})", link)
                 if isinstance(link, str)
                 else None
             )

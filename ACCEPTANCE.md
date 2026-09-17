@@ -1,6 +1,6 @@
 # MCP acceptance status
 
-This record supports engineering review of the staging MCP. The September 14 [live acceptance record](LIVE-ACCEPTANCE-2026-09-14.md) covers text generation, locomotion, trimming, previews, export, and receipt recovery. It is historical evidence for those cases, not a complete release certification.
+This record supports engineering review of the staging MCP baseline. The production follow-up has a separate [beta acceptance checklist](BETA-ACCEPTANCE.md). The September 14 [live acceptance record](LIVE-ACCEPTANCE-2026-09-14.md) covers text generation, locomotion, trimming, previews, export, and receipt recovery. It is historical evidence for those cases, not a complete release certification.
 
 ## September 15 review fixes
 
@@ -43,4 +43,4 @@ The paid pre-release runbook remains a separate reviewer pass. It covers live ex
 - Record native coding-host setup and timeout/progress behavior; bridge-based stdio checks alone do not establish every host's behavior.
 - Replace the temporary Python-client Git pin after a reviewed release.
 
-A fixed JSON output contract, authenticated remote hosting, and production rollout remain outside this review pass. No deployment or billing-setting change is part of acceptance.
+A fixed JSON output contract and authenticated remote hosting remain outside this review pass. Production rollout is tracked separately in the beta checklist. No deployment or billing-setting change is part of acceptance.

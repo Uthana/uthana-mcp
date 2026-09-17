@@ -6,6 +6,13 @@ import re
 
 TAR = "cXi2eAP19XwQ"
 STAGING = "staging.uthana.com"
+PRODUCTION = "uthana.com"
+
+
+def api_domain(value: str) -> str:
+    if value not in (STAGING, PRODUCTION):
+        raise ValueError("UTHANA_DOMAIN must be staging.uthana.com or uthana.com; no automatic fallback")
+    return value
 
 
 def identifier(value: str) -> str:

@@ -120,6 +120,7 @@ async def test_estimates_use_live_rates_and_are_not_charges(tmp_path):
     prices = await api.prices()
     prices[0]["unit_price"] = "0.04"
     assert estimate_cost(prices, "text-to-motion-2.0", 4)["estimated_cost_usd"] == "0.1600"
+    assert "staging" not in estimate_cost(prices, "text-to-motion-3.0", 4)["rate_source"]
     for rates in ([], [prices[0], prices[0]], [{**prices[0], "billing_unit": "rig"}]):
         with pytest.raises(APIError):
             estimate_cost(rates, "text-to-motion-2.0", 4)
