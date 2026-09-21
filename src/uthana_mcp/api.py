@@ -187,16 +187,19 @@ class UthanaAPI:
         )
         return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "model": model}
 
-    async def upload_character(self, filename, content, name, auto_rig):
+    async def upload_character(
+        self, filename, content, name, auto_rig, front_facing=True, include_fingers=True, rerig_target=None
+    ):
         result = await self._call(
             self.client.characters.create_from_bytes,
             filename,
             content,
             name=name,
             auto_rig=auto_rig,
-            # Preserve defaults previously applied when the direct mutation omitted these fields.
-            front_facing=True,
-            include_fingers=True,
+            # Defaults match those previously applied when the direct mutation omitted these fields.
+            front_facing=front_facing,
+            include_fingers=include_fingers,
+            rerig_target=rerig_target,
             timeout=httpx.Timeout(360, connect=15),
             mutation_field="create_character",
         )

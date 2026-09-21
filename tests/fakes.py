@@ -67,8 +67,22 @@ class FakeAPI:
     async def characters(self):
         return [{"id": "mixamo1", "name": "First"}, {"id": "mixamo2", "name": "Second"}]
 
-    async def upload_character(self, filename, content, name, auto_rig):
-        self.calls.append(("upload_character", {"filename": filename, "content": content, "auto_rig": auto_rig}))
+    async def upload_character(
+        self, filename, content, name, auto_rig, front_facing=True, include_fingers=True, rerig_target=None
+    ):
+        self.calls.append(
+            (
+                "upload_character",
+                {
+                    "filename": filename,
+                    "content": content,
+                    "auto_rig": auto_rig,
+                    "front_facing": front_facing,
+                    "include_fingers": include_fingers,
+                    "rerig_target": rerig_target,
+                },
+            )
+        )
         count = sum(call[0] == "upload_character" for call in self.calls)
         return {"character_id": f"mixamo{count}"}
 

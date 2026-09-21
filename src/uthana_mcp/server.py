@@ -389,14 +389,34 @@ def create_server(operations=None):
                 description="Whether to generate a skeleton using the priced auto-rig capability; false for already-rigged files."
             ),
         ] = False,
+        front_facing: Annotated[
+            bool,
+            Field(description="Rotate an auto-rigged character to face forward. Applies when a skeleton is generated."),
+        ] = True,
+        include_fingers: Annotated[
+            bool,
+            Field(
+                description="Include finger joints in a generated skeleton. On meshes with poor finger geometry, false can improve rig quality."
+            ),
+        ] = True,
+        rerig_target: Annotated[
+            Literal["r15", "ue5"] | None,
+            Field(
+                description="Convert the skeleton to a target format: r15 (Roblox) or ue5 (Unreal Engine 5). Requires pelvis, hip, and shoulder joints. Omit to keep the original skeleton."
+            ),
+        ] = None,
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Upload a selected FBX/GLB, at most 128 MiB. Use auto_rig=false for already-rigged characters. Returns
-        compatibility warnings when available. See workflow handling of untrusted backend data. Allow at least
-        420 seconds in the host tool timeout, longer for slow transfers. Reports MCP progress when requested.
+        """Upload a selected FBX/GLB, at most 128 MiB. Use auto_rig=false for already-rigged characters. For a
+        Roblox-compatible export later, upload with rerig_target=r15. Returns auto_rig_confidence (0-1; inspect
+        previews before further spend on low values) and compatibility warnings when available. See workflow
+        handling of untrusted backend data. Allow at least 420 seconds in the host tool timeout, longer for slow
+        transfers. Reports MCP progress when requested.
         """
         return await with_progress(
-            ctx, ops().upload_character(request_id, file_path, name, auto_rig), "upload_character"
+            ctx,
+            ops().upload_character(request_id, file_path, name, auto_rig, front_facing, include_fingers, rerig_target),
+            "upload_character",
         )
 
     @tool(annotations=WRITE)

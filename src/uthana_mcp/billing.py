@@ -70,8 +70,9 @@ def receipt_billing(operation, args):
     }.get(operation)
     if operation == "upload_character" and args.get("auto_rig") is True:
         model = "autorig"
+    # Skeleton conversion (rerig_target) has no published price entry; do not assert it is free.
     free = operation in {"trim", "save", "download", "preview"} or (
-        operation == "upload_character" and args.get("auto_rig") is False
+        operation == "upload_character" and args.get("auto_rig") is False and not args.get("rerig_target")
     )
     return {
         "api_mcp_fee_usd": "0",
