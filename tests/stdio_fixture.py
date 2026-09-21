@@ -1,4 +1,4 @@
-"""Real MCP server process with an offline provider. Never reads staging credentials."""
+"""Real MCP server process with an offline provider. Never reads API credentials."""
 
 import sys
 from pathlib import Path

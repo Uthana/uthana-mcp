@@ -1,7 +1,7 @@
 """MCP result normalization over the shared Uthana Python client's public modules.
 
 The client owns API documents, multipart handling, routes, and HTTP transport.
-This layer applies staging configuration and conservative, redacted MCP outcomes.
+This layer applies explicit environment configuration and conservative, redacted MCP outcomes.
 """
 
 import hashlib
@@ -11,21 +11,20 @@ from uthana import Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .errors import APIError, graphql_error, read_error
-from .validation import STAGING, identifier, motion_metadata, normalize_job
+from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
 
 
 class UthanaAPI:
-    def __init__(self, key: str, domain: str = STAGING, *, transport=None):
-        if domain != STAGING:
-            raise ValueError("This pilot requires UTHANA_DOMAIN=staging.uthana.com; no production fallback")
+    def __init__(self, key: str, domain: str | None = None, *, transport=None):
+        self.domain = domain or UTHANA_DOMAIN
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
-        self.scope = hashlib.sha256((domain + ":" + key).encode()).hexdigest()
+        self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
         # The current API has no upstream character pagination. Isolate its
         # larger, bounded catalog response from all mutation/metadata limits.
         self.catalog_client = Uthana(
             key,
-            domain=domain,
+            domain=self.domain,
             timeout=httpx.Timeout(180, connect=15),
             telemetry=False,
             trust_env=False,
@@ -34,7 +33,7 @@ class UthanaAPI:
         )
         self.client = Uthana(
             key,
-            domain=domain,
+            domain=self.domain,
             timeout=httpx.Timeout(180, connect=15),
             telemetry=False,
             trust_env=False,
@@ -65,7 +64,11 @@ class UthanaAPI:
                     raise read_error(category, http_status=status) from None
                 if status in (401, 403):
                     category = "authentication" if status == 401 else "permission"
-                    action = "Correct the staging API key" if status == 401 else "Check account and asset permissions"
+                    action = (
+                        "Check the API key for the configured Uthana environment"
+                        if status == 401
+                        else "Check account and asset permissions"
+                    )
                     raise APIError(
                         f"Uthana rejected this request (HTTP {status}). {action}.",
                         category=category,

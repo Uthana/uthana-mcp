@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -134,19 +135,23 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 assert bad.isError
 
 
-async def test_actual_entrypoint_discovers_without_credentials():
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_actual_entrypoint_discovers_without_credentials(domain):
     params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "uthana_mcp.server"],
         env={
             "UTHANA_API_KEY": "",
-            "UTHANA_DOMAIN": "staging.uthana.com",
+            "UTHANA_DOMAIN": domain,
             "PYTHONPATH": str(Path(uthana_mcp.__file__).resolve().parent.parent),
         },
     )
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as client:
-            await client.initialize()
+            initialized = await client.initialize()
+            assert domain in initialized.instructions
+            workflow = await client.read_resource("uthana://workflow")
+            assert domain in workflow.contents[0].text.splitlines()[0]
             assert len((await client.list_tools()).tools) == 22
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

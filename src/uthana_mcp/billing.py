@@ -51,7 +51,7 @@ def estimate_cost(rates, model, quantity):
         "api_mcp_fee_usd": "0",
         "agent_token_fee_usd": "0",
         "pricing_url": PRICING_URL,
-        "rate_source": "staging GraphQL payg_prices",
+        "rate_source": "configured Uthana environment: GraphQL payg_prices",
         "note": "Estimate for the supplied output quantity, not a measured debit. Public capability mapping was "
         "checked against the pricing page on 2026-09-14. Reconcile any rate mismatch with that page; "
         "never invent a credits-to-USD conversion. Actual generated duration and account terms may differ.",

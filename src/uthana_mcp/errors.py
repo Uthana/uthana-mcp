@@ -1,7 +1,5 @@
 """Redacted upstream errors with conservative submission outcomes."""
 
-import re
-
 
 class APIError(RuntimeError):
     def __init__(
@@ -11,14 +9,12 @@ class APIError(RuntimeError):
         category="provider_error",
         outcome="unknown",
         http_status=None,
-        support_reference=None,
         upstream_summary=None,
     ):
         super().__init__(message)
         self.category = category
         self.outcome = outcome
         self.http_status = http_status
-        self.support_reference = support_reference
         self.upstream_summary = upstream_summary
 
     def details(self):
@@ -28,13 +24,15 @@ class APIError(RuntimeError):
             "http_status": self.http_status,
             "message": str(self),
             "safe_to_resubmit": self.outcome == "rejected",
-            **({"support_reference": self.support_reference} if self.support_reference else {}),
             **({"upstream_summary": self.upstream_summary} if self.upstream_summary else {}),
         }
 
 
 REJECTIONS = {
-    "LoginRequired": ("authentication", "Uthana rejected authentication. Correct the staging API key."),
+    "LoginRequired": (
+        "authentication",
+        "Uthana rejected authentication. Check the API key for the configured Uthana environment.",
+    ),
     "RoleRequired": ("permission", "Uthana rejected this request because the account lacks permission."),
     "UserAccessRequired": ("permission", "Uthana rejected access to the requested asset."),
     "RegionRestricted": ("region", "Uthana rejected this model for the account's region."),
@@ -44,7 +42,7 @@ REJECTIONS = {
 
 READ_FAILURES = {
     "not_found": "Motion, character, or job not found or not accessible to this account. Verify the ID.",
-    "authentication": "Uthana could not authenticate this read request. Correct the staging API key.",
+    "authentication": "Uthana could not authenticate this read request. Check the API key for the configured Uthana environment.",
     "permission": "Uthana denied this read request. Check account and asset permissions.",
     "region": "Uthana denied this read request for the account's region.",
     "balance": "Uthana denied this read request because the account has insufficient balance.",
@@ -99,17 +97,6 @@ def graphql_error(result, mutation_field=None, *, read_only=False, resource=None
         return APIError(message, category=rejection_category, outcome="rejected")
     if mutation_field == "create_character" and category == "graphql_error":
         rows = errors if isinstance(errors, list) else []
-        reference = None
-        for error in rows:
-            link = error.get("link", "") if isinstance(error, dict) else ""
-            match = (
-                re.fullmatch(r"https://staging\.uthana\.com/tb/([a-f0-9]{12,64})", link)
-                if isinstance(link, str)
-                else None
-            )
-            if match:
-                reference = match[1]
-                break
         summary = "Character processing did not return a confirmed result."
         category = "character_processing"
         signatures = (
@@ -143,9 +130,8 @@ def graphql_error(result, mutation_field=None, *, read_only=False, resource=None
                     break
         return APIError(
             summary + " Inspect list_characters by name and get_request_status before another upload. "
-            "If no usable character is found, contact Uthana support with the request ID and support reference.",
+            "If no usable character is found, contact Uthana support with the request ID.",
             category=category,
-            support_reference=reference,
             upstream_summary=summary,
         )
     if category != "graphql_error":

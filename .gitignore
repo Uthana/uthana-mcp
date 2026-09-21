@@ -1,5 +1,6 @@
 .venv/
 .env
+.env.local
 run-data/
 inputs/
 __pycache__/

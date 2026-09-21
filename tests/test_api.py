@@ -7,16 +7,10 @@ from uthana_mcp.api import APIError, UthanaAPI
 from uthana_mcp.validation import motion_metadata, normalize_job
 
 
-@pytest.mark.parametrize(
-    "domain", ["uthana.com", "staging.uthana.dev", "https://staging.uthana.com", "staging.uthana.com.evil"]
-)
-def test_rejects_non_staging_domains(domain):
-    with pytest.raises(ValueError):
-        UthanaAPI("fake", domain)
-
-
-async def test_correct_staging_configuration():
-    api = UthanaAPI("fake", "staging.uthana.com")
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_uses_configured_host(domain):
+    api = UthanaAPI("fake", domain)
+    assert api.domain == domain
     await api.close()
 
 
@@ -63,12 +57,13 @@ def test_native_metadata_validation():
         motion_metadata(motion)
 
 
-async def test_api_graphql_documents_and_export_routes():
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_api_graphql_documents_and_export_routes(domain):
     requests = []
 
     def respond(request):
         requests.append(request)
-        assert request.url.host == "staging.uthana.com"
+        assert request.url.host == domain
         assert request.headers["authorization"] == "Basic ZmFrZTo="
         if request.url.path == "/graphql":
             document = json.loads(request.content)
@@ -92,7 +87,7 @@ async def test_api_graphql_documents_and_export_routes():
         }
         return httpx.Response(200, content=b"export")
 
-    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
     try:
         assert (await api.generate("Jump", 4, "tar"))["job_id"] == "job1"
         assert (await api.trim("motion1", 0.25, 0.75, "Middle"))["motion_id"] == "trimmed1"
@@ -104,7 +99,8 @@ async def test_api_graphql_documents_and_export_routes():
 
 
 @pytest.mark.parametrize("auto_rig", [False, True])
-async def test_multipart_upload_and_save_contracts(auto_rig):
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_multipart_upload_and_save_contracts(auto_rig, domain):
     def respond(request):
         content = request.content.decode()
         if "multipart/form-data" in request.headers["content-type"]:
@@ -126,7 +122,7 @@ async def test_multipart_upload_and_save_contracts(auto_rig):
         }
         return httpx.Response(200, json={"data": {"create_motion_from_gltf": {"motion": {"id": "saved1"}}}})
 
-    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
     try:
         assert (await api.video("walk.mp4", b"fixture-bytes", "Walk", "video-to-motion-2.1"))["job_id"] == "job1"
         assert (await api.upload_character("rig.fbx", b"fixture-bytes", "Rig", auto_rig))[
@@ -138,14 +134,15 @@ async def test_multipart_upload_and_save_contracts(auto_rig):
 
 
 @pytest.mark.parametrize("status", [302, 401, 500])
-async def test_errors_do_not_expose_body_or_follow_redirects(status):
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_errors_do_not_expose_body_or_follow_redirects(status, domain):
     requests = []
 
     def respond(request):
         requests.append(request)
         return httpx.Response(status, text="secret-provider-detail", headers={"location": "https://elsewhere.invalid"})
 
-    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
     try:
         with pytest.raises(APIError) as exc:
             await api.job("job1")
@@ -170,12 +167,13 @@ async def test_partial_graphql_errors_never_count_as_success():
         await api.close()
 
 
-async def test_catalog_usage_eligibility_and_export_effects_contracts():
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
     seen = []
 
     def respond(request):
         seen.append(request)
-        assert request.url.host == "staging.uthana.com"
+        assert request.url.host == domain
         if request.url.path == "/graphql":
             body = json.loads(request.content)
             query = body["query"]
@@ -207,7 +205,7 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts():
         }
         return httpx.Response(200, content=b"export")
 
-    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
     try:
         assert (await api.motion_catalog())["motions"] == []
         assert (await api.usage())["org"]["payg_enabled"] is True

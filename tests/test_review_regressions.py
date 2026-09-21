@@ -1,4 +1,4 @@
-"""Regression coverage for the staging pre-release review."""
+"""Regression coverage for pre-release review."""
 
 import asyncio
 import json
@@ -123,10 +123,9 @@ async def test_preview_http_404_is_not_found():
 async def test_upload_failure_keeps_safe_diagnostic_and_inspection(tmp_path, message, category):
     source = tmp_path / "selected.glb"
     source.write_bytes(b"fixture")
-    reference = "a" * 32
     response = {
         "data": {"create_character": None},
-        "errors": [{"message": message, "stack": ["secret"], "link": f"https://staging.uthana.com/tb/{reference}"}],
+        "errors": [{"message": message, "stack": ["secret"]}],
     }
     api = FakeAPI()
 
@@ -140,7 +139,6 @@ async def test_upload_failure_keeps_safe_diagnostic_and_inspection(tmp_path, mes
     receipt = ops.recover_request("upload1")
     assert receipt["state"] == "unknown" and not receipt["error"]["safe_to_resubmit"]
     assert receipt["error"]["category"] == category
-    assert receipt["error"]["support_reference"] == reference
     assert "secret" not in json.dumps(receipt)
     assert receipt["inspection"] == {
         "tool": "list_characters",
@@ -148,14 +146,6 @@ async def test_upload_failure_keeps_safe_diagnostic_and_inspection(tmp_path, mes
     }
     with pytest.raises(ValueError, match="unresolved"):
         await ops.upload_character("upload1", str(source), "Selected character", False)
-
-
-@pytest.mark.parametrize(
-    "link", [None, "https://other.invalid/tb/" + "a" * 32, "https://staging.uthana.com/tb/secret?key=private"]
-)
-def test_support_reference_allowlist(link):
-    error = graphql_error({"errors": [{"message": "failed", "link": link}]}, "create_character")
-    assert "support_reference" not in error.details() and "private" not in str(error)
 
 
 async def test_old_unknown_upload_receipt_gets_guidance_without_changing_state(tmp_path):
