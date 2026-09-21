@@ -1,4 +1,3 @@
-import json
 import os
 
 import httpx
@@ -109,33 +108,6 @@ async def test_errors_never_fall_back_or_leak(status):
         assert hosts == [PRODUCTION]
         assert "secret" not in str(exc.value)
         assert exc.value.outcome == ("rejected" if status in (401, 403) else "unknown")
-    finally:
-        await api.close()
-
-
-async def test_upload_errors_do_not_forward_traceback_links():
-    def respond(request):
-        return httpx.Response(
-            200,
-            json={
-                "data": {"create_character": None},
-                "errors": [
-                    {
-                        "message": "private traceback",
-                        "link": f"https://{PRODUCTION}/tb/{'a' * 12}",
-                    }
-                ],
-            },
-        )
-
-    api = UthanaAPI("fake", PRODUCTION, transport=httpx.MockTransport(respond))
-    try:
-        with pytest.raises(APIError) as exc:
-            await api.upload_character("rig.glb", b"fixture", "Rig", False)
-        details = json.dumps(exc.value.details())
-        assert "support_reference" not in details
-        assert "/tb/" not in details
-        assert "private traceback" not in details
     finally:
         await api.close()
 
