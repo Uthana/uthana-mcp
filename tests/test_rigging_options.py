@@ -101,11 +101,51 @@ async def test_rerig_target_forwarded_in_mutation(tmp_path):
     assert "include_fingers" in payload or "includeFingers" in payload
 
 
-def test_rerig_upload_cost_is_not_asserted_free():
+def test_rerig_billing_policy():
+    # Converting an already-rigged character is priced as auto-rig.
     rerig = receipt_billing("upload_character", {"auto_rig": False, "rerig_target": "r15"})
-    assert rerig["cost_status"] == "unmeasured" and rerig["actual_cost_usd"] is None
+    assert rerig["model"] == "autorig" and rerig["cost_status"] == "unmeasured"
+    # Choosing a target during initial auto-rig stays a single auto-rig charge.
+    both = receipt_billing("upload_character", {"auto_rig": True, "rerig_target": "ue5"})
+    assert both["model"] == "autorig" and both["cost_status"] == "unmeasured"
+    # A plain rigged upload remains free.
     plain = receipt_billing("upload_character", {"auto_rig": False})
-    assert plain["cost_status"] == "free_by_policy"
+    assert plain["cost_status"] == "free_by_policy" and plain["model"] is None
+
+
+async def test_character_upload_rejects_files_over_30_mib(tmp_path):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    selected = inputs / "big.glb"
+    selected.write_bytes(b"\0" * (30 * 1024 * 1024 + 1))
+    api = FakeAPI()
+    ops = Operations(api, tmp_path / "state", inputs)
+    with pytest.raises(ValueError, match="30 MiB"):
+        await ops.upload_character("upload-too-big", str(selected), "Rig")
+    assert not any(name == "upload_character" for name, _ in api.calls)
+
+
+async def test_image_character_include_fingers_choice(tmp_path):
+    from PIL import Image
+
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    selected = inputs / "ref.png"
+    Image.new("RGB", (64, 64)).save(selected)
+    api = FakeAPI()
+    ops = Operations(api, tmp_path / "state", inputs)
+    await ops.create_character_from_image("image-no-fingers", str(selected), "Snapshot", include_fingers=False)
+    call = next(args for name, args in api.calls if name == "finalize_image")
+    assert call["include_fingers"] is False
+
+    # A pre-expansion receipt replays with explicit default fingers and rejects a change.
+    await ops.create_character_from_image("image-default", str(selected), "Snapshot")
+    replay = await ops.create_character_from_image(
+        "image-default", str(selected), "Snapshot", include_fingers=True
+    )
+    assert replay["replayed"]
+    with pytest.raises(ValueError):
+        await ops.create_character_from_image("image-default", str(selected), "Snapshot", include_fingers=False)
 
 
 async def test_schema_documents_every_rigging_option():
@@ -118,3 +158,6 @@ async def test_schema_documents_every_rigging_option():
         assert properties[field].get("description"), field
     rerig = json.dumps(properties["rerig_target"])
     assert "r15" in rerig and "ue5" in rerig
+    image = tools["create_character_from_image"].inputSchema["properties"]
+    assert image["include_fingers"].get("description")
+    assert image["include_fingers"].get("default") is True

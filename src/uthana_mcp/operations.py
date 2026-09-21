@@ -282,7 +282,7 @@ class Operations:
             raise ValueError("auto_rig, front_facing, and include_fingers must be booleans")
         if rerig_target not in (None, "r15", "ue5"):
             raise ValueError("Choose rerig_target r15 or ue5, or omit it to keep the original skeleton")
-        filename, data, digest = self.read_input(file_path, {".fbx", ".glb"})
+        filename, data, digest = self.read_input(file_path, {".fbx", ".glb"}, 30 * 1024 * 1024)
         args = {"content_sha256": digest, "filename": filename, "name": name, "auto_rig": auto_rig}
 
         # Omit new default options from the fingerprint so pre-expansion receipts still replay.
@@ -310,8 +310,10 @@ class Operations:
 
         return await self.store.mutation(request_id, "upload_character", args, invoke)
 
-    async def create_character_from_image(self, request_id, file_path, name):
+    async def create_character_from_image(self, request_id, file_path, name, include_fingers=True):
         text(name)
+        if not isinstance(include_fingers, bool):
+            raise ValueError("include_fingers must be a boolean")
         filename, data, digest = self.read_input(file_path, {".png", ".jpg", ".jpeg"}, 16 * 1024 * 1024)
         try:
             with warnings.catch_warnings():
@@ -326,6 +328,9 @@ class Operations:
         except (OSError, SyntaxError, Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
             raise ValueError("Choose a valid PNG/JPEG reference image") from error
         args = {"filename": filename, "content_sha256": digest, "name": name}
+        # Omit the new default option from the fingerprint so pre-expansion receipts still replay.
+        if not include_fingers:
+            args["include_fingers"] = False
 
         async def invoke():
             # A confirmed rejection in finalization can retry that stage without
@@ -334,7 +339,7 @@ class Operations:
             if prepared is None:
                 prepared = await self.api.prepare_character_image(filename, data)
                 self.store.record_progress(request_id, "character_from_image", prepared)
-            result = await self.api.finalize_character_image(prepared, name)
+            result = await self.api.finalize_character_image(prepared, name, include_fingers)
             return {
                 **result,
                 "name": name,

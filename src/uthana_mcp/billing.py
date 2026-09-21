@@ -68,9 +68,10 @@ def receipt_billing(operation, args):
         "loop": "stitch-loop-2.0",
         "stitch": "stitch-loop-2.0",
     }.get(operation)
-    if operation == "upload_character" and args.get("auto_rig") is True:
+    # Policy: choosing a target skeleton during initial auto-rig is one auto-rig charge;
+    # converting an already-rigged character (rerig_target without auto_rig) uses the same price.
+    if operation == "upload_character" and (args.get("auto_rig") is True or args.get("rerig_target")):
         model = "autorig"
-    # Skeleton conversion (rerig_target) has no published price entry; do not assert it is free.
     free = operation in {"trim", "save", "download", "preview"} or (
         operation == "upload_character" and args.get("auto_rig") is False and not args.get("rerig_target")
     )

@@ -225,14 +225,14 @@ class UthanaAPI:
             raise APIError("Uthana returned an invalid prepared image key")
         return {"stage": "image_prepared", "character_id": identifier(result.character_id), "image_key": image_key}
 
-    async def finalize_character_image(self, prepared, name):
+    async def finalize_character_image(self, prepared, name, include_fingers=True):
         pending = CharacterPreviewResult(character_id=prepared["character_id"], previews=[], prompt="")
         result = await self._call(
             self.client.characters.generate_from_image,
             pending,
             prepared["image_key"],
             name=name,
-            include_fingers=True,
+            include_fingers=include_fingers,
             timeout=httpx.Timeout(660, connect=15),
             mutation_field="create_character_from_image",
         )

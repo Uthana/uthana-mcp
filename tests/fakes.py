@@ -90,8 +90,8 @@ class FakeAPI:
         self.calls.append(("prepare_image", {"filename": filename, "content": content}))
         return {"stage": "image_prepared", "character_id": "imagechar1", "image_key": "imagechar1-front.png"}
 
-    async def finalize_character_image(self, prepared, name):
-        self.calls.append(("finalize_image", {"prepared": prepared, "name": name}))
+    async def finalize_character_image(self, prepared, name, include_fingers=True):
+        self.calls.append(("finalize_image", {"prepared": prepared, "name": name, "include_fingers": include_fingers}))
         return {"character_id": prepared["character_id"], "auto_rig_confidence": 0.9}
 
     async def stitch(self, character_id, prefix, suffix):

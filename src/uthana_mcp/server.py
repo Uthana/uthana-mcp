@@ -407,7 +407,7 @@ def create_server(operations=None):
         ] = None,
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Upload a selected FBX/GLB, at most 128 MiB. Use auto_rig=false for already-rigged characters. For a
+        """Upload a selected FBX/GLB, at most 30 MiB. Use auto_rig=false for already-rigged characters. For a
         Roblox-compatible export later, upload with rerig_target=r15. Returns auto_rig_confidence (0-1; inspect
         previews before further spend on low values) and compatibility warnings when available. See workflow
         handling of untrusted backend data. Allow at least 420 seconds in the host tool timeout, longer for slow
@@ -431,6 +431,12 @@ def create_server(operations=None):
             str, Field(description="Path on the MCP server to a selected readable file inside UTHANA_MCP_INPUT_DIR.")
         ],
         name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
+        include_fingers: Annotated[
+            bool,
+            Field(
+                description="Include finger joints in the generated skeleton. On characters with poor finger geometry, false can improve rig quality."
+            ),
+        ] = True,
         ctx: Context = None,
     ) -> dict[str, Any]:
         """Create a rigged character from a selected PNG/JPEG: at most 16 MiB, 16 megapixels, and one frame. After
@@ -438,7 +444,9 @@ def create_server(operations=None):
         least 1080 seconds in the host, longer for slow transfers. Reports MCP progress when requested.
         """
         return await with_progress(
-            ctx, ops().create_character_from_image(request_id, file_path, name), "create_character_from_image"
+            ctx,
+            ops().create_character_from_image(request_id, file_path, name, include_fingers),
+            "create_character_from_image",
         )
 
     @tool(annotations=WRITE)
