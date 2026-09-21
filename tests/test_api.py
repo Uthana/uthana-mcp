@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from uthana_mcp.api import APIError, UthanaAPI
-from uthana_mcp.validation import PRODUCTION, motion_metadata, normalize_job
+from uthana_mcp.validation import motion_metadata, normalize_job
 
 
 @pytest.mark.parametrize(
