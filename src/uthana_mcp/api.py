@@ -11,12 +11,12 @@ from uthana import Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .errors import APIError, graphql_error, read_error
-from .validation import PRODUCTION, identifier, motion_metadata, normalize_job
+from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
 
 
 class UthanaAPI:
     def __init__(self, key: str, domain: str | None = None, *, transport=None):
-        self.domain = domain or PRODUCTION
+        self.domain = domain or UTHANA_DOMAIN
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()

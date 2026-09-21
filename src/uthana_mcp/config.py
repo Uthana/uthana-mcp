@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-from .validation import PRODUCTION
+from .validation import UTHANA_DOMAIN
 
 
 def git_root() -> Path | None:
@@ -49,7 +49,7 @@ class Config:
     def from_env(cls):
         load_dotenv()
         return cls(
-            domain=os.environ.get("UTHANA_DOMAIN") or PRODUCTION,
+            domain=os.environ.get("UTHANA_DOMAIN") or UTHANA_DOMAIN,
             data_dir=os.environ.get("UTHANA_MCP_DATA_DIR", str(Path.home() / ".local/state/uthana-mcp")),
             input_dir=os.environ.get("UTHANA_MCP_INPUT_DIR") or None,
             key=os.environ.get("UTHANA_API_KEY", ""),

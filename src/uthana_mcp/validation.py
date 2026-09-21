@@ -5,7 +5,7 @@ import math
 import re
 
 TAR = "cXi2eAP19XwQ"
-PRODUCTION = "uthana.com"
+UTHANA_DOMAIN = "uthana.com"
 
 
 def identifier(value: str) -> str:
