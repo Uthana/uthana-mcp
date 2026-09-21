@@ -7,16 +7,8 @@ from uthana_mcp.api import APIError, UthanaAPI
 from uthana_mcp.validation import motion_metadata, normalize_job
 
 
-@pytest.mark.parametrize(
-    "domain", ["", "https://staging.uthana.com", "uthana.com/", "uthana.com:443", "staging.uthana.com.evil/"]
-)
-def test_rejects_malformed_domains(domain):
-    with pytest.raises(ValueError):
-        UthanaAPI("fake", domain)
-
-
-@pytest.mark.parametrize("domain", ["uthana.com", "staging.uthana.com", "example.com", "uthana.com.evil"])
-async def test_accepts_production_staging_and_custom_hosts(domain):
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
+async def test_uses_configured_host(domain):
     api = UthanaAPI("fake", domain)
     assert api.domain == domain
     await api.close()
@@ -65,7 +57,7 @@ def test_native_metadata_validation():
         motion_metadata(motion)
 
 
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_api_graphql_documents_and_export_routes(domain):
     requests = []
 
@@ -107,7 +99,7 @@ async def test_api_graphql_documents_and_export_routes(domain):
 
 
 @pytest.mark.parametrize("auto_rig", [False, True])
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_multipart_upload_and_save_contracts(auto_rig, domain):
     def respond(request):
         content = request.content.decode()
@@ -142,7 +134,7 @@ async def test_multipart_upload_and_save_contracts(auto_rig, domain):
 
 
 @pytest.mark.parametrize("status", [302, 401, 500])
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_errors_do_not_expose_body_or_follow_redirects(status, domain):
     requests = []
 
@@ -175,7 +167,7 @@ async def test_partial_graphql_errors_never_count_as_success():
         await api.close()
 
 
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
     seen = []
 

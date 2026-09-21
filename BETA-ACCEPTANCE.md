@@ -4,9 +4,9 @@ Use [the acceptance procedure](ACCEPTANCE.md) and [prompt catalog](PROMPT-TESTS.
 
 ## Environment selection
 
-- Without an override, initialization identifies `uthana.com`. An explicit `UTHANA_DOMAIN` (host env, constructor, or checkout `.env` / `.env.local`) identifies exactly that hostname.
+- Without an override, initialization identifies `uthana.com`. An explicit `UTHANA_DOMAIN` (host env, constructor, or checkout `.env` / `.env.local`) identifies exactly that host.
 - Use a distinct key and state directory for each configured host. Host-provided environment variables override checkout dotenv files.
-- Confirm both normal and catalog clients address only the configured HTTPS origin. A malformed hostname fails before network access; errors and redirects never switch to another environment.
+- Confirm both normal and catalog clients address only the configured HTTPS origin. Errors and redirects never switch to another environment.
 - Verify `UTHANA_API_KEY_FILE` accepts only the documented private regular file and that discovery works without reading credentials. No key or raw credential-file error appears in tool results.
 - Confirm pricing-source labels and support references match the configured origin. State and receipts are isolated by origin and credential fingerprint.
 
@@ -19,9 +19,9 @@ Run the following in the actual partner's host on each supported OS, rather than
 3. Run one approved generation, inspect returned image frames, trim and export it, and confirm the saved file is usable on that machine.
 4. Restart the connector with its persistent state and recover the existing operation without another generation.
 5. Verify long-operation progress and host timeouts. The setup guide configures a 1200-second host deadline for image generation; activity notifications may not extend that deadline.
-6. Verify upload-directory boundaries and separate production/staging/developer credentials and local artifacts.
+6. Verify upload-directory boundaries and separate credentials and local artifacts per configured host.
 
-Linux stdio coverage does not establish macOS or native coding-host support. Record an untested combination as unverified and explain known limits to an early tester. A developer host's entitlements and API version can differ from production.
+Linux stdio coverage does not establish macOS or native coding-host support. Record an untested combination as unverified and explain known limits to an early tester. A non-production host's entitlements and API version can differ from production.
 
 ## Release checks
 

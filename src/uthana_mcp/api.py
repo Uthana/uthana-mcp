@@ -11,12 +11,12 @@ from uthana import Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .errors import APIError, graphql_error, read_error
-from .validation import PRODUCTION, api_domain, identifier, motion_metadata, normalize_job
+from .validation import PRODUCTION, identifier, motion_metadata, normalize_job
 
 
 class UthanaAPI:
-    def __init__(self, key: str, domain: str = PRODUCTION, *, transport=None):
-        self.domain = api_domain(domain)
+    def __init__(self, key: str, domain: str | None = None, *, transport=None):
+        self.domain = domain or PRODUCTION
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
@@ -53,7 +53,7 @@ class UthanaAPI:
         except UthanaError as error:
             if error.kind == "graphql" and isinstance(error.response_data, dict):
                 raise graphql_error(
-                    error.response_data, mutation_field, read_only=read_only, resource=resource, domain=self.domain
+                    error.response_data, mutation_field, read_only=read_only, resource=resource
                 ) from None
             if error.kind == "http":
                 status = error.status_code

@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 22 tools for the configured production, staging, or authorized developer environment.
+The MCP uses the shared Uthana Python client and exposes 22 tools for the configured environment.
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |

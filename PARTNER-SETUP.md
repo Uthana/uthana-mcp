@@ -16,15 +16,15 @@ The shared client is temporarily pinned to a Git commit. Git must be able to rea
 
 ## Select the API environment
 
-Production (`uthana.com`) is the default. Keep the explicit production setting in the examples so the intended account is visible. Point at staging or another host with `UTHANA_DOMAIN` (for example `staging.uthana.com` or `devbox.uthana.dev`) and use the key issued for that environment.
+Production (`uthana.com`) is the default. Keep the explicit production setting in the examples so the intended account is visible. Override with `UTHANA_DOMAIN` and use the key issued for that environment.
 
-The shared Python client constructs the HTTPS URLs from the hostname. Schemes, ports, and paths are rejected. Redirects and authentication failures never cause a fallback to another environment. Initialization and the workflow resource report the selected hostname.
+The shared Python client constructs the HTTPS URLs from the hostname. Redirects and authentication failures never cause a fallback to another environment. Initialization and the workflow resource report the selected hostname.
 
 Set `UTHANA_DOMAIN` in the coding host configuration, or in a checkout `.env` / `.env.local` (`.env.local` overrides `.env`; neither overrides variables the host already set). A `.env` in some other working directory is ignored. Never commit these files.
 
 ## Store your own API key
 
-Use your normal uthana.com API key for production. A staging key is different. Keep it in a private regular file outside the checkout, owned by you with permissions `600`. Set `UTHANA_API_KEY_FILE` to that file's absolute path. Do not also set `UTHANA_API_KEY`.
+Use your normal uthana.com API key for production. A key for another host is different. Keep it in a private regular file outside the checkout, owned by you with permissions `600`. Set `UTHANA_API_KEY_FILE` to that file's absolute path. Do not also set `UTHANA_API_KEY`.
 
 The following works from bash or zsh on Linux/macOS and asks for the key without echoing it. It creates a new file and will not overwrite an existing one:
 
@@ -71,9 +71,9 @@ MCP_TOOL_TIMEOUT=1200000 claude
 
 Use `/mcp` to inspect the connection. This timeout is in milliseconds and belongs to the Claude Code process, not just the MCP server's environment. Configure your preferred model in Claude Code. See [Claude Code MCP](https://code.claude.com/docs/en/mcp) and [environment variables](https://code.claude.com/docs/en/env-vars). Desktop variants need their own timeout verification.
 
-## Separate staging connection
+## Separate host connection
 
-Use a second host entry named `uthana-staging`, `UTHANA_DOMAIN=staging.uthana.com`, and a different private key file containing your staging key. Give it its own data directory for clarity. Keep `uthana` for production. State explicitly which connection the agent should use; the server never switches between them automatically. Each environment uses its own account permissions and credits.
+Use a second host entry if you need another API host. Set `UTHANA_DOMAIN` to that hostname and a different private key file. Give it its own data directory. Keep `uthana` for production. State explicitly which connection the agent should use; the server never switches between them automatically. Each environment uses its own account permissions and credits.
 
 ## First session
 
@@ -91,4 +91,4 @@ Production model usage consumes your Uthana account credits at the published pri
 
 ## Feedback
 
-Include the release revision, OS, host/version, tool name, environment, and redacted error/support reference. Share request/job IDs privately when needed. Do not attach API keys, raw account balances, private assets, or the entire state directory.
+Include the release revision, OS, host/version, tool name, environment, and redacted error. Share request/job IDs privately when needed. Do not attach API keys, raw account balances, private assets, or the entire state directory.

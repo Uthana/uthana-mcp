@@ -22,7 +22,7 @@ The host starts `.venv/bin/uthana-mcp` as a stdio server. **Production (`uthana.
 | --- | --- |
 | `UTHANA_API_KEY` | API key for the selected environment; use this or the private file option |
 | `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600; not a symlink |
-| `UTHANA_DOMAIN` | Defaults to `uthana.com`; any hostname (for example `staging.uthana.com` or a developer host). Host env wins over checkout `.env` / `.env.local` |
+| `UTHANA_DOMAIN` | Defaults to `uthana.com`; override with any host. Host env wins over checkout `.env` / `.env.local` |
 | `UTHANA_MCP_DATA_DIR` | Persistent private state; defaults to `~/.local/state/uthana-mcp` |
 | `UTHANA_MCP_INPUT_DIR` | Selected input files on the server machine; uploads disabled when absent |
 

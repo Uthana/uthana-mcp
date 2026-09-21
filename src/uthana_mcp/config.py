@@ -7,10 +7,10 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-from .validation import PRODUCTION, api_domain
+from .validation import PRODUCTION
 
 
-def checkout_root() -> Path | None:
+def git_root() -> Path | None:
     """Locate the uthana-mcp checkout; ignore a host project's working directory."""
     for path in Path(__file__).resolve().parents:
         pyproject = path / "pyproject.toml"
@@ -25,9 +25,9 @@ def checkout_root() -> Path | None:
     return None
 
 
-def load_checkout_dotenv() -> None:
+def load_dotenv() -> None:
     """Apply checkout .env then .env.local without overriding host-provided process env."""
-    root = checkout_root()
+    root = git_root()
     if root is None:
         return
     values = {}
@@ -38,7 +38,7 @@ def load_checkout_dotenv() -> None:
 
 
 @dataclass(frozen=True)
-class Settings:
+class Config:
     domain: str
     data_dir: str
     input_dir: str | None
@@ -47,9 +47,9 @@ class Settings:
 
     @classmethod
     def from_env(cls):
-        load_checkout_dotenv()
+        load_dotenv()
         return cls(
-            domain=api_domain(os.environ.get("UTHANA_DOMAIN", PRODUCTION)),
+            domain=os.environ.get("UTHANA_DOMAIN") or PRODUCTION,
             data_dir=os.environ.get("UTHANA_MCP_DATA_DIR", str(Path.home() / ".local/state/uthana-mcp")),
             input_dir=os.environ.get("UTHANA_MCP_INPUT_DIR") or None,
             key=os.environ.get("UTHANA_API_KEY", ""),

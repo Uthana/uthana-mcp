@@ -1,9 +1,5 @@
 """Redacted upstream errors with conservative submission outcomes."""
 
-import re
-
-from .validation import STAGING, api_domain
-
 
 class APIError(RuntimeError):
     def __init__(
@@ -13,14 +9,12 @@ class APIError(RuntimeError):
         category="provider_error",
         outcome="unknown",
         http_status=None,
-        support_reference=None,
         upstream_summary=None,
     ):
         super().__init__(message)
         self.category = category
         self.outcome = outcome
         self.http_status = http_status
-        self.support_reference = support_reference
         self.upstream_summary = upstream_summary
 
     def details(self):
@@ -30,7 +24,6 @@ class APIError(RuntimeError):
             "http_status": self.http_status,
             "message": str(self),
             "safe_to_resubmit": self.outcome == "rejected",
-            **({"support_reference": self.support_reference} if self.support_reference else {}),
             **({"upstream_summary": self.upstream_summary} if self.upstream_summary else {}),
         }
 
@@ -67,8 +60,7 @@ def read_error(category="graphql_error", *, http_status=None):
     return APIError(message, category=category, outcome="not_applicable", http_status=http_status)
 
 
-def graphql_error(result, mutation_field=None, *, read_only=False, resource=None, domain=STAGING):
-    domain = api_domain(domain)
+def graphql_error(result, mutation_field=None, *, read_only=False, resource=None):
     errors = result.get("errors")
     recognized = (
         isinstance(errors, list)
@@ -105,17 +97,6 @@ def graphql_error(result, mutation_field=None, *, read_only=False, resource=None
         return APIError(message, category=rejection_category, outcome="rejected")
     if mutation_field == "create_character" and category == "graphql_error":
         rows = errors if isinstance(errors, list) else []
-        reference = None
-        for error in rows:
-            link = error.get("link", "") if isinstance(error, dict) else ""
-            match = (
-                re.fullmatch(rf"https://{re.escape(domain)}/tb/([a-f0-9]{{12,64}})", link)
-                if isinstance(link, str)
-                else None
-            )
-            if match:
-                reference = match[1]
-                break
         summary = "Character processing did not return a confirmed result."
         category = "character_processing"
         signatures = (
@@ -149,9 +130,8 @@ def graphql_error(result, mutation_field=None, *, read_only=False, resource=None
                     break
         return APIError(
             summary + " Inspect list_characters by name and get_request_status before another upload. "
-            "If no usable character is found, contact Uthana support with the request ID and support reference.",
+            "If no usable character is found, contact Uthana support with the request ID.",
             category=category,
-            support_reference=reference,
             upstream_summary=summary,
         )
     if category != "graphql_error":

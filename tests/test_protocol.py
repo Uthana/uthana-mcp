@@ -135,7 +135,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 assert bad.isError
 
 
-@pytest.mark.parametrize("domain", ["staging.uthana.com", "uthana.com", "devbox.uthana.dev"])
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_actual_entrypoint_discovers_without_credentials(domain):
     params = StdioServerParameters(
         command=sys.executable,

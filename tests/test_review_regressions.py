@@ -126,7 +126,7 @@ async def test_upload_failure_keeps_safe_diagnostic_and_inspection(tmp_path, mes
     reference = "a" * 32
     response = {
         "data": {"create_character": None},
-        "errors": [{"message": message, "stack": ["secret"], "link": f"https://staging.uthana.com/tb/{reference}"}],
+        "errors": [{"message": message, "stack": ["secret"], "link": f"https://uthana.com/tb/{reference}"}],
     }
     api = FakeAPI()
 
@@ -140,7 +140,8 @@ async def test_upload_failure_keeps_safe_diagnostic_and_inspection(tmp_path, mes
     receipt = ops.recover_request("upload1")
     assert receipt["state"] == "unknown" and not receipt["error"]["safe_to_resubmit"]
     assert receipt["error"]["category"] == category
-    assert receipt["error"]["support_reference"] == reference
+    assert "support_reference" not in receipt["error"]
+    assert "/tb/" not in json.dumps(receipt)
     assert "secret" not in json.dumps(receipt)
     assert receipt["inspection"] == {
         "tool": "list_characters",
@@ -151,11 +152,14 @@ async def test_upload_failure_keeps_safe_diagnostic_and_inspection(tmp_path, mes
 
 
 @pytest.mark.parametrize(
-    "link", [None, "https://other.invalid/tb/" + "a" * 32, "https://staging.uthana.com/tb/secret?key=private"]
+    "link", [None, "https://other.invalid/tb/" + "a" * 32, "https://uthana.com/tb/secret?key=private"]
 )
-def test_support_reference_allowlist(link):
+def test_traceback_links_are_not_forwarded(link):
     error = graphql_error({"errors": [{"message": "failed", "link": link}]}, "create_character")
-    assert "support_reference" not in error.details() and "private" not in str(error)
+    details = json.dumps(error.details())
+    assert "support_reference" not in details
+    assert "/tb/" not in details
+    assert "private" not in details
 
 
 async def test_old_unknown_upload_receipt_gets_guidance_without_changing_state(tmp_path):

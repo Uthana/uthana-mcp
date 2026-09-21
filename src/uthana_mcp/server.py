@@ -15,7 +15,7 @@ from mcp.types import ImageContent, TextContent, ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
 from .api import UthanaAPI
-from .config import Settings
+from .config import Config
 from .errors import APIError
 from .operations import Operations
 from .stitching import StitchClip
@@ -116,16 +116,16 @@ async def with_progress(ctx, operation, label):
 def create_server(operations=None):
     """Dependency injection supports a real stdio client test with an offline provider."""
     runtime = operations
-    settings = Settings.from_env()
+    config = Config.from_env()
     domain = (
-        inspect.getattr_static(operations.api, "domain", settings.domain) if operations is not None else settings.domain
+        inspect.getattr_static(operations.api, "domain", config.domain) if operations is not None else config.domain
     )
 
     def ops():
         nonlocal runtime
         if runtime is None:
-            api = UthanaAPI(settings.api_key(), settings.domain)
-            runtime = Operations(api, settings.data_dir, settings.input_dir)
+            api = UthanaAPI(config.api_key(), config.domain)
+            runtime = Operations(api, config.data_dir, config.input_dir)
         return runtime
 
     @asynccontextmanager

@@ -25,7 +25,7 @@ def test_sdk_initialization_has_no_network_or_telemetry(monkeypatch):
 
 
 async def test_old_completed_receipt_replays_without_sdk_submission(tmp_path):
-    scope = hashlib.sha256(b"staging.uthana.com:fake").hexdigest()
+    scope = hashlib.sha256(b"uthana.com:fake").hexdigest()
     store = Store(tmp_path, scope)
     args = {"prompt": "Walk", "duration_seconds": 4, "character_id": TAR}
     legacy_hash = hashlib.sha256(json.dumps(["generate", args], sort_keys=True).encode()).hexdigest()
@@ -39,7 +39,7 @@ async def test_old_completed_receipt_replays_without_sdk_submission(tmp_path):
     def forbidden(request):
         raise AssertionError("Switching to the shared client must not regenerate existing work")
 
-    api = UthanaAPI("fake", "staging.uthana.com", transport=httpx.MockTransport(forbidden))
+    api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(forbidden))
     try:
         result = await Operations(api, tmp_path).generate("existing", "Walk", 4.0)
         assert result == {**original, "replayed": True}
