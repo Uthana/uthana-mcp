@@ -80,10 +80,11 @@ async def test_pre_expansion_receipt_replays_with_explicit_defaults(tmp_path):
 
 async def test_rerig_target_forwarded_in_mutation(tmp_path):
     inputs, selected = make_inputs(tmp_path)
-    requests = []
+    bodies = []
 
     def respond(request):
-        requests.append(json.loads(request.content))
+        # The upload is a multipart form; keep the raw bytes for inspection.
+        bodies.append(request.content.decode("latin-1"))
         return httpx.Response(
             200,
             json={"data": {"create_character": {"character": {"id": "character9"}, "message": ""}}},
@@ -95,7 +96,7 @@ async def test_rerig_target_forwarded_in_mutation(tmp_path):
         await ops.upload_character("upload-wire", str(selected), "Rig", rerig_target="ue5")
     finally:
         await api.close()
-    payload = json.dumps(requests)
+    payload = "".join(bodies)
     assert "ue5" in payload
     assert "include_fingers" in payload or "includeFingers" in payload
 
