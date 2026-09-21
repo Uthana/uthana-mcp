@@ -15,7 +15,8 @@ def settings(path=None, key=""):
     return Settings(PRODUCTION, "/unused", None, key, str(path) if path else None)
 
 
-def test_default_is_production_and_settings_capture_environment(monkeypatch):
+def test_default_is_production_and_settings_capture_environment(monkeypatch, tmp_path):
+    monkeypatch.setattr("uthana_mcp.config.checkout_root", lambda: tmp_path)
     monkeypatch.delenv("UTHANA_DOMAIN", raising=False)
     monkeypatch.setenv("UTHANA_API_KEY", "private-test-key")
     original = Settings.from_env()
@@ -28,14 +29,25 @@ def test_default_is_production_and_settings_capture_environment(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "domain", ["", "https://uthana.com", "uthana.com/", "uthana.com:443", "uthana.com.evil", "UTHANA.COM"]
+    "domain",
+    ["", "https://uthana.com", "uthana.com/", "uthana.com:443", "user@uthana.com", "uthana.com?x=1", "uthana.com#frag"],
 )
-def test_invalid_environment_rejected_before_network(monkeypatch, domain):
+def test_malformed_environment_rejected_before_network(monkeypatch, domain):
     monkeypatch.setenv("UTHANA_DOMAIN", domain)
     with pytest.raises(ValueError, match="UTHANA_DOMAIN"):
         Settings.from_env()
     with pytest.raises(ValueError, match="UTHANA_DOMAIN"):
         UthanaAPI("secret", domain)
+
+
+@pytest.mark.parametrize("domain", ["uthana.com.evil", "example.com", "UTHANA.COM", "localhost", "127.0.0.1"])
+async def test_arbitrary_hostnames_are_accepted(domain):
+    api = UthanaAPI("secret", domain)
+    try:
+        assert api.domain == domain
+        assert str(api.client.base_url) == f"https://{domain}"
+    finally:
+        await api.close()
 
 
 def test_private_key_file_and_ambiguous_configuration(tmp_path):
@@ -202,17 +214,12 @@ async def test_developer_environment_routes_through_sdk_and_reports_origin(monke
 @pytest.mark.parametrize(
     "domain",
     [
-        "uthana.dev",
-        "a.b.uthana.dev",
-        "devbox.uthana.dev.evil",
         "devbox.uthana.dev:443",
         "devbox.uthana.dev/path",
         "user@devbox.uthana.dev",
         "devbox.uthana.dev?x=y",
         "-dev.uthana.dev",
         "dev-.uthana.dev",
-        "localhost",
-        "127.0.0.1",
         "https://devbox.uthana.dev",
         "x" * 64 + ".uthana.dev",
         "dev_box.uthana.dev",
@@ -221,7 +228,7 @@ async def test_developer_environment_routes_through_sdk_and_reports_origin(monke
         [],
     ],
 )
-def test_invalid_developer_origin_rejected(domain):
+def test_malformed_hostname_rejected(domain):
     with pytest.raises(ValueError, match="UTHANA_DOMAIN"):
         UthanaAPI("secret", domain)
 
@@ -241,3 +248,35 @@ async def test_developer_errors_do_not_redirect_credentials_or_fall_back(status)
         assert seen == ["devbox.uthana.dev"]
     finally:
         await api.close()
+
+
+def test_checkout_dotenv_sets_domain_when_process_env_is_unset(monkeypatch, tmp_path):
+    monkeypatch.setattr("uthana_mcp.config.checkout_root", lambda: tmp_path)
+    monkeypatch.delenv("UTHANA_DOMAIN", raising=False)
+    (tmp_path / ".env").write_text("UTHANA_DOMAIN=staging.uthana.com\n")
+    assert Settings.from_env().domain == STAGING
+
+
+def test_env_local_overrides_env_file(monkeypatch, tmp_path):
+    monkeypatch.setattr("uthana_mcp.config.checkout_root", lambda: tmp_path)
+    monkeypatch.delenv("UTHANA_DOMAIN", raising=False)
+    (tmp_path / ".env").write_text("UTHANA_DOMAIN=staging.uthana.com\n")
+    (tmp_path / ".env.local").write_text("UTHANA_DOMAIN=devbox.uthana.dev\n")
+    assert Settings.from_env().domain == "devbox.uthana.dev"
+
+
+def test_process_env_wins_over_checkout_dotenv(monkeypatch, tmp_path):
+    monkeypatch.setattr("uthana_mcp.config.checkout_root", lambda: tmp_path)
+    monkeypatch.setenv("UTHANA_DOMAIN", PRODUCTION)
+    (tmp_path / ".env").write_text("UTHANA_DOMAIN=staging.uthana.com\n")
+    (tmp_path / ".env.local").write_text("UTHANA_DOMAIN=devbox.uthana.dev\n")
+    assert Settings.from_env().domain == PRODUCTION
+
+
+def test_dotenv_in_unrelated_cwd_is_ignored(monkeypatch, tmp_path):
+    monkeypatch.setattr("uthana_mcp.config.checkout_root", lambda: tmp_path / "checkout")
+    monkeypatch.delenv("UTHANA_DOMAIN", raising=False)
+    (tmp_path / "checkout").mkdir()
+    (tmp_path / ".env").write_text("UTHANA_DOMAIN=staging.uthana.com\n")
+    monkeypatch.chdir(tmp_path)
+    assert Settings.from_env().domain == PRODUCTION

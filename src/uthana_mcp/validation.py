@@ -7,18 +7,19 @@ import re
 TAR = "cXi2eAP19XwQ"
 STAGING = "staging.uthana.com"
 PRODUCTION = "uthana.com"
+_HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+_HOSTNAME = re.compile(rf"^(?:{_HOST_LABEL}\.)*{_HOST_LABEL}$")
+_IPV4 = re.compile(r"^(?:25[0-5]|2[0-4]\d|[01]?\d\d?)(?:\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)){3}$")
 
 
 def api_domain(value: str) -> str:
-    developer_host = isinstance(value, str) and re.fullmatch(
-        r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.uthana\.dev", value
-    )
-    if value not in (STAGING, PRODUCTION) and not developer_host:
-        raise ValueError(
-            "UTHANA_DOMAIN must be uthana.com, staging.uthana.com, or a single-label "
-            "<host>.uthana.dev hostname; no scheme, port, path, or automatic fallback"
-        )
-    return value
+    """Accept any hostname the Python client can put in https://{domain}."""
+    message = "UTHANA_DOMAIN must be a hostname; no scheme, port, path, or automatic fallback"
+    if not isinstance(value, str) or not value or value != value.strip() or len(value) > 253:
+        raise ValueError(message)
+    if _IPV4.fullmatch(value) or _HOSTNAME.fullmatch(value):
+        return value
+    raise ValueError(message)
 
 
 def identifier(value: str) -> str:

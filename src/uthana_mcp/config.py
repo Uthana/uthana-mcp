@@ -5,7 +5,36 @@ import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from dotenv import dotenv_values
+
 from .validation import PRODUCTION, api_domain
+
+
+def checkout_root() -> Path | None:
+    """Locate the uthana-mcp checkout; ignore a host project's working directory."""
+    for path in Path(__file__).resolve().parents:
+        pyproject = path / "pyproject.toml"
+        if not pyproject.is_file():
+            continue
+        try:
+            text = pyproject.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if 'name = "uthana-mcp"' in text:
+            return path
+    return None
+
+
+def load_checkout_dotenv() -> None:
+    """Apply checkout .env then .env.local without overriding host-provided process env."""
+    root = checkout_root()
+    if root is None:
+        return
+    values = {}
+    for name in (".env", ".env.local"):
+        values.update({key: value for key, value in dotenv_values(root / name).items() if value is not None})
+    for key, value in values.items():
+        os.environ.setdefault(key, value)
 
 
 @dataclass(frozen=True)
@@ -18,6 +47,7 @@ class Settings:
 
     @classmethod
     def from_env(cls):
+        load_checkout_dotenv()
         return cls(
             domain=api_domain(os.environ.get("UTHANA_DOMAIN", PRODUCTION)),
             data_dir=os.environ.get("UTHANA_MCP_DATA_DIR", str(Path.home() / ".local/state/uthana-mcp")),

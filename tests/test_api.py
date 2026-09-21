@@ -4,19 +4,21 @@ import httpx
 import pytest
 
 from uthana_mcp.api import APIError, UthanaAPI
-from uthana_mcp.validation import motion_metadata, normalize_job
+from uthana_mcp.validation import PRODUCTION, motion_metadata, normalize_job
 
 
 @pytest.mark.parametrize(
-    "domain", ["example.com", "staging.uthana.dev.evil", "https://staging.uthana.com", "staging.uthana.com.evil"]
+    "domain", ["", "https://staging.uthana.com", "uthana.com/", "uthana.com:443", "staging.uthana.com.evil/"]
 )
-def test_rejects_unapproved_domains(domain):
+def test_rejects_malformed_domains(domain):
     with pytest.raises(ValueError):
         UthanaAPI("fake", domain)
 
 
-async def test_correct_staging_configuration():
-    api = UthanaAPI("fake", "staging.uthana.com")
+@pytest.mark.parametrize("domain", ["uthana.com", "staging.uthana.com", "example.com", "uthana.com.evil"])
+async def test_accepts_production_staging_and_custom_hosts(domain):
+    api = UthanaAPI("fake", domain)
+    assert api.domain == domain
     await api.close()
 
 

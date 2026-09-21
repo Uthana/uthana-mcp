@@ -1077,6 +1077,7 @@ dependencies = [
     { name = "mcp" },
     { name = "pillow" },
     { name = "pydantic" },
+    { name = "python-dotenv" },
     { name = "uthana" },
 ]
 
@@ -1099,6 +1100,7 @@ requires-dist = [
     { name = "mcp", specifier = "==1.30.0" },
     { name = "pillow", specifier = "==12.3.0" },
     { name = "pydantic", specifier = "==2.13.5" },
+    { name = "python-dotenv", specifier = "==1.2.3" },
     { name = "uthana", git = "https://github.com/Uthana/uthana-python-client.git?rev=5c934a183ae18b47de63160e3933f6810939a74b" },
 ]
 

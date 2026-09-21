@@ -16,11 +16,11 @@ The shared client is temporarily pinned to a Git commit. Git must be able to rea
 
 ## Select the API environment
 
-Production (`uthana.com`) is the default. Keep the explicit production setting in the examples so the intended account is visible. Staging users must set `UTHANA_DOMAIN=staging.uthana.com` before upgrading from a staging-default version. For an authorized developer box, set a single-label hostname such as `devbox.uthana.dev` and use the key issued for that environment.
+Production (`uthana.com`) is the default. Keep the explicit production setting in the examples so the intended account is visible. Point at staging or another host with `UTHANA_DOMAIN` (for example `staging.uthana.com` or `devbox.uthana.dev`) and use the key issued for that environment.
 
-The shared Python client constructs the HTTPS URLs. Schemes, ports, paths, other domains, and multi-label developer hosts are rejected. Redirects and authentication failures never cause a fallback to another environment. Initialization and the workflow resource report the selected hostname.
+The shared Python client constructs the HTTPS URLs from the hostname. Schemes, ports, and paths are rejected. Redirects and authentication failures never cause a fallback to another environment. Initialization and the workflow resource report the selected hostname.
 
-Pass environment variables through the coding host configuration. The connector does not automatically load a project `.env`; this avoids silently selecting settings from an unrelated working directory. A launcher may explicitly load a trusted private `.env` before starting the server. Never commit it.
+Set `UTHANA_DOMAIN` in the coding host configuration, or in a checkout `.env` / `.env.local` (`.env.local` overrides `.env`; neither overrides variables the host already set). A `.env` in some other working directory is ignored. Never commit these files.
 
 ## Store your own API key
 

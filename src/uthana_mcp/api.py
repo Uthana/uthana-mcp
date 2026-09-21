@@ -19,12 +19,12 @@ class UthanaAPI:
         self.domain = api_domain(domain)
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
-        self.scope = hashlib.sha256((domain + ":" + key).encode()).hexdigest()
+        self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
         # The current API has no upstream character pagination. Isolate its
         # larger, bounded catalog response from all mutation/metadata limits.
         self.catalog_client = Uthana(
             key,
-            domain=domain,
+            domain=self.domain,
             timeout=httpx.Timeout(180, connect=15),
             telemetry=False,
             trust_env=False,
@@ -33,7 +33,7 @@ class UthanaAPI:
         )
         self.client = Uthana(
             key,
-            domain=domain,
+            domain=self.domain,
             timeout=httpx.Timeout(180, connect=15),
             telemetry=False,
             trust_env=False,
