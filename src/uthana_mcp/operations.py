@@ -274,7 +274,11 @@ class Operations:
         rerig_target=None,
     ):
         text(name)
-        if not isinstance(auto_rig, bool) or not isinstance(front_facing, bool) or not isinstance(include_fingers, bool):
+        if (
+            not isinstance(auto_rig, bool)
+            or not isinstance(front_facing, bool)
+            or not isinstance(include_fingers, bool)
+        ):
             raise ValueError("auto_rig, front_facing, and include_fingers must be booleans")
         if rerig_target not in (None, "r15", "ue5"):
             raise ValueError("Choose rerig_target r15 or ue5, or omit it to keep the original skeleton")
