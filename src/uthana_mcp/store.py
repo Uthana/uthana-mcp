@@ -32,6 +32,8 @@ class Store:
                 id TEXT PRIMARY KEY, filename TEXT NOT NULL, metadata TEXT NOT NULL)""")
             if "error" not in {row[1] for row in db.execute("PRAGMA table_info(requests)")}:
                 db.execute("ALTER TABLE requests ADD COLUMN error TEXT")
+            if "progress" not in {row[1] for row in db.execute("PRAGMA table_info(requests)")}:
+                db.execute("ALTER TABLE requests ADD COLUMN progress TEXT")
         self.path.chmod(0o600)
 
     @contextmanager
@@ -46,7 +48,8 @@ class Store:
     def get_request(self, request_id):
         with self.connect() as db:
             row = db.execute(
-                "SELECT operation,state,result,updated,error FROM requests WHERE id=?", (identifier(request_id),)
+                "SELECT operation,state,result,updated,error,progress FROM requests WHERE id=?",
+                (identifier(request_id),),
             ).fetchone()
         if row is None:
             return {"request_id": request_id, "state": "not_found"}
@@ -57,12 +60,26 @@ class Store:
             "result": json.loads(row[2]) if row[2] else None,
             "updated_at_unix": row[3],
             "error": json.loads(row[4]) if row[4] else None,
+            **({"progress": json.loads(row[5])} if row[5] else {}),
             "next_action": (
                 "Correct the reported cause, then explicitly retry the same request ID and arguments"
                 if row[1] == "rejected"
                 else "Inspect staging; do not resubmit" if row[1] != "complete" else None
             ),
         }
+
+    def record_progress(self, request_id, operation, progress):
+        """Persist confirmed intermediate IDs before the next upstream write."""
+        encoded = json.dumps(progress, allow_nan=False)
+        if len(encoded.encode()) > 8192:
+            raise ValueError("Intermediate operation progress is too large")
+        with self.connect() as db:
+            cursor = db.execute(
+                "UPDATE requests SET progress=?,updated=? WHERE id=? AND operation=? AND state='pending'",
+                (encoded, time.time(), identifier(request_id), operation),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Progress requires an active matching request")
 
     @staticmethod
     def fingerprint(operation, args):
@@ -102,8 +119,8 @@ class Store:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT operation,state,result FROM requests WHERE id=?", (request_id,)).fetchone()
-            if row is None or row[0] not in {"trim", "save"} or row[1] != "complete":
-                raise ValueError("Verification requires a completed trim or save receipt")
+            if row is None or row[0] not in {"trim", "save", "loop", "stitch"} or row[1] != "complete":
+                raise ValueError("Verification requires a completed native-edit receipt")
             result = json.loads(row[2])
             previous = result.get("previous_verification")
             # An unavailable metadata read cannot overturn a conclusive earlier finding.

@@ -1,12 +1,25 @@
 """Redacted upstream errors with conservative submission outcomes."""
 
+import re
+
 
 class APIError(RuntimeError):
-    def __init__(self, message, *, category="provider_error", outcome="unknown", http_status=None):
+    def __init__(
+        self,
+        message,
+        *,
+        category="provider_error",
+        outcome="unknown",
+        http_status=None,
+        support_reference=None,
+        upstream_summary=None,
+    ):
         super().__init__(message)
         self.category = category
         self.outcome = outcome
         self.http_status = http_status
+        self.support_reference = support_reference
+        self.upstream_summary = upstream_summary
 
     def details(self):
         return {
@@ -15,6 +28,8 @@ class APIError(RuntimeError):
             "http_status": self.http_status,
             "message": str(self),
             "safe_to_resubmit": self.outcome == "rejected",
+            **({"support_reference": self.support_reference} if self.support_reference else {}),
+            **({"upstream_summary": self.upstream_summary} if self.upstream_summary else {}),
         }
 
 
@@ -28,6 +43,7 @@ REJECTIONS = {
 
 
 READ_FAILURES = {
+    "not_found": "Motion, character, or job not found or not accessible to this account. Verify the ID.",
     "authentication": "Uthana could not authenticate this read request. Correct the staging API key.",
     "permission": "Uthana denied this read request. Check account and asset permissions.",
     "region": "Uthana denied this read request for the account's region.",
@@ -46,7 +62,7 @@ def read_error(category="graphql_error", *, http_status=None):
     return APIError(message, category=category, outcome="not_applicable", http_status=http_status)
 
 
-def graphql_error(result, mutation_field=None, *, read_only=False):
+def graphql_error(result, mutation_field=None, *, read_only=False, resource=None):
     errors = result.get("errors")
     recognized = (
         isinstance(errors, list)
@@ -56,12 +72,82 @@ def graphql_error(result, mutation_field=None, *, read_only=False):
     categories = {REJECTIONS[error["type"]][0] for error in errors} if recognized else set()
     category = next(iter(categories)) if len(categories) == 1 else "graphql_error"
     if read_only:
+        rows = errors if isinstance(errors, list) else []
+        data = result.get("data")
+        missing = isinstance(data, dict) and resource in data and data[resource] is None
+
+        def missing_error(error):
+            if not isinstance(error, dict):
+                return False
+            kind = error.get("type")
+            message = str(error.get("message", "")).lower().rstrip(".")
+            if kind in {"NotFound", "ResourceNotFound", "InvalidJobId"}:
+                return True
+            if resource == "motion" and kind == "UserAccessRequired":
+                return True
+            # The job resolver currently dereferences None for an absent job.
+            # Match its exact known signature and null job data, not arbitrary TypeErrors.
+            return resource == "job" and kind == "TypeError" and message == "'nonetype' object is not subscriptable"
+
+        if rows and missing and all(missing_error(error) for error in rows):
+            return read_error("not_found")
         return read_error(category)
     data = result.get("data")
     no_success = data is None or isinstance(data, dict) and all(value is None for value in data.values())
     if mutation_field and no_success and recognized and all(error.get("path") == [mutation_field] for error in errors):
         rejection_category, message = REJECTIONS[errors[0]["type"]]
         return APIError(message, category=rejection_category, outcome="rejected")
+    if mutation_field == "create_character" and category == "graphql_error":
+        rows = errors if isinstance(errors, list) else []
+        reference = None
+        for error in rows:
+            link = error.get("link", "") if isinstance(error, dict) else ""
+            match = (
+                re.fullmatch(r"https://staging\.uthana\.com/tb/([a-f0-9]{12,64})", link)
+                if isinstance(link, str)
+                else None
+            )
+            if match:
+                reference = match[1]
+                break
+        summary = "Character processing did not return a confirmed result."
+        category = "character_processing"
+        signatures = (
+            (
+                "no rig found in scene",
+                "character_rig",
+                "No skeleton was found. Check the file rig or auto-rig setting after reconciling this request.",
+            ),
+            (
+                "essential joints missing",
+                "character_rig",
+                "The skeleton is missing required pelvis, shoulder, or hip joints. Check the character's joint mapping.",
+            ),
+            ("auto-rigging failed", "character_rig", "Auto-rigging failed. Check the character's geometry and pose."),
+            (
+                "maximum number of characters",
+                "character_limit",
+                "The account character allowance is exhausted. Check account usage.",
+            ),
+            (
+                "provided file is too large",
+                "character_file",
+                "The character exceeds the service upload limit. Reduce the file size.",
+            ),
+        )
+        for error in rows:
+            message = str(error.get("message", "")).lower() if isinstance(error, dict) else ""
+            for signature, safe_category, safe_summary in signatures:
+                if signature in message:
+                    category, summary = safe_category, safe_summary
+                    break
+        return APIError(
+            summary + " Inspect list_characters by name and get_request_status before another upload. "
+            "If no usable character is found, contact Uthana support with the request ID and support reference.",
+            category=category,
+            support_reference=reference,
+            upstream_summary=summary,
+        )
     if category != "graphql_error":
         return APIError(
             f"Uthana reported {category} errors; submission may have been accepted. "

@@ -39,6 +39,9 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 "get_preview_frame",
                 "generate_motion_from_video",
                 "upload_character",
+                "create_character_from_image",
+                "create_looped_motion",
+                "create_stitched_motion",
                 "list_characters",
                 "list_motions",
                 "get_usage",
@@ -144,6 +147,6 @@ async def test_actual_entrypoint_discovers_without_credentials():
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as client:
             await client.initialize()
-            assert len((await client.list_tools()).tools) == 19
+            assert len((await client.list_tools()).tools) == 22
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

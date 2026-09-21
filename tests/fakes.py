@@ -28,7 +28,7 @@ class FakeAPI:
 
     def __init__(self):
         self.calls = []
-        self.motions = {"motion1": native()}
+        self.motions = {"motion1": native(), "motion2": native("motion2")}
         self.fail_verification = False
 
     async def close(self):
@@ -71,6 +71,24 @@ class FakeAPI:
         self.calls.append(("upload_character", {"filename": filename, "content": content, "auto_rig": auto_rig}))
         count = sum(call[0] == "upload_character" for call in self.calls)
         return {"character_id": f"mixamo{count}"}
+
+    async def prepare_character_image(self, filename, content):
+        self.calls.append(("prepare_image", {"filename": filename, "content": content}))
+        return {"stage": "image_prepared", "character_id": "imagechar1", "image_key": "imagechar1-front.png"}
+
+    async def finalize_character_image(self, prepared, name):
+        self.calls.append(("finalize_image", {"prepared": prepared, "name": name}))
+        return {"character_id": prepared["character_id"], "auto_rig_confidence": 0.9}
+
+    async def stitch(self, character_id, prefix, suffix):
+        self.calls.append(("stitch", {"character_id": character_id, "prefix": prefix, "suffix": suffix}))
+        self.motions["stitched1"] = native("stitched1", count=300)
+        return {"motion_id": "stitched1", "character_id": character_id}
+
+    async def loop(self, **args):
+        self.calls.append(("loop", args))
+        self.motions["looped1"] = native("looped1")
+        return {"motion_id": "looped1", "character_id": args["character_id"]}
 
     async def video(self, filename, content, name, model):
         self.calls.append(("video", {"filename": filename, "content": content, "name": name, "model": model}))
