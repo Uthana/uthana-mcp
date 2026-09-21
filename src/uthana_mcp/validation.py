@@ -6,6 +6,19 @@ import re
 
 TAR = "cXi2eAP19XwQ"
 STAGING = "staging.uthana.com"
+PRODUCTION = "uthana.com"
+
+
+def api_domain(value: str) -> str:
+    developer_host = isinstance(value, str) and re.fullmatch(
+        r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.uthana\.dev", value
+    )
+    if value not in (STAGING, PRODUCTION) and not developer_host:
+        raise ValueError(
+            "UTHANA_DOMAIN must be uthana.com, staging.uthana.com, or a single-label "
+            "<host>.uthana.dev hostname; no scheme, port, path, or automatic fallback"
+        )
+    return value
 
 
 def identifier(value: str) -> str:

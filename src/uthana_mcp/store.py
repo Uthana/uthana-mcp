@@ -64,7 +64,7 @@ class Store:
             "next_action": (
                 "Correct the reported cause, then explicitly retry the same request ID and arguments"
                 if row[1] == "rejected"
-                else "Inspect staging; do not resubmit" if row[1] != "complete" else None
+                else "Inspect the configured Uthana account; do not resubmit" if row[1] != "complete" else None
             ),
         }
 
@@ -96,7 +96,9 @@ class Store:
             return status["result"]
         if status["state"] == "rejected":
             return None
-        raise ValueError("Request is pending or unresolved. Inspect get_request_status and staging; do not resubmit")
+        raise ValueError(
+            "Request is pending or unresolved. Inspect get_request_status and the configured Uthana account; do not resubmit"
+        )
 
     def replay(self, request_id, operation, args):
         with self.connect() as db:
@@ -107,7 +109,7 @@ class Store:
             raise ValueError("request_id was already used with different arguments")
         if row[1] != "complete":
             raise ValueError(
-                "Request is pending or unresolved. Inspect get_request_status and staging; do not resubmit"
+                "Request is pending or unresolved. Inspect get_request_status and the configured Uthana account; do not resubmit"
             )
         return {**json.loads(row[2]), "replayed": True}
 
@@ -148,7 +150,7 @@ class Store:
                     return {**json.loads(row[2]), "replayed": True}
                 if row[1] != "rejected":
                     raise ValueError(
-                        "Request is pending or unresolved. Inspect get_request_status and staging; do not resubmit"
+                        "Request is pending or unresolved. Inspect get_request_status and the configured Uthana account; do not resubmit"
                     )
                 db.execute(
                     "UPDATE requests SET state='pending',result=NULL,error=NULL,updated=? WHERE id=?",
@@ -178,7 +180,7 @@ class Store:
                     (
                         "Submission was interrupted; upstream work may continue."
                         if isinstance(exc, asyncio.CancelledError)
-                        else "Operation outcome is unconfirmed. Inspect staging before any further submission"
+                        else "Operation outcome is unconfirmed. Inspect the configured Uthana account before any further submission"
                     ),
                     category="interrupted" if isinstance(exc, asyncio.CancelledError) else "unconfirmed",
                 )

@@ -33,7 +33,7 @@ async def test_query_authentication_without_path_is_actionable(method, args):
 
     api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
     try:
-        with pytest.raises(APIError, match="Correct the staging API key") as caught:
+        with pytest.raises(APIError, match="Check the API key for the configured Uthana environment") as caught:
             await getattr(api, method)(*args)
         assert caught.value.category == "authentication"
         assert caught.value.outcome == "not_applicable"
