@@ -140,9 +140,7 @@ async def test_image_character_include_fingers_choice(tmp_path):
 
     # A pre-expansion receipt replays with explicit default fingers and rejects a change.
     await ops.create_character_from_image("image-default", str(selected), "Snapshot")
-    replay = await ops.create_character_from_image(
-        "image-default", str(selected), "Snapshot", include_fingers=True
-    )
+    replay = await ops.create_character_from_image("image-default", str(selected), "Snapshot", include_fingers=True)
     assert replay["replayed"]
     with pytest.raises(ValueError):
         await ops.create_character_from_image("image-default", str(selected), "Snapshot", include_fingers=False)
