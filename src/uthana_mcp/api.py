@@ -31,6 +31,7 @@ class UthanaAPI:
             transport=transport,
             max_response_bytes=16 * 1024 * 1024,
         )
+        response_limit = 2 * 1024 * 1024
         self.client = Uthana(
             key,
             domain=self.domain,
@@ -38,7 +39,8 @@ class UthanaAPI:
             telemetry=False,
             trust_env=False,
             transport=transport,
-            max_response_bytes=2 * 1024 * 1024,
+            max_response_bytes=response_limit,
+            max_mutation_response_bytes=response_limit,
         )
 
     async def close(self):
@@ -80,14 +82,15 @@ class UthanaAPI:
                     category="rate_limit" if status == 429 else "http_error",
                     http_status=status,
                 ) from None
+            too_large = error.kind in {"response_too_large", "uncertain"}
             message = (
                 "Uthana response exceeded the configured size limit"
-                if error.kind == "response_too_large"
+                if too_large
                 else "Uthana returned an invalid API response"
             )
             raise APIError(
                 message,
-                category="response_too_large" if error.kind == "response_too_large" else "provider_error",
+                category="response_too_large" if too_large else "provider_error",
                 outcome="not_applicable" if read_only else "unknown",
             ) from None
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
