@@ -80,6 +80,15 @@ class FakeAPI:
         self.calls.append(("finalize_image", {"prepared": prepared, "name": name}))
         return {"character_id": prepared["character_id"], "auto_rig_confidence": 0.9}
 
+    async def stitch_auto(self, options):
+        self.calls.append(("stitch_auto", options))
+        self.motions["stitched1"] = native("stitched1", 179, 20)
+        return {
+            "motion_id": "stitched1",
+            "character_id": options["character_id"],
+            "preparation": {"pose_samples_source": "server_sampled", "stitch_duration": 1.0},
+        }
+
     async def stitch(self, character_id, prefix, suffix):
         self.calls.append(("stitch", {"character_id": character_id, "prefix": prefix, "suffix": suffix}))
         self.motions["stitched1"] = native("stitched1", count=300)

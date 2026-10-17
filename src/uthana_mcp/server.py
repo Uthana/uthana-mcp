@@ -18,7 +18,7 @@ from .api import UthanaAPI
 from .config import Config
 from .errors import APIError
 from .operations import Operations
-from .stitching import StitchClip
+from .stitching import StitchClip, StitchPlacement
 from .validation import TAR
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
@@ -484,6 +484,69 @@ def create_server(operations=None):
         )
 
     @tool(annotations=WRITE)
+    async def stitch_motions(
+        request_id: Annotated[Id, Field(description="Durable request ID; recover unresolved work before retrying.")],
+        prefix_motion_id: Annotated[Id, Field(description="Existing motion that plays first.")],
+        suffix_motion_id: Annotated[Id, Field(description="Existing motion that plays second.")],
+        character_id: Annotated[Id, Field(description="Target character for both motions; defaults to Tar.")] = TAR,
+        stitch_duration: Annotated[
+            float,
+            Field(
+                strict=True,
+                ge=0.1,
+                le=3,
+                allow_inf_nan=False,
+                description="Transition seconds, 0.1-3; server rounds to 20 Hz model frames.",
+            ),
+        ] = 1.0,
+        prefix_start_seconds: Annotated[
+            float,
+            Field(
+                strict=True, ge=0, allow_inf_nan=False, description="Prefix start in native seconds; defaults to zero."
+            ),
+        ] = 0.0,
+        prefix_end_seconds: Annotated[
+            Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] | None,
+            Field(description="Prefix end in native seconds; omit for safe defaults with required context."),
+        ] = None,
+        suffix_start_seconds: Annotated[
+            float,
+            Field(
+                strict=True, ge=0, allow_inf_nan=False, description="Suffix start in native seconds; defaults to zero."
+            ),
+        ] = 0.0,
+        suffix_end_seconds: Annotated[
+            Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] | None,
+            Field(description="Suffix end in native seconds; omit for safe defaults with required context."),
+        ] = None,
+        placement: Annotated[
+            StitchPlacement | None,
+            Field(description="Optional relative gap and facing; omit for automatic continuation."),
+        ] = None,
+        ctx: Context = None,
+    ) -> dict[str, Any]:
+        """Join two motions with server sampling and alignment. Prefer this for ordinary stitching requests.
+        Omit end trims to use safe defaults. The service snaps trims inward and reserves prefix context.
+        Placement: forward_m/right_m are relative to prefix ending facing; facing_degrees is positive right.
+        Omitted forward_m continues recent travel; explicit zero means no forward gap. The service returns
+        effective trims and connection poses. Allow at least 420 seconds. Review playback before accepting.
+        No Blender, external sampler, or installed skill is required. Billing uses full output seconds.
+        """
+        options = dict(
+            character_id=character_id,
+            prefix_motion_id=prefix_motion_id,
+            suffix_motion_id=suffix_motion_id,
+            stitch_duration=stitch_duration,
+            prefix_start_seconds=prefix_start_seconds,
+            prefix_end_seconds=prefix_end_seconds,
+            suffix_start_seconds=suffix_start_seconds,
+            suffix_end_seconds=suffix_end_seconds,
+        )
+        if placement is not None:
+            options["placement"] = placement.model_dump(exclude_none=True)
+        return await with_progress(ctx, ops().stitch_auto(request_id, options), "stitch_motions")
+
+    @tool(annotations=WRITE)
     async def create_stitched_motion(
         request_id: Annotated[
             Id,
@@ -510,7 +573,7 @@ def create_server(operations=None):
         ] = "",
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Join two motion clips with a generated transition using the enhanced stitching preview API. You must
+        """Advanced sampled-pose stitching. Prefer stitch_motions for server preparation. You must
         supply root/pelvis samples evaluated on the same character in a shared scene. Use a motion loader; this
         tool does not load, sample, or align motions. Sample at zero, start_seconds, and end_seconds within the
         native sample range. Get each source-file ID/hash from get_motion first. See STITCHING.md and

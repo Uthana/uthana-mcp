@@ -69,6 +69,15 @@ An unresolved upload receipt includes its selected name and a `list_characters` 
 
 ## Loop and stitch
 
+Prefer `stitch_motions` for ordinary two-clip joins. It performs pose sampling and
+alignment on the service; supply motion IDs, character, transition duration, and
+optional trims in seconds. Optional placement uses forward/right meters relative
+to prefix ending facing and facing_degrees positive to the right. Omitted forward
+continues recent travel; explicit zero requests no gap. Inspect returned effective
+trims and connection poses, then review playback. Avoid implausible distance/time
+combinations and duplicate submissions; request recovery works as for advanced stitching.
+
+
 `create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
 
 `create_stitched_motion` joins two existing clips using the enhanced preview API. The host must load both motions on the same character, place them in a shared scene, and evaluate root/pelvis poses at zero and each trim boundary. It requires source-file IDs/hashes from `get_motion`, world positions in meters with Y up, unit x/y/z/w quaternions, and hip-derived yaw in radians. Times must fall within native samples. Invented poses, APNG-derived transforms, and placeholder zeros are unsuitable.

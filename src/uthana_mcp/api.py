@@ -238,6 +238,19 @@ class UthanaAPI:
             raise APIError("Character generation returned a different character ID; inspect the prepared ID")
         return {"character_id": character_id, "auto_rig_confidence": result.auto_rig_confidence}
 
+    async def stitch_auto(self, options):
+        result = await self._call(
+            self.client.motions.stitch_motions,
+            options,
+            timeout=httpx.Timeout(360, connect=15),
+            mutation_field="create_enhanced_stitched_motion",
+        )
+        return {
+            "motion_id": identifier(result["motion"]["id"]),
+            "character_id": options["character_id"],
+            "preparation": result.get("preparation"),
+        }
+
     async def stitch(self, character_id, prefix, suffix):
         result = await self._call(
             self.client.motions.create_stitched_motion,

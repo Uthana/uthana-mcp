@@ -12,7 +12,7 @@ license-files = ["LICENSE"]
 authors = [{name = "Uthana, Inc."}]
 requires-python = ">=3.11"
 dependencies = [
-    "uthana>=0.5.1",
+    "uthana>=0.6.0",
     "mcp==1.30.0",
     "httpx==0.28.1",
     "Pillow==12.3.0",
@@ -68,3 +68,7 @@ profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
 known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "dotenv"]
+
+# Temporary review pin until the coordinated 0.6.0 client release.
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "87a7c82bdfcb7f7f3e2f267406b1e146e584f655" }

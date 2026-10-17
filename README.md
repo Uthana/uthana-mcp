@@ -102,4 +102,14 @@ uv run --locked ./test.sh
 
 The checks run offline tests, formatting, lint, and package builds. Live model acceptance is a separate explicitly configured run that incurs model charges; tests must not silently select production.
 
+## Join two motions without a sampler
+
+Ask: “Stitch these two motions on my character with a one-second transition.”
+The agent uses `stitch_motions`; Uthana handles sampling and alignment. You can
+also ask “Start the second clip two meters ahead, facing 90 degrees right.”
+Offsets are relative to the first clip's ending pelvis and facing. Review playback
+before accepting the result. See [stitching guidance](STITCHING.md).
+This requires the automatic-input API and Python client 0.6.0; the existing
+`create_stitched_motion` sampled-pose operation remains available.
+
 Licensed under [Apache-2.0](LICENSE).
