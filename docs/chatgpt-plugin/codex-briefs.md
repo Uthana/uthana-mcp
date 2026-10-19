@@ -1,18 +1,23 @@
 # Codex briefs: Uthana ChatGPT plugin
 
-Date: October 8, 2026 (revision 2)
+Date: October 19, 2026 (revision 3: staged delivery)
 Read first:
-- `docs/chatgpt-plugin/contracts.md`: the shared interfaces. They're authoritative; don't reinterpret them. If something can't be built as written, stop and propose a contracts change.
-- `docs/chatgpt-plugin/plan.md` §7: scope and order.
+- `docs/chatgpt-plugin/contracts.md`: the proposed stage-3 interfaces. After approval, they're authoritative within that profile; don't reinterpret them. If something can't be built as written, stop and propose a contracts change.
+- `docs/chatgpt-plugin/plan.md` §0: release boundaries and infrastructure-reuse review; §7: stage-3 scope and order.
 
 Both live next to this file in `docs/chatgpt-plugin/`.
+
+These briefs implement the ChatGPT integration, not the open-source release checklist.
+Do not start them merely because the docs PR is merged. Brandon must first approve
+the contracts and reuse review. Keep signup/email verification unchanged.
 
 Process:
 - Codex implements on a `v/` branch and opens a **draft PR**. Brandon reviews before merge.
 - Never push to `main`/`staging`; never deploy.
 - Read the repo's `AGENTS.md` first.
+- Check existing open PRs before opening another. Aim for roughly five active PRs per repository for Viren's work; the existing six MCP PRs are accepted. This is a planning guideline, not automatic closure or consolidation. Prefer updating an existing PR when scope fits, and explain necessary stacks. Keep public diffs focused and reviewable.
 
-Order (plan §7): contracts approved (step 0; billing details provisional until G6) → G1/G2 → A, B, C, D, F in parallel → E once B is on OAuth. No calendar dates; start when dependencies land.
+Stage-3 order (plan §7): reuse review and contracts approved (step 0; billing details provisional until G6) → G1/G2 → A, B, C, D, F in parallel → E once B is on OAuth. No calendar dates; start when dependencies land.
 
 ---
 

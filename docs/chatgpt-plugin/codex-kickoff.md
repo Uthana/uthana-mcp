@@ -1,12 +1,14 @@
 # Codex kickoff: Uthana ChatGPT plugin, first wave
 
-Date: October 8, 2026
+Date: October 19, 2026
 
-This is what to paste into Codex to start implementation: one prompt per Codex task. Each prompt stands alone.
+These are stage-3 ChatGPT implementation prompts, not tasks required to open-source
+the local MCP. Follow plan §0 for the open-source → hosted MCP → ChatGPT sequence.
+Use the prompts only after the approvals below; one prompt per task.
 
 **Before you start**
 - The docs PR (`v/chatgpt-plugin-docs` in `Uthana/uthana-mcp`) is merged, or each prompt points at that branch. The docs are in `docs/chatgpt-plugin/`: `plan.md`, `contracts.md`, `codex-briefs.md`.
-- Brandon has approved `contracts.md` (plan step 0).
+- Brandon has approved `contracts.md` and reviewed existing auth, jobs, assets, and storage for reuse (plan §0 and step 0). Update the briefs if that review changes the design.
 - Tasks 1–5 can run at the same time. Task 6 starts after tasks 1 and 2 land on staging.
 
 **Rules for every task**
@@ -15,7 +17,8 @@ This is what to paste into Codex to start implementation: one prompt per Codex t
 - Never push to `main`/`staging`; never deploy.
 - Brandon reviews before merge.
 - Read the repo's `AGENTS.md`.
-- **Don't change Uthana billing.**
+- **Don't change Uthana billing or relax signup/email verification.**
+- Check the PR backlog before creating another: roughly five active PRs per repository is a planning guideline; the current six MCP PRs are accepted. Update existing PRs where appropriate and keep public changes focused.
 
 ---
 

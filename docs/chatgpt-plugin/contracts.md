@@ -1,8 +1,16 @@
 # Uthana ChatGPT plugin: shared contracts
 
-Version: 0.4 draft, October 8, 2026 (billing unchanged; plugin uses the existing charge path)
+Version: 0.5 draft, October 19, 2026 (release boundaries clarified; billing unchanged)
 Status: **needs Brandon's approval (plan step 0) before Briefs A–F start in parallel**
-Authoritative over `docs/chatgpt-plugin/plan.md` where they overlap. Change this file first, then the code.
+Within the stage-3 ChatGPT integration, authoritative over the implementation details in `plan.md` after approval. The release boundaries in plan §0 govern applicability. Change this file first, then the code.
+
+These are proposed ChatGPT-profile contracts, not prerequisites for publishing the
+local MCP or launching a general hosted MCP. Viewer-only approval and quote
+storage requirements apply to that profile. Before implementation, Brandon reviews
+reuse of existing auth, jobs, assets, and durable state; revise these contracts if
+existing infrastructure changes the design. Preserve the local stdio/API-key path
+and its receipt behavior. Keep existing signup/email verification intact; no
+unverified-account generation allowance or email-code bypass is introduced.
 
 Conventions:
 - IDs are opaque strings in Uthana's existing `generate_uid` style.

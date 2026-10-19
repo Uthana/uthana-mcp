@@ -1,16 +1,50 @@
 # Uthana ChatGPT plugin: MVP plan v2
 
-Date: October 8, 2026 (revision 3: billing unchanged)
-Status: Scope decided. Brandon approves the contracts (step 0); billing details stay provisional until G6 is answered, and that doesn't block auth, remote transport, or viewer work.
+Date: October 19, 2026 (revision 4: release boundaries and review handoff)
+Status: Release sequence agreed: open source → hosted MCP → ChatGPT integration. The ChatGPT contracts and implementation briefs remain subject to Brandon's approval (step 0), including the infrastructure-reuse review below.
 Supersedes: the v1 draft plan (not in the repo)
 Companion files: `docs/chatgpt-plugin/contracts.md` (shared interfaces; authoritative where it overlaps this plan) and `docs/chatgpt-plugin/codex-briefs.md` (implementation briefs)
 Audience: Viren, Brandon, and the implementing agents
 
 ## 0. How to read this
 
-- **§7 is authoritative** for scope and order. Any other section that seems to disagree loses to §7.
+- **The release boundaries below govern the overall sequence. §7 governs the ChatGPT integration work within stage 3**, not the initial open-source release or the minimum hosted MCP.
 - **The contracts document is authoritative** for tool names, payloads, states, and the billing rules. This plan explains why; the contracts say exactly what.
 - There are no calendar dates. Each step starts when the steps it depends on are done.
+
+### Release boundaries
+
+| Stage | Deliverable | What does not gate this stage |
+| --- | --- | --- |
+| 1. Open source | Publish the current local stdio MCP with accurate setup, supported workflows, examples, and known limitations. Review the repository contents/history and outstanding PRs before changing visibility. | Hosted transport, OAuth implementation for hosting, ChatGPT viewer, quote UI, mobile acceptance, and directory submission. New capabilities can ship later. |
+| 2. Hosted MCP | An authenticated remote MCP with user isolation, appropriate file transfer, and durable recovery, reusing Uthana's existing services. Validate a minimal generate → retrieve → export flow. | ChatGPT-specific viewer, mandatory viewer Confirm buttons, listing assets, and the prototype agent's public launch. |
+| 3. ChatGPT integration | The ChatGPT tool profile, account linking, viewer, confirmation UX, platform acceptance, and submission described in the remaining sections. | These requirements must not be applied retroactively to stages 1–2. |
+
+Brandon owns production-readiness review and deployment. Viren can continue product
+experiments, examples, and documentation alongside that review. Documentation
+changes do not authorize executing the implementation briefs or deploying services.
+
+**Reuse review before implementation:** inventory existing authentication/session
+handling, jobs, assets, receipt storage, and database support. Map each proposed
+addition to an existing capability or a demonstrated gap. The Postgres quote table,
+new OAuth modules, and job changes below are proposals for the ChatGPT integration,
+not instructions to duplicate existing infrastructure or migrate local SQLite users.
+Update the contracts and affected briefs after Brandon's review, before coding them.
+
+**Signup stays unchanged:** preserve existing email verification and login security.
+A user completes verification/account linking; an agent does not need inbox access.
+Do not add unverified-account generations, bypass codes, or relax verification as
+part of these releases. Any future signup change is a separate product/security decision.
+
+**Stitching is independent of hosting:** server-side pose preparation benefits both
+the local and hosted MCP. The coordinated stitching PRs are backend
+[#1748](https://github.com/Uthana/uthana/pull/1748), Python
+[#18](https://github.com/Uthana/uthana-python-client/pull/18), JavaScript
+[#12](https://github.com/Uthana/uthana-js-client/pull/12), and MCP
+[#10](https://github.com/Uthana/uthana-mcp/pull/10). Review/deploy the backend, release
+the clients, replace the MCP's draft-client pin, and complete deployed end-to-end
+acceptance before advertising automatic stitching. This enhancement need not block
+open-sourcing the existing MCP.
 
 ## 1. Goal and release scenario
 
@@ -197,7 +231,7 @@ Long work never runs inside an MCP HTTP request:
 - Tool descriptions follow OpenAI's "Optimize Metadata" guide.
 - A golden prompt set covers positive and negative cases.
 
-## 7. Scope and order of work (authoritative)
+## 7. ChatGPT integration scope and order of work
 
 **First submission:**
 - Text prompts + default avatars + custom GLB/FBX upload.
@@ -234,7 +268,7 @@ Long work never runs inside an MCP HTTP request:
 | 14 | Submit | — | 13, N1, N3, N5, N7 |
 | 15 | Video-to-motion update | — | 14 |
 
-**Longest chain:** 1 → 3 → 9 → 12 (auth to production), plus N1 (verification). Start those first. Auth (3), the remote MCP (5), and the viewer (6) start as soon as the contracts are approved; billing facts (G6) don't block them.
+**Within stage 3, after contract and reuse approval, the longest chain is:** 1 → 3 → 9 → 12 (auth to production), plus N1 (verification). Start those first. Auth (3), the remote MCP (5), and the viewer (6) start as soon as the contracts are approved; billing facts (G6) don't block them.
 
 ## 8. Submission package checklist
 
