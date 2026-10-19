@@ -9,10 +9,12 @@ import time
 import warnings
 from pathlib import Path
 
+import httpx
 from PIL import Image
 
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
+from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchClip, api_clip
 from .store import Store
@@ -320,6 +322,108 @@ class Operations:
             }
 
         return await self.store.mutation(request_id, "character_from_image", args, invoke)
+
+    async def preview_character_from_prompt(self, request_id, prompt):
+        text(prompt, 1000)
+        args = {"prompt": prompt}
+
+        async def invoke():
+            prepared = await self.api.preview_character_prompt(prompt)
+            # Persist the character ID before fetching images, so an interrupted fetch never hides it.
+            self.store.record_progress(
+                request_id, "character_prompt_preview", {"character_id": prepared["character_id"]}
+            )
+            previews = []
+            for index, preview in enumerate(prepared["previews"]):
+                entry = {"preview_index": index, "image_key": preview["image_key"]}
+                try:
+                    if not preview["url"]:
+                        raise ValueError("Uthana returned no preview URL")
+                    data = await self.api.fetch_preview_image(preview["url"])
+                    with Image.open(io.BytesIO(data)) as image:
+                        if image.format not in {"PNG", "JPEG", "WEBP"} or image.width * image.height > 16_000_000:
+                            raise ValueError("Preview is not a supported still image")
+                        suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}[image.format]
+                        mime = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}[image.format]
+                        entry.update({"width": image.width, "height": image.height})
+                    saved = self.store.artifact(
+                        data,
+                        suffix,
+                        {
+                            "character_id": prepared["character_id"],
+                            "preview_index": index,
+                            "format": "character_preview",
+                            "mime_type": mime,
+                        },
+                    )
+                    entry.update(
+                        {"artifact_id": saved["artifact_id"], "local_path": saved["local_path"], "mime_type": mime}
+                    )
+                except (APIError, OSError, ValueError, httpx.HTTPError) as error:
+                    # The character ID is still usable; a missing image only limits review.
+                    entry["image_unavailable"] = str(error)[:300]
+                previews.append(entry)
+            return {
+                "stage": "previews_ready",
+                "character_id": prepared["character_id"],
+                "prompt": prompt,
+                "previews": previews,
+                "review_status": "unreviewed",
+                "next_step": "Show the previews to the user. After they choose one, call "
+                "create_character_from_prompt with this request_id as preview_request_id and the chosen preview_index.",
+            }
+
+        return await self.store.mutation(request_id, "character_prompt_preview", args, invoke)
+
+    def character_preview_images(self, result, max_side=768):
+        """Hash-verified previews saved by preview_character_from_prompt, as bounded JPEG thumbnails."""
+        images = []
+        for preview in result.get("previews", []):
+            artifact_id = preview.get("artifact_id")
+            if not artifact_id:
+                continue
+            data, _ = self.store.read_artifact(artifact_id)
+            with Image.open(io.BytesIO(data)) as image:
+                image = image.convert("RGB")
+                image.thumbnail((max_side, max_side))
+                output = io.BytesIO()
+                image.save(output, format="JPEG", quality=85)
+            images.append((preview["preview_index"], output.getvalue()))
+        return images
+
+    async def create_character_from_prompt(self, request_id, preview_request_id, preview_index, name):
+        text(name)
+        identifier(preview_request_id)
+        if isinstance(preview_index, bool) or not isinstance(preview_index, int) or preview_index < 0:
+            raise ValueError("preview_index must be a whole number from the preview list")
+        preview = self.store.get_request(preview_request_id)
+        if preview.get("operation") != "character_prompt_preview" or preview.get("state") != "complete":
+            raise ValueError("preview_request_id must name a completed preview_character_from_prompt request")
+        result = preview["result"]
+        chosen = next((p for p in result["previews"] if p["preview_index"] == preview_index), None)
+        if chosen is None:
+            raise ValueError("preview_index is not in that preview list")
+        args = {
+            "preview_request_id": preview_request_id,
+            "character_id": result["character_id"],
+            "image_key": chosen["image_key"],
+            "name": name,
+        }
+
+        async def invoke():
+            created = await self.api.finalize_character_prompt(
+                result["character_id"], result["prompt"], chosen["image_key"], name
+            )
+            return {
+                **created,
+                "name": name,
+                "prompt": result["prompt"],
+                "preview_index": preview_index,
+                "review_status": "unreviewed",
+                "stage": "character_created",
+            }
+
+        return await self.store.mutation(request_id, "character_from_prompt", args, invoke)
 
     async def loop(
         self,

@@ -17,6 +17,7 @@ from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_jo
 class UthanaAPI:
     def __init__(self, key: str, domain: str | None = None, *, transport=None):
         self.domain = domain or UTHANA_DOMAIN
+        self.transport = transport
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
@@ -237,6 +238,64 @@ class UthanaAPI:
         if character_id != prepared["character_id"]:
             raise APIError("Character generation returned a different character ID; inspect the prepared ID")
         return {"character_id": character_id, "auto_rig_confidence": result.auto_rig_confidence}
+
+    async def preview_character_prompt(self, prompt):
+        result = await self._call(
+            self.client.characters.create_from_prompt,
+            prompt=prompt,
+            mutation_field="create_image_from_text",
+        )
+        previews = []
+        for preview in result.previews if isinstance(result.previews, list) else []:
+            key = preview.get("key") if isinstance(preview, dict) else None
+            url = preview.get("url") if isinstance(preview, dict) else None
+            if not isinstance(key, str) or not key.strip() or len(key) > 1024:
+                raise APIError("Uthana returned an invalid character preview key")
+            previews.append({"image_key": key, "url": url if isinstance(url, str) else None})
+        if not previews:
+            raise APIError("Uthana returned no character preview images")
+        return {"character_id": identifier(result.character_id), "previews": previews}
+
+    async def fetch_preview_image(self, url, max_bytes=16 * 1024 * 1024):
+        """Fetch a generated preview. Send credentials only to the configured Uthana host."""
+        parsed = httpx.URL(url)
+        if parsed.scheme != "https":
+            raise APIError("Character preview URL is not HTTPS")
+        host = parsed.host or ""
+        if host == self.domain or host.endswith("." + self.domain):
+            return await self.client._request_bytes("GET", url, max_bytes=max_bytes)
+        # Presigned storage URLs carry their own authorization; never attach the API key.
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(60, connect=15),
+            follow_redirects=False,
+            trust_env=False,
+            transport=self.transport,
+        ) as http:
+            async with http.stream("GET", url) as response:
+                if response.status_code != 200:
+                    raise APIError(f"Character preview fetch failed with HTTP {response.status_code}")
+                data = b""
+                async for chunk in response.aiter_bytes():
+                    data += chunk
+                    if len(data) > max_bytes:
+                        raise APIError("Character preview exceeds the size limit")
+        return data
+
+    async def finalize_character_prompt(self, character_id, prompt, image_key, name):
+        pending = CharacterPreviewResult(character_id=character_id, previews=[], prompt=prompt)
+        result = await self._call(
+            self.client.characters.generate_from_image,
+            pending,
+            image_key,
+            name=name,
+            include_fingers=True,
+            timeout=httpx.Timeout(660, connect=15),
+            mutation_field="create_character_from_image",
+        )
+        returned = identifier(result.character["id"])
+        if returned != character_id:
+            raise APIError("Character generation returned a different character ID; inspect the preview's ID")
+        return {"character_id": returned, "auto_rig_confidence": result.auto_rig_confidence}
 
     async def stitch(self, character_id, prefix, suffix):
         result = await self._call(

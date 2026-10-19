@@ -68,6 +68,8 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 | `generate_motion_from_video` | Video-to-motion (V2M) 2.0 or 2.1 job |
 | `upload_character` | FBX/GLB upload with optional auto-rig |
 | `create_character_from_image` | PNG/JPEG to a rigged character |
+| `preview_character_from_prompt` | Text prompt to candidate character images (stage 1) |
+| `create_character_from_prompt` | Rig the chosen preview into a character (stage 2) |
 | `create_looped_motion` | Closed/open loop of an existing motion |
 | `create_stitched_motion` | Join two clips using host-sampled poses |
 | `list_characters` | Character name filter and result pages |
@@ -77,7 +79,7 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
 
-The server exposes 22 tools, the `uthana://workflow` resource, and the optional `review_motion` prompt.
+The server exposes 24 tools, the `uthana://workflow` resource, and the optional `review_motion` prompt.
 
 ## Pricing and limitations
 
