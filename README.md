@@ -2,7 +2,7 @@
 
 This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. See [partner setup](PARTNER-SETUP.md) for local installation and [acceptance](BETA-ACCEPTANCE.md) for environment and host verification.
 
-The host supplies the reasoning model and any editing or pose-sampling skills. The server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and local stdio transport. A browser-hosted connector requires a separate authenticated remote transport.
+The host supplies the reasoning model and any editing tools. Ordinary stitching uses server-side pose sampling and alignment; only the advanced sampled-pose operation requires a host sampler. The server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and local stdio transport. A browser-hosted connector requires a separate authenticated remote transport.
 
 ## Install and connect
 
@@ -48,7 +48,7 @@ Only the key file path belongs in this descriptor. Keep the key itself outside p
 | Character upload, looping, stitching | At least 420 seconds |
 | Character from image | At least 1080 seconds |
 
-Slow transfers may require longer. These four tools send MCP progress notifications when the caller supplies a progress token. Notifications report activity rather than a percentage; hosts may still enforce a total deadline.
+Slow transfers may require longer. These long-running tools send MCP progress notifications when the caller supplies a progress token. Notifications report activity rather than a percentage; hosts may still enforce a total deadline.
 
 ## Tools
 
@@ -69,7 +69,8 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 | `upload_character` | FBX/GLB upload with optional auto-rig |
 | `create_character_from_image` | PNG/JPEG to a rigged character |
 | `create_looped_motion` | Closed/open loop of an existing motion |
-| `create_stitched_motion` | Join two clips using host-sampled poses |
+| `stitch_motions` | Join two clips with server sampling and optional relative placement |
+| `create_stitched_motion` | Advanced join using host-sampled poses |
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go (PAYG) balance, rates, and allowances |
@@ -77,11 +78,11 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
 
-The server exposes 22 tools, the `uthana://workflow` resource, and the optional `review_motion` prompt.
+The server exposes 23 tools, the `uthana://workflow` resource, and the optional `review_motion` prompt.
 
 ## Pricing and limitations
 
-The [workflow](src/uthana_mcp/WORKFLOW.md) defines pricing, request recovery, and review behavior. The [coverage guide](COVERAGE.md) lists limitations, including local character pagination and the host's responsibility for stitching pose samples. Looping and stitching use preview APIs whose contracts can change.
+The [workflow](src/uthana_mcp/WORKFLOW.md) defines pricing, request recovery, and review behavior. The [coverage guide](COVERAGE.md) lists limitations, including local character pagination and host sampling for the advanced stitching operation. Looping and stitching use preview APIs whose contracts can change.
 
 ## Documentation
 
@@ -110,6 +111,8 @@ also ask “Start the second clip two meters ahead, facing 90 degrees right.”
 Offsets are relative to the first clip's ending pelvis and facing. Review playback
 before accepting the result. See [stitching guidance](STITCHING.md).
 This requires the automatic-input API and Python client 0.6.0; the existing
-`create_stitched_motion` sampled-pose operation remains available.
+`create_stitched_motion` sampled-pose operation remains available. Server preparation
+works with this local stdio MCP and does not require a hosted MCP. The automatic
+API still needs deployed end-to-end acceptance; see the [release sequence](STITCHING.md#release-sequence-and-validation-status).
 
 Licensed under [Apache-2.0](LICENSE).

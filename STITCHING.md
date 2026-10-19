@@ -22,6 +22,27 @@ Requires the automatic stitching backend and Python client 0.6.0. Deploy the
 backend first, release the clients, then release this MCP. Older backends reject
 the new input; do not silently fall back to invented samples or a second mutation.
 
+## Release sequence and validation status
+
+This addition can run through the local stdio MCP. Hosting the MCP is not a
+prerequisite: pose preparation runs on Uthana's backend in either deployment.
+The current MCP can be open-sourced separately from releasing this new capability.
+
+Review and release this coordinated change in order:
+
+1. [Backend/API #1748](https://github.com/Uthana/uthana/pull/1748): deploy automatic input and preparation to the app server and poselib workers in a test environment.
+2. [Python #18](https://github.com/Uthana/uthana-python-client/pull/18) and [JavaScript #12](https://github.com/Uthana/uthana-js-client/pull/12): validate against that API and release both clients at 0.6.0 after the backend is available in the target environment.
+3. [MCP #10](https://github.com/Uthana/uthana-mcp/pull/10): remove the temporary draft-client Git pin, refresh the lock against published PyPI 0.6.0, and validate a clean installation.
+4. Run the complete MCP → deployed automatic API → saved motion → export flow, including automatic placement, explicit distance/facing, and request recovery, before advertising the new tool as available.
+
+Validation recorded on October 19, 2026: backend CI and 20 focused backend tests
+passed; Python had 261 passing tests, JavaScript 119, and MCP 370. A local
+cross-repository contract check passed with real BVH sampling and mocked generation.
+Two live runs submitted the new preparation to the existing enhanced stitching
+API and produced exported animations. Neither test establishes that the new
+`auto_input` entry point works after deployment; that acceptance check remains open.
+See the linked PRs for current review and release status.
+
 ## Advanced sampled-pose operation
 
 `create_stitched_motion` joins exactly two selected clips and returns a separate

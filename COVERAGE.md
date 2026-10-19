@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 22 tools for the configured environment.
+The MCP uses the shared Uthana Python client and exposes 23 tools for the configured environment.
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ The MCP uses the shared Uthana Python client and exposes 22 tools for the config
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |
 | Character from image | Image preparation and generation | PNG/JPEG, 16 MiB, 16 megapixels, one frame |
 | Existing-motion loop | Simplified loop preview API | Contract may change |
-| Two-clip stitching | Enhanced stitching preview API | Host supplies sampled poses; see STITCHING.md |
+| Two-clip stitching | `stitch_motions` samples and aligns on the server; `create_stitched_motion` accepts advanced host samples | Automatic input requires the coordinated backend and Python client 0.6.0; see STITCHING.md |
 | Native motion edits | Trim and register edited GLTF | Custom pose editing belongs to host tools |
 | Character listing | Name filter and result pages | Local filtering over a 16 MiB catalog; no upstream pagination |
 | Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |
@@ -21,4 +21,4 @@ The MCP uses the shared Uthana Python client and exposes 22 tools for the config
 
 The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
 
-The transport is local stdio on Linux. Authenticated remote hosting and production access are separate work. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.
+The transport is local stdio on Linux. The local MCP calls the configured Uthana API; production is the default. Authenticated remote MCP hosting is separate work and is not required for server-prepared stitching. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.
