@@ -1,3 +1,4 @@
 include STITCHING.md README.md ACCEPTANCE.md COVERAGE.md PARTNER-SETUP.md BETA-ACCEPTANCE.md PROMPT-TESTS.md
+include FIRST-RESULT.md OPERATIONS.md RELEASE-REVIEW.md
 include test.sh .flake8 pyproject.toml uv.lock
 recursive-include tests *.py

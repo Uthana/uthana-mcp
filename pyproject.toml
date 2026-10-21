@@ -41,6 +41,7 @@ Issues = "https://github.com/Uthana/uthana-mcp/issues"
 
 [project.scripts]
 uthana-mcp = "uthana_mcp.server:main"
+uthana-mcp-smoke = "uthana_mcp.smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
