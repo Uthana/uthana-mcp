@@ -7,6 +7,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
+from .safe_open import open_nofollow, private_to_user
 from .validation import UTHANA_DOMAIN
 
 
@@ -68,10 +69,10 @@ class Config:
         try:
             path = Path(self.key_file).expanduser()
             # O_NONBLOCK avoids hanging discovery's first API call on a FIFO.
-            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            fd = open_nofollow(path)
             with os.fdopen(fd, "rb") as stream:
                 info = os.fstat(stream.fileno())
-                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077:
+                if not stat.S_ISREG(info.st_mode) or not private_to_user(stream.fileno(), info):
                     raise ValueError(message)
                 content = stream.read(8193)
             if len(content) > 8192:

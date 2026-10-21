@@ -1,7 +1,6 @@
-import os
-
 import httpx
 import pytest
+from platform_support import make_private, make_public, mkfifo_or_skip, pretend_other_owner, symlink_or_skip
 
 from uthana_mcp.api import UthanaAPI
 from uthana_mcp.config import Config
@@ -30,7 +29,7 @@ def test_default_is_production_and_config_captures_environment(monkeypatch, tmp_
 def test_private_key_file_and_ambiguous_configuration(tmp_path):
     path = tmp_path / "key"
     path.write_text("private-test-key\n")
-    path.chmod(0o600)
+    make_private(path)
     assert config(path).api_key() == "private-test-key"
     with pytest.raises(ValueError, match="only one"):
         config(path, "other-key").api_key()
@@ -46,18 +45,18 @@ def test_invalid_key_files_are_redacted_and_do_not_block(tmp_path, monkeypatch, 
     elif kind == "symlink":
         target = tmp_path / "target"
         target.write_text("secret")
-        target.chmod(0o600)
-        path.symlink_to(target)
+        make_private(target)
+        symlink_or_skip(path, target)
     elif kind == "fifo":
-        os.mkfifo(path, 0o600)
+        mkfifo_or_skip(path, 0o600)
     elif kind != "missing":
         content = {"empty": b"", "large": b"x" * 8193, "binary": b"\xff", "multiline": b"key1\nkey2"}.get(
             kind, b"secret"
         )
         path.write_bytes(content)
-        path.chmod(0o644 if kind == "public" else 0o600)
+        make_public(path) if kind == "public" else make_private(path)
         if kind == "owner":
-            monkeypatch.setattr(os, "geteuid", lambda: path.stat().st_uid + 1)
+            pretend_other_owner(monkeypatch, path)
     with pytest.raises(ValueError) as exc:
         config(path).api_key()
     message = str(exc.value)

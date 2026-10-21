@@ -7,6 +7,8 @@ import re
 import stat
 from pathlib import Path
 
+from .safe_open import open_nofollow
+
 # Matches the largest response accepted by UthanaAPI.download; previews are smaller.
 MAX_ARTIFACT_BYTES = 128 * 1024 * 1024
 
@@ -31,10 +33,12 @@ def read_artifact_bytes(path: Path, metadata: dict) -> bytes:
         raise ValueError("Saved artifact metadata is invalid or changed; do not redownload automatically")
 
     try:
-        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        descriptor = open_nofollow(path)
     except OSError as error:
         if error.errno == errno.ELOOP:
             raise ValueError("Artifact was replaced by a symlink") from None
+        if error.errno == errno.EISDIR:
+            raise ValueError("Saved artifact changed; expected a regular file") from None
         raise
     try:
         info = os.fstat(descriptor)

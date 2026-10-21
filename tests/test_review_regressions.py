@@ -12,6 +12,7 @@ from fakes import FakeAPI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from PIL import Image
+from platform_support import symlink_or_skip
 from test_stitch import clip
 
 import uthana_mcp
@@ -173,7 +174,7 @@ def test_file_errors_are_actionable_without_errno_or_private_path(tmp_path, monk
 
         monkeypatch.setattr("uthana_mcp.operations.os.open", denied)
     elif failure == "symlink":
-        source.symlink_to(source)
+        symlink_or_skip(source, source)
     with pytest.raises(ValueError, match="on the MCP server") as caught:
         ops.read_input(str(source), {".glb"})
     assert str(tmp_path) not in str(caught.value) and "Errno" not in str(caught.value)

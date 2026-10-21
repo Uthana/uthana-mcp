@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from fakes import FakeAPI
 from PIL import Image
+from platform_support import is_private, symlink_or_skip
 
 from uthana_mcp.operations import Operations
 from uthana_mcp.store import Store
@@ -76,8 +77,8 @@ async def test_state_is_not_shared_between_credentials(tmp_path):
 
     await first.mutation("req", "generate", {}, invoke)
     assert second.get_request("req")["state"] == "not_found"
-    assert first.directory.stat().st_mode & 0o777 == 0o700
-    assert first.path.stat().st_mode & 0o777 == 0o600
+    assert is_private(first.directory)
+    assert is_private(first.path)
 
 
 @pytest.mark.parametrize("duration", [float("nan"), float("inf"), True, 3, 11])
@@ -195,7 +196,7 @@ async def test_upload_scope_symlinks_and_changed_file(setup, tmp_path):
     outside = tmp_path / "private.fbx"
     outside.write_bytes(b"private")
     link = inputs / "link.fbx"
-    link.symlink_to(outside)
+    symlink_or_skip(link, outside)
     with pytest.raises(ValueError):
         await ops.upload_character("req", str(link), "Character")
     inside = inputs / "character.fbx"

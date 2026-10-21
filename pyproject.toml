@@ -80,4 +80,4 @@ select = ["E4", "E7", "E9", "F", "I"]
 profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
-known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "dotenv"]
+known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "platform_support", "dotenv"]
