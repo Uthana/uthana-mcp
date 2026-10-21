@@ -7,14 +7,18 @@ import httpx
 
 class MCPTransport(httpx.AsyncBaseTransport):
     def __init__(self, domain: str, transport: httpx.AsyncBaseTransport | None = None):
-        self.domain = domain.lower()
+        self.origin = httpx.URL(f"https://{domain}")
         self.transport = transport or httpx.AsyncHTTPTransport(trust_env=False)
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         # The shared client creates a fresh HTTPX client for each request. Add
         # attribution at the transport boundary without changing its auth,
         # redirect, timeout, or response handling.
-        if request.url.scheme == "https" and request.url.host.lower() == self.domain:
+        if (
+            request.url.scheme == "https"
+            and request.url.host == self.origin.host
+            and request.url.port == self.origin.port
+        ):
             request.headers["X-Uthana-AppId"] = "mcp"
             request.headers["User-Agent"] = f"uthana-mcp/{version('uthana-mcp')}"
         return await self.transport.handle_async_request(request)

@@ -15,7 +15,8 @@ async def test_uses_configured_host(domain):
     await api.close()
 
 
-async def test_mcp_requests_are_attributed_only_to_configured_api_host():
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com:8443"])
+async def test_mcp_requests_are_attributed_only_to_configured_api_host(domain):
     seen = []
 
     class CloseAwareTransport(httpx.AsyncBaseTransport):
@@ -30,7 +31,7 @@ async def test_mcp_requests_are_attributed_only_to_configured_api_host():
             self.closed = True
 
     upstream = CloseAwareTransport()
-    api = UthanaAPI("fake", "uthana.com", transport=upstream)
+    api = UthanaAPI("fake", domain, transport=upstream)
     try:
         await api.prices()
         await api.prices()
