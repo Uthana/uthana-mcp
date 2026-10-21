@@ -4,11 +4,13 @@ Animate a bipedal character through an AI assistant and export the result into y
 
 This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. See [partner setup](PARTNER-SETUP.md) for local installation and [acceptance](BETA-ACCEPTANCE.md) for environment and host verification.
 
+**Release review:** [Brandon's overview](BRANDON-REVIEW.md) explains what has been built, what to check before making this repository public, and how the related PRs fit together.
+
 The host supplies the reasoning model and any editing or pose-sampling skills. The server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and local stdio transport. A browser-hosted connector requires a separate authenticated remote transport.
 
 ## Install and connect
 
-Targets: Linux and macOS (macOS verification pending), Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Windows support is proposed in [PR #11](https://github.com/Uthana/uthana-mcp/pull/11) and is not in this release baseline.
+Targets: Linux and macOS (package/protocol CI passed; native host acceptance pending), Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Windows support is proposed in [PR #11](https://github.com/Uthana/uthana-mcp/pull/11) and is not in this release baseline.
 
 ```sh
 uv sync --locked
@@ -97,6 +99,7 @@ The [workflow](src/uthana_mcp/WORKFLOW.md) defines pricing, request recovery, an
 - [First animation and export](FIRST-RESULT.md)
 - [Operational checks and attribution](OPERATIONS.md)
 - [Release review handoff](RELEASE-REVIEW.md)
+- [Brandon's release overview](BRANDON-REVIEW.md)
 - [Public API documentation](https://uthana.com/docs/api)
 
 Context7 can provide optional documentation lookup alongside this operational MCP. Uthana's library identifier is `/websites/uthana_api`; documentation versions can differ from the installed tool schema.

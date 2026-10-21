@@ -1,6 +1,6 @@
 # Open-source MCP release review
 
-This document describes the local MCP release baseline at `main` commit `852497e` plus the release-readiness PR. It is a review handoff, not a release approval. The baseline registers 22 tools and installs the published `uthana` Python client from PyPI. Its primary user flow is a rigged bipedal character, generated motion, preview, and retargeted export. The running animation-agent prototype and its installed skills are separate.
+This document provides technical detail for [Brandon's release overview](BRANDON-REVIEW.md). It describes the local MCP release baseline at `main` commit `852497e` plus the release-readiness PR. It is a review handoff, not a release approval. The baseline registers 22 tools and installs the published `uthana` Python client from PyPI. Its primary user flow is a rigged bipedal character, generated motion, preview, and retargeted export. The running animation-agent prototype and its installed skills are separate.
 
 ## Changes in this PR
 
@@ -21,7 +21,7 @@ After integrating selected feature PRs, resolve shared changes in README, workfl
 
 ## Public-release audit
 
-The current tracked tree contains no checked-in `.env` file, key, binary character asset, or generated preview. `LICENSE` is Apache-2.0; package metadata includes the license, entry point, and workflow resource. The baseline `uv.lock` resolves the shared client from PyPI. A targeted scan across reachable commits found no obvious literal private-key blocks or API-key assignments; this is not a comprehensive secret scan.
+The current tracked tree contains no checked-in `.env` file, key, or generated preview. It now includes the Tar GLB/FBX example assets under `examples/tar`. `LICENSE` is Apache-2.0; package metadata includes the license, entry point, and workflow resource. The baseline `uv.lock` resolves the shared client from PyPI. A targeted scan across reachable commits found no obvious literal private-key blocks or API-key assignments; this is not a comprehensive secret scan.
 
 **History requires an owner decision before making this repository public.** Commit `1088c53` contains `LIVE-ACCEPTANCE-2026-09-14.md`, later removed by `c03f1ac`. It includes staging request/job/motion identifiers, asset hashes, account role and billing observations, and detailed internal test provenance. The current tree no longer contains that report, but making the full Git history public would expose it. Review whether those details are approved for disclosure. If not, prepare a clean public history through the repository owner’s release process; do not treat deletion from the current tree as sufficient.
 
@@ -29,8 +29,8 @@ Viren confirmed that Uthana owns Tar and supplied source FBX and GLB files. They
 
 ## Remaining decisions
 
-- Decide the exact first-release feature set. The six existing MCP PRs need not merge together. Windows, text-to-character, automatic stitching, and hosted transport remain feature-specific decisions.
+- Decide the exact first-release feature set. The current MCP PRs need not merge together. Windows, text-to-character, automatic stitching, and hosted transport remain feature-specific decisions.
 - If #12 is included, decide whether the backend already prevents multiple finalizations of one preview/character. The MCP currently deduplicates by finalization request ID, and a second ID submits again. No duplicate charge was established. A durable guard requires concurrency and interruption tests.
-- Confirm macOS and Windows native-host behavior before advertising them as validated. CI provides macOS package/protocol coverage after it runs; it does not prove every host integration.
+- Confirm macOS and Windows native-host behavior before advertising those hosts as validated. MacOS package/protocol CI passed; it does not prove every host integration. Windows support remains in PR #11.
 - Connect the read-only smoke check to existing deployment monitoring if desired. A hosted MCP health endpoint and uptime checks belong to the hosted deployment design. Avoid frequent paid generation tests.
 - Keep image-to-pose as an API design and pricing decision; the prototype skill is not part of this release.
