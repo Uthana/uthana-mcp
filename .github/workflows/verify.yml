@@ -30,7 +30,7 @@ jobs:
       - name: Check source and build package
         run: |
           uv sync --locked
-          uv run --frozen ./test.sh
+          uv run --frozen bash ./test.sh
       - name: Install built wheel outside checkout and check protocol
         run: |
           uv venv --python '${{ matrix.python }}' "$RUNNER_TEMP/mcp-clean"
