@@ -25,7 +25,7 @@ The current tracked tree contains no checked-in `.env` file, key, binary charact
 
 **History requires an owner decision before making this repository public.** Commit `1088c53` contains `LIVE-ACCEPTANCE-2026-09-14.md`, later removed by `c03f1ac`. It includes staging request/job/motion identifiers, asset hashes, account role and billing observations, and detailed internal test provenance. The current tree no longer contains that report, but making the full Git history public would expose it. Review whether those details are approved for disclosure. If not, prepare a clean public history through the repository owner’s release process; do not treat deletion from the current tree as sufficient.
 
-No redistributable example character has been approved for this repository. `FIRST-RESULT.md` therefore uses the user’s own rigged FBX/GLB, and its procedure is not a recorded production acceptance run. Select and license an example asset before claiming a downloadable reproducible demo. Validate actual export scale, scene contents, and playback in the target engine; Unreal remains pending.
+Viren confirmed that Uthana owns Tar. A read-only production catalog check on October 21, 2026 found the documented default Tar ID `cXi2eAP19XwQ` in his account, alongside another character also named Tar. `FIRST-RESULT.md` now uses that exact ID and directs other readers to confirm access. No Tar source FBX/GLB was found locally or bundled, so a downloadable-asset demo still needs the approved source file and distribution location. The procedure is not a recorded production acceptance run. Validate export scale, scene contents, and playback in the target engine; Unreal remains pending.
 
 ## Remaining decisions
 
