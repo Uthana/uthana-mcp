@@ -9,6 +9,7 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Locomotion | Styles and cycle generation | Duration follows strides |
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |
 | Character from image | Image preparation and generation | PNG/JPEG, 16 MiB, 16 megapixels, one frame |
+| Character from prompt | Preview images, then finalize one preview | A preview can be finalized by only one request ID |
 | Existing-motion loop | Simplified loop preview API | Contract may change |
 | Two-clip stitching | Enhanced stitching preview API | Host supplies sampled poses; see STITCHING.md |
 | Native motion edits | Trim and register edited GLTF | Custom pose editing belongs to host tools |
@@ -21,4 +22,4 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 
 The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
 
-The transport is local stdio on Linux and Windows; macOS verification is pending. Authenticated remote hosting and production access are separate work. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.
+The transport is local stdio on Linux, macOS, and Windows. Authenticated remote hosting is separate work. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.

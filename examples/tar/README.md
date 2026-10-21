@@ -1,6 +1,6 @@
 # Tar example character
 
-Viren supplied these Uthana-owned Tar source files for the first MCP workflow:
+These Uthana-owned Tar source files are included for the first MCP workflow:
 
 | File | Format | Size | SHA-256 |
 | --- | --- | ---: | --- |
@@ -11,4 +11,4 @@ The GLB has one mesh, one skin with 79 joints, and no animation; it has no exter
 
 Use the GLB for the [first animation walkthrough](../../FIRST-RESULT.md); the FBX is an alternate source for host and engine checks. The existing Uthana character ID `cXi2eAP19XwQ` is a separate shortcut for accounts that can access it. Uploading either source file may return a different character ID; use the ID returned by `upload_character`.
 
-Copyright Uthana, Inc. Before making this repository public, the release owner should confirm the intended distribution terms for these 3D source assets.
+Copyright Uthana, Inc.

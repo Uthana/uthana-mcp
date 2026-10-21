@@ -47,7 +47,7 @@ Each pelvis state contains `pelvis_world_pos` (the same vector shape),
 `pelvis_world_rot` (the same quaternion shape), and
 `hips_forward_facing_world_yaw` in radians. Extra fields, nonfinite numbers,
 booleans in numeric fields, and invalid quaternion lengths are rejected. Position
-and yaw values are bounded to -1,000,000 to 1,000,000 in the pilot. There are no pose defaults.
+and yaw values are bounded to -1,000,000 to 1,000,000. There are no pose defaults.
 Native duration and trim fractions are computed by the MCP, not supplied by the
 host. For the prefix, the API recommends sampling its upper trim slightly before
 the clip boundary; it gives `duration - 0.051` seconds as an example.
@@ -71,7 +71,7 @@ and a matching bundle hash cannot prove that a host sampled poses correctly.
 
 ## Scale and yaw integration traps
 
-A live staging export used a root scale of approximately **0.0116**. A sampler that reads bone translations without composing ancestor scales can return centimeter-sized numeric coordinates where the API expects meters. The schema accepts these plausible finite numbers, so type validation will not catch the error. The scale is an observation from one export, not a universal conversion constant.
+A sampler that reads bone translations without composing ancestor scales can return centimeter-sized numeric coordinates where the API expects meters. The schema accepts these plausible finite numbers, so type validation will not catch the error. Do not treat any one export's root scale as a universal conversion constant.
 
 A correct loader composes the full transform hierarchy, including root and ancestor translation, rotation, and scale, before extracting world positions. Checking character height and pelvis height in meters provides a useful unit check. This repository does not include a pose sampler or silently rescale supplied coordinates.
 

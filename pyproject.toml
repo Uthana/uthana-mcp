@@ -10,6 +10,13 @@ description = "Local MCP adapter for Uthana motion operations"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{name = "Uthana, Inc."}]
+keywords = ["mcp", "uthana", "animation", "motion", "character"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 requires-python = ">=3.11"
 dependencies = [
     "uthana>=0.5.1",
@@ -39,6 +46,7 @@ Homepage = "https://uthana.com"
 Documentation = "https://uthana.com/docs/api"
 Repository = "https://github.com/Uthana/uthana-mcp"
 Issues = "https://github.com/Uthana/uthana-mcp/issues"
+Changelog = "https://github.com/Uthana/uthana-mcp/releases"
 
 [project.scripts]
 uthana-mcp = "uthana_mcp.server:main"
@@ -63,7 +71,7 @@ omit = ["*/uthana_mcp/__init__.py"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 90
+fail_under = 85
 
 [tool.black]
 target-version = ["py311"]

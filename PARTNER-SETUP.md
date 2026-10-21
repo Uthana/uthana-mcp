@@ -1,18 +1,28 @@
-# Local partner beta setup
+# Install and connect
 
-This guide targets Linux, macOS, and Windows 11 with Codex or Claude Code; [Windows](#windows) lists the path and command differences. macOS and native host acceptance are pending; see [beta acceptance](BETA-ACCEPTANCE.md). The MCP runs locally and calls Uthana using your account. Choose your preferred model in your coding host; no Uthana-specific model subscription is bundled.
+This guide targets Linux, macOS, and Windows with Codex or Claude Code. [Windows](#windows) lists the path and command differences. The MCP runs locally and calls Uthana using your account. Choose your preferred model in your coding host; no Uthana-specific model subscription is bundled.
 
-## Install the supplied version
+## Install
 
-You need Git, Python 3.11 or later, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Use the approved repository/package and exact release revision supplied with your invitation. An unmerged development branch is a review candidate, not a published release. Do not install from a moving branch or request access to internal development repositories just to follow this guide.
+You need Python 3.11 or later. The published package does not require a git checkout:
 
-In the supplied checkout:
+```sh
+pip install uthana-mcp
+```
+
+Or run it without a permanent install:
+
+```sh
+uvx uthana-mcp
+```
+
+To develop from a checkout you need Git and [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```sh
 uv sync --locked --no-dev
 ```
 
-The shared client is temporarily pinned to a Git commit. Git must be able to reach its public repository. Keep this checkout and its `.venv` in a permanent location. Record the absolute path to `.venv/bin/uthana-mcp`; moving the checkout requires updating your host configuration.
+Keep that checkout and its `.venv` in a permanent location. Record the absolute path to `.venv/bin/uthana-mcp`; moving the checkout requires updating your host configuration.
 
 ## Select the API environment
 
@@ -85,7 +95,7 @@ Use the exact character ID: an account may contain multiple characters named Tar
 
 Keep the private data directory across restarts: it contains request receipts and exports. Different credentials or environments use different scopes. Changing a key or deleting state does not establish that earlier work never happened. Follow the workflow's request recovery rules before resubmitting.
 
-For uploads, add `UTHANA_MCP_INPUT_DIR` pointing to a dedicated local input folder. Uploads are disabled without it. Export and preview paths are on the machine running the connector. Character upload has a known unresolved upstream failure on a tested fixture; image, loop, and stitch operations remain experimental. Stitching additionally requires accurate host-sampled poses; this connector does not supply a sampler.
+For uploads, add `UTHANA_MCP_INPUT_DIR` pointing to a dedicated local input folder. Uploads are disabled without it. Export and preview paths are on the machine running the connector. If a character upload is interrupted, inspect the account catalog before submitting it again. Stitching with sampled poses requires accurate host-sampled poses; this connector does not supply a sampler.
 
 Production model usage consumes your Uthana account credits at the published prices. The connector adds no separate MCP fee; your coding host may bill separately. Tell the agent your spending limit. Use your own account; do not share another customer's key or state directory.
 

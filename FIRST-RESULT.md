@@ -6,7 +6,7 @@ This walkthrough starts with [Tar's rigged GLB](examples/tar/cXi2eAP19XwQ.glb), 
 
 1. [Install and connect the MCP](PARTNER-SETUP.md), then run `.venv/bin/uthana-mcp-smoke`. A passing protocol check does not verify your API key; `--api-read` does one read-only account check after you configure a key.
 2. Download [Tar GLB](examples/tar/cXi2eAP19XwQ.glb) into a dedicated local input folder and set `UTHANA_MCP_INPUT_DIR` to that folder in the MCP host configuration. The MCP process must be able to read it. The 5.4 MB GLB is self-contained, has a 79-joint skin, and contains no animation. [Hashes and the alternate FBX](examples/tar/README.md) let you verify the downloaded bytes.
-3. Upload the selected GLB with `upload_character` and `auto_rig=false`; it is already rigged. Use the returned character ID, which may differ from the source filename. If your account already has Tar ID `cXi2eAP19XwQ`, you may choose that ID instead and skip upload. `list_characters` verifies access. Viren's account currently has two characters named Tar, so select by ID.
+3. Upload the selected GLB with `upload_character` and `auto_rig=false`; it is already rigged. Use the returned character ID, which may differ from the source filename. If your account already has Tar ID `cXi2eAP19XwQ`, you may choose that ID instead and skip upload. `list_characters` verifies access. If more than one character is named Tar, select by ID.
 
 To use **your own character**, replace the downloaded Tar file with a bipedal FBX/GLB you may upload. Use `auto_rig=false` for an already-rigged file. Use `auto_rig=true` only for an unrigged biped, then visually review the result before animating it.
 
