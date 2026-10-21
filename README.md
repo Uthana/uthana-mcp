@@ -1,6 +1,6 @@
 # Uthana MCP
 
-Animate a bipedal character through an AI assistant and export the result into your game. Start with Uthana's Tar character: “Use Tar ID `cXi2eAP19XwQ`, make a four-second walk that ends with a wave, show me the motion, then export an animated FBX at 30 FPS.” The assistant can also upload your selected FBX/GLB, generate motion, inspect previews, and request a retargeted export. [Follow the first-result walkthrough](FIRST-RESULT.md) to reproduce that sequence.
+Animate a bipedal character through an AI assistant and export the result into your game. Start with [Uthana's rigged Tar GLB](examples/tar/cXi2eAP19XwQ.glb): “Upload my Tar character, make a four-second walk that ends with a wave, show me the motion, then export an animated FBX at 30 FPS.” The assistant can upload your selected FBX/GLB, generate motion, inspect previews, and request a retargeted export. [Follow the first-result walkthrough](FIRST-RESULT.md) to reproduce that sequence.
 
 This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. See [partner setup](PARTNER-SETUP.md) for local installation and [acceptance](BETA-ACCEPTANCE.md) for environment and host verification.
 

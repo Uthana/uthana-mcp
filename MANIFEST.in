@@ -2,3 +2,4 @@ include STITCHING.md README.md ACCEPTANCE.md COVERAGE.md PARTNER-SETUP.md BETA-A
 include FIRST-RESULT.md OPERATIONS.md RELEASE-REVIEW.md
 include test.sh .flake8 pyproject.toml uv.lock
 recursive-include tests *.py
+recursive-include examples/tar *.md *.fbx *.glb
