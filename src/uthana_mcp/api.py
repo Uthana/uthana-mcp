@@ -131,6 +131,18 @@ class UthanaAPI:
         )
         return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "character_id": character_id}
 
+    async def generate_v1(self, prompt: str, *, character_id: str) -> dict[str, str]:
+        """Generate a native V1 motion; this model chooses its own duration."""
+        result = await self._call(
+            self.client.ttm.create,
+            prompt,
+            model="vqvae-v1",
+            character_id=identifier(character_id),
+            foot_ik=True,
+            mutation_field="create_text_to_motion",
+        )
+        return {"motion_id": identifier(result.motion_id), "character_id": character_id}
+
     async def generate_v2(self, prompt, duration_seconds, character_id):
         result = await self._call(
             self.client.ttm.create,
