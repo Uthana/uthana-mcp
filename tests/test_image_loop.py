@@ -52,7 +52,7 @@ async def test_finalization_rejection_reuses_prepared_image_after_restart(tmp_pa
     api = FakeAPI()
     original = api.finalize_character_image
 
-    async def reject(prepared, name):
+    async def reject(prepared, name, include_fingers=True):
         raise APIError("Insufficient balance", outcome="rejected", category="balance")
 
     api.finalize_character_image = reject
@@ -73,7 +73,7 @@ async def test_unknown_finalization_retains_progress_and_blocks_retry(tmp_path, 
     path = image_input(tmp_path)
     api = FakeAPI()
 
-    async def uncertain(prepared, name):
+    async def uncertain(prepared, name, include_fingers=True):
         if cancelled:
             raise asyncio.CancelledError()
         raise APIError("Response lost")

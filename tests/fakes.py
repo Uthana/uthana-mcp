@@ -67,8 +67,22 @@ class FakeAPI:
     async def characters(self):
         return [{"id": "mixamo1", "name": "First"}, {"id": "mixamo2", "name": "Second"}]
 
-    async def upload_character(self, filename, content, name, auto_rig):
-        self.calls.append(("upload_character", {"filename": filename, "content": content, "auto_rig": auto_rig}))
+    async def upload_character(
+        self, filename, content, name, auto_rig, front_facing=True, include_fingers=True, rerig_target=None
+    ):
+        self.calls.append(
+            (
+                "upload_character",
+                {
+                    "filename": filename,
+                    "content": content,
+                    "auto_rig": auto_rig,
+                    "front_facing": front_facing,
+                    "include_fingers": include_fingers,
+                    "rerig_target": rerig_target,
+                },
+            )
+        )
         count = sum(call[0] == "upload_character" for call in self.calls)
         return {"character_id": f"mixamo{count}"}
 
@@ -76,8 +90,8 @@ class FakeAPI:
         self.calls.append(("prepare_image", {"filename": filename, "content": content}))
         return {"stage": "image_prepared", "character_id": "imagechar1", "image_key": "imagechar1-front.png"}
 
-    async def finalize_character_image(self, prepared, name):
-        self.calls.append(("finalize_image", {"prepared": prepared, "name": name}))
+    async def finalize_character_image(self, prepared, name, include_fingers=True):
+        self.calls.append(("finalize_image", {"prepared": prepared, "name": name, "include_fingers": include_fingers}))
         return {"character_id": prepared["character_id"], "auto_rig_confidence": 0.9}
 
     async def preview_character_prompt(self, prompt):
