@@ -70,6 +70,17 @@ async def test_finalize_rejects_bad_selection(setup, preview_request, index, mes
     assert not any(c[0] == "finalize_prompt" for c in api.calls)
 
 
+async def test_finalize_rejects_a_second_request_id_for_the_same_preview(setup):
+    api, ops = setup
+    await ops.preview_character_from_prompt("prev1", "A worker")
+    await ops.create_character_from_prompt("char1", "prev1", 1, "Worker")
+    with pytest.raises(ValueError, match="already finalized by a different request_id"):
+        await ops.create_character_from_prompt("char2", "prev1", 1, "Worker")
+    # The original finalizing request_id may still retry (for example with a corrected name).
+    assert (await ops.create_character_from_prompt("char1", "prev1", 1, "Worker"))["replayed"]
+    assert sum(c[0] == "finalize_prompt" for c in api.calls) == 1
+
+
 async def test_finalize_rejects_other_operation_receipts(setup, tmp_path):
     api, ops = setup
     await ops.generate("gen1", "walk")

@@ -396,10 +396,7 @@ class Operations:
         identifier(preview_request_id)
         if isinstance(preview_index, bool) or not isinstance(preview_index, int) or preview_index < 0:
             raise ValueError("preview_index must be a whole number from the preview list")
-        preview = self.store.get_request(preview_request_id)
-        if preview.get("operation") != "character_prompt_preview" or preview.get("state") != "complete":
-            raise ValueError("preview_request_id must name a completed preview_character_from_prompt request")
-        result = preview["result"]
+        result = self.store.claim_preview_finalization(preview_request_id, request_id)
         chosen = next((p for p in result["previews"] if p["preview_index"] == preview_index), None)
         if chosen is None:
             raise ValueError("preview_index is not in that preview list")
