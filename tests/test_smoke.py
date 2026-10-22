@@ -11,7 +11,6 @@ from uthana_mcp.smoke import SmokeFailure, main, step
 def test_protocol_smoke_without_credentials(tmp_path):
     env = os.environ.copy()
     env.pop("UTHANA_API_KEY", None)
-    env.pop("UTHANA_API_KEY_FILE", None)
     result = subprocess.run(
         [sys.executable, "-m", "uthana_mcp.smoke", "--timeout", "10"],
         cwd=tmp_path,
@@ -28,7 +27,6 @@ def test_protocol_smoke_without_credentials(tmp_path):
 def test_api_read_requires_explicit_credential(tmp_path):
     env = os.environ.copy()
     env.pop("UTHANA_API_KEY", None)
-    env.pop("UTHANA_API_KEY_FILE", None)
     result = subprocess.run(
         [sys.executable, "-m", "uthana_mcp.smoke", "--api-read"],
         cwd=tmp_path,

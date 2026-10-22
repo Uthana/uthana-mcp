@@ -1,7 +1,6 @@
 """Create OS-specific fixtures, or skip when this platform cannot create them."""
 
 import os
-import subprocess
 
 import pytest
 
@@ -26,18 +25,6 @@ def mkfifo_or_skip(path, *mode):
     os.mkfifo(path, *mode)
 
 
-def make_private(path):
-    path.chmod(0o600)
-
-
-def make_public(path):
-    """Grant other users read access: mode 644 on POSIX, an Everyone ACL entry on Windows."""
-    if WINDOWS:
-        subprocess.run(["icacls", str(path), "/grant", "*S-1-1-0:R"], check=True, capture_output=True)
-    else:
-        path.chmod(0o644)
-
-
 def is_private(path):
     """POSIX: exact 600/700 mode. Windows: the DACL check the server itself applies."""
     if not WINDOWS:
@@ -55,10 +42,3 @@ def is_private(path):
         return private_to_user(descriptor, os.fstat(descriptor))
     finally:
         os.close(descriptor)
-
-
-def pretend_other_owner(monkeypatch, path):
-    if WINDOWS:
-        monkeypatch.setattr("uthana_mcp.safe_open._windows_current_user_sid", lambda: "S-1-5-21-0-0-0-1")
-    else:
-        monkeypatch.setattr(os, "geteuid", lambda: path.stat().st_uid + 1)

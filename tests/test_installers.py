@@ -38,22 +38,13 @@ def test_native_installer(tmp_path, fail_install):
         shell = shutil.which("powershell.exe") or shutil.which("pwsh")
         assert shell, "Windows installer tests require PowerShell"
         (bin_dir / "uv.cmd").write_text(f'@"{sys.executable}" "{fake}" %*\r\n')
-        # Simulate an existing key without touching the user’s real key directory.
         wrapper = tmp_path / "run.ps1"
         quoted_bin = str(bin_dir).replace("'", "''")
         quoted_installer = str(ROOT / "install.ps1").replace("'", "''")
-        wrapper.write_text(
-            f"$env:PATH = '{quoted_bin};' + $env:PATH\n"
-            "function global:Test-Path {\n"
-            " param([string]$LiteralPath, [string]$PathType)\n"
-            " if ($LiteralPath -like '*production-key') { return $true }\n"
-            " Microsoft.PowerShell.Management\\Test-Path -LiteralPath $LiteralPath -PathType $PathType\n"
-            "}\n"
-            f"& '{quoted_installer}'\n"
-        )
+        wrapper.write_text(f"$env:PATH = '{quoted_bin};' + $env:PATH\n" f"& '{quoted_installer}'\n")
         command = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper)]
     else:
-        for name in ("uv", "uthana-mcp-setup"):
+        for name in ("uv",):
             path = bin_dir / name
             path.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(fake))} "$@"\n')
             path.chmod(0o755)
@@ -68,5 +59,5 @@ def test_native_installer(tmp_path, fail_install):
     else:
         assert result.returncode == 0, result.stderr
         assert ["tool", "dir", "--bin"] in recorded
-        assert "UTHANA_API_KEY_FILE" in result.stdout
+        assert "UTHANA_API_KEY" in result.stdout
         assert str(bin_dir) in result.stdout

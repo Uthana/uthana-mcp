@@ -22,7 +22,7 @@ Invoke-WebRequest https://raw.githubusercontent.com/Uthana/uthana-mcp/main/insta
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-The scripts reuse uv when available or download its [official installer](https://docs.astral.sh/uv/getting-started/installation/). They install the MCP for your user with Python 3.12, downloading Python if needed, then run the hidden API key prompt. No administrator access or preinstalled Python is required. They do not edit your shell profile or host configuration. Copy the printed server command and key-file path into the host examples below. An existing key file is kept; the server validates it when used.
+The scripts reuse uv when available or download its [official installer](https://docs.astral.sh/uv/getting-started/installation/). They install the MCP for your user with Python 3.12, downloading Python if needed, and print the installed server command. No administrator access or preinstalled Python is required. They do not edit your shell profile or host configuration. Copy the printed server command into the host examples below and set `UTHANA_API_KEY` to the API key from your Uthana account settings.
 
 ### Manual installation
 
@@ -30,16 +30,14 @@ With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 
 ```sh
 uv tool install --python 3.12 uthana-mcp
-uthana-mcp-setup
 ```
 
-If your tool bin directory is not on `PATH`, find it with `uv tool dir --bin` and run the setup command from that directory (`uthana-mcp-setup.exe` on Windows). You can also run without a permanent install using `uvx --python 3.12 uthana-mcp`; configure `uvx` as the host command and `["--python", "3.12", "uthana-mcp"]` as its arguments.
+Find the installed executable directory with `uv tool dir --bin` and use the absolute path to `uthana-mcp` (`uthana-mcp.exe` on Windows) in your host configuration. You can also run without a permanent install using `uvx --python 3.12 uthana-mcp`; configure `uvx` as the host command and `["--python", "3.12", "uthana-mcp"]` as its arguments.
 
 Alternatively, with Python 3.11 or later already installed:
 
 ```sh
 pip install uthana-mcp
-uthana-mcp-setup
 ```
 
 Use the installed `uthana-mcp` executable as the host command with no arguments.
@@ -60,19 +58,9 @@ The shared Python client constructs the HTTPS URLs from the hostname. Redirects 
 
 Set `UTHANA_DOMAIN` in the coding host configuration, or in a checkout `.env` / `.env.local` (`.env.local` overrides `.env`; neither overrides variables the host already set). A `.env` in some other working directory is ignored. Never commit these files.
 
-## Store your own API key
+## Configure your API key
 
-Use your normal uthana.com API key for production. A key for another host is different. Keep it in a private regular file outside the checkout, owned by you with permissions `600`. Set `UTHANA_API_KEY_FILE` to that file's absolute path. Do not also set `UTHANA_API_KEY`.
-
-Run the interactive setup command in a terminal on Linux, macOS, or Windows:
-
-```sh
-uvx --from uthana-mcp uthana-mcp-setup
-```
-
-For a direct pip installation, run `uthana-mcp-setup` instead. Paste your key at the hidden prompt. The command stores it in `~/.config/uthana/production-key` (under your user profile on Windows), applies private permissions, and prints the path to use in your host configuration. It makes no API request and never overwrites an existing file. To use a different destination, add `--key-file /absolute/path/to/new-key`.
-
-Never paste the key into a chat, GitHub issue, or shell command. If you manage a key file yourself, the MCP rejects symlinks, shared-readable files, directories, empty files, and conflicting key settings.
+Create an API key in your [Uthana account settings](https://uthana.com). Set `UTHANA_API_KEY` to the key itself in the host configuration below. Use the key issued for the selected API environment. Keep configurations containing keys out of version control and do not paste keys into chats or issues.
 
 ## Connect a host
 
@@ -85,7 +73,7 @@ Claude Desktop (`claude_desktop_config.json`):
       "command": "/absolute/path/to/uthana-mcp",
       "args": [],
       "env": {
-        "UTHANA_API_KEY_FILE": "/absolute/path/to/private-api-key",
+        "UTHANA_API_KEY": "your-api-key",
         "UTHANA_MCP_INPUT_DIR": "/absolute/path/to/selected-inputs"
       }
     }
@@ -103,11 +91,11 @@ command = "/absolute/path/to/uthana-mcp"
 args = []
 
 [mcp_servers.uthana.env]
-UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"
+UTHANA_API_KEY = "your-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-Use the absolute server command printed by the installer. Replace the key and input paths with your own absolute paths, then restart the host. The input directory is optional; omit `UTHANA_MCP_INPUT_DIR` if you do not need uploads.
+Use the absolute server command printed by the installer. Replace `your-api-key` with your API key and the input path with your own absolute path, then restart the host. The input directory is optional; omit `UTHANA_MCP_INPUT_DIR` if you do not need uploads.
 
 For a checkout installation, use the absolute path to `.venv/bin/uthana-mcp` (Windows: `.venv\Scripts\uthana-mcp.exe`) as the command with no arguments.
 
@@ -115,8 +103,7 @@ For a checkout installation, use the absolute path to `.venv/bin/uthana-mcp` (Wi
 
 | Variable | Purpose |
 | --- | --- |
-| `UTHANA_API_KEY` | API key for the selected environment. Use this or the key file, not both |
-| `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600. Not a symlink |
+| `UTHANA_API_KEY` | API key value for the selected environment |
 | `UTHANA_DOMAIN` | Defaults to `uthana.com` |
 | `UTHANA_MCP_DATA_DIR` | Persistent private state. Defaults to `~/.local/state/uthana-mcp` |
 | `UTHANA_MCP_INPUT_DIR` | Folder of files the server may upload. Uploads stay disabled when this is unset |
@@ -132,13 +119,13 @@ Allow longer tool timeouts for slow transfers.
 
 ## Separate host connection
 
-Use a second host entry if you need another API host. Set `UTHANA_DOMAIN` to that hostname and a different private key file. Give it its own data directory. Keep `uthana` for production. State explicitly which connection the agent should use; the server never switches between them automatically. Each environment uses its own account permissions and credits.
+Use a second host entry if you need another API host. Set `UTHANA_DOMAIN` to that hostname and `UTHANA_API_KEY` to the key issued for that host. Give it its own data directory. Keep `uthana` for production. State explicitly which connection the agent should use; the server never switches between them automatically. Each environment uses its own account permissions and credits.
 
 ## First session
 
 Restart the host and ask the agent to read `uthana://workflow`, confirm the selected environment, check account usage, and estimate a motion before generating it. Approve the estimate before making a paid request.
 
-To verify the protocol independently, run `uvx --from uthana-mcp uthana-mcp-smoke` (or `uthana-mcp-smoke` for a direct installation). Add `--api-read` for one read-only account check after setting `UTHANA_API_KEY_FILE` in the shell environment; host configuration is not inherited by a separate shell command. A protocol check alone does not verify authentication.
+To verify the protocol independently, run `uvx --from uthana-mcp uthana-mcp-smoke` (or `uthana-mcp-smoke` for a direct installation). Add `--api-read` for one read-only account check after setting `UTHANA_API_KEY` in the shell environment; host configuration is not inherited by a separate shell command. A protocol check alone does not verify authentication.
 
 Keep the private data directory across restarts: it contains request receipts and exports. Different credentials or environments use different scopes. Changing a key or deleting state does not establish that earlier work never happened. Follow the workflow's request recovery rules before resubmitting.
 
@@ -151,8 +138,6 @@ Production model usage consumes your Uthana account credits at the published pri
 The server runs natively on Windows. Follow the steps above with these differences:
 
 - The server executable is `.venv\Scripts\uthana-mcp.exe`. Use it wherever this guide says `.venv/bin/uthana-mcp`. In TOML, write Windows paths with forward slashes or doubled backslashes.
-- The key file belongs in `%USERPROFILE%\.config\uthana\production-key`. The MCP accepts it only when you own it and its access list grants access to no one except you, `OWNER RIGHTS`, `SYSTEM`, and `Administrators`. Symlinks, junctions, and other reparse points are rejected.
-- Use `uthana-mcp-setup` to create the key file with private permissions. The same command works in PowerShell; no separate permission commands are needed.
 - The default data directory is `%USERPROFILE%\.local\state\uthana-mcp`.
 - In PowerShell, start Claude Code with the tool deadline as `$env:MCP_TOOL_TIMEOUT = "1200000"; claude`.
 

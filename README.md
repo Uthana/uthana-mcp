@@ -27,13 +27,13 @@ Invoke-WebRequest https://raw.githubusercontent.com/Uthana/uthana-mcp/main/insta
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-The installer checks for uv, installs it if needed, and installs the MCP with Python 3.12. No existing Python installation is required. It then prompts for an API key from [uthana.com](https://uthana.com) account settings and saves it privately. Existing key files are preserved. It prints the server command and key-file path for your host configuration.
+The installer checks for uv, installs it if needed, and installs the MCP with Python 3.12. No existing Python installation is required. It prints the server command for your host configuration. Create an API key in your [Uthana account settings](https://uthana.com) and paste its value into `UTHANA_API_KEY` below.
 
-See the [installation guide](docs/installation.md) for manual installation, Windows permissions, environment settings, and tool timeouts.
+See the [installation guide](docs/installation.md) for manual installation, environment settings, and tool timeouts.
 
 ## Connect
 
-Use the absolute server command and key-file path printed by the installer. For Claude Desktop (`claude_desktop_config.json`):
+Use the absolute server command printed by the installer. For Claude Desktop (`claude_desktop_config.json`):
 
 ```json
 {
@@ -42,7 +42,7 @@ Use the absolute server command and key-file path printed by the installer. For 
       "command": "/absolute/path/to/uthana-mcp",
       "args": [],
       "env": {
-        "UTHANA_API_KEY_FILE": "/absolute/path/to/private-api-key",
+        "UTHANA_API_KEY": "your-api-key",
         "UTHANA_MCP_INPUT_DIR": "/absolute/path/to/selected-inputs"
       }
     }
@@ -60,11 +60,11 @@ command = "/absolute/path/to/uthana-mcp"
 args = []
 
 [mcp_servers.uthana.env]
-UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"
+UTHANA_API_KEY = "your-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](docs/installation.md) has the Windows commands and host timeout settings.
+[Install and connect](docs/installation.md) has Windows path examples and host timeout settings.
 
 Restart your host, then ask it to read Uthana’s workflow, check account access, and estimate a motion before generating it. Production generation spends your account’s credits. Continue with the [first-animation walkthrough](docs/first-animation.md) for upload, generation, and export.
 

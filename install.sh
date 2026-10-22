@@ -31,12 +31,5 @@ bin_dir=$("$uv_command" tool dir --bin)
 printf 'MCP server command: %s/uthana-mcp\n' "$bin_dir"
 printf '%s\n' 'Use that absolute command in your host configuration with no arguments.'
 
-key_file="$HOME/.config/uthana/production-key"
-if [ -e "$key_file" ] || [ -L "$key_file" ]; then
-    printf 'Keeping existing key file: %s\n' "$key_file"
-    printf '%s\n' 'The server will check its permissions when used.'
-else
-    "$bin_dir/uthana-mcp-setup"
-fi
-printf 'Set UTHANA_API_KEY_FILE to: %s\n' "$key_file"
+printf '%s\n' 'Create an API key in your Uthana account settings and set UTHANA_API_KEY in your host configuration.'
 printf '%s\n' 'Restart your MCP host after configuring it.'

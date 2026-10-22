@@ -34,15 +34,7 @@ try {
     Write-Host "MCP server command: $Server"
     Write-Host 'Use that absolute command in your host configuration with no arguments.'
 
-    $KeyFile = Join-Path $HOME '.config/uthana/production-key'
-    if (Test-Path -LiteralPath $KeyFile) {
-        Write-Host "Keeping existing key file: $KeyFile"
-        Write-Host 'The server will check its permissions when used.'
-    } else {
-        & (Join-Path $BinDir 'uthana-mcp-setup.exe')
-        if ($LASTEXITCODE -ne 0) { throw 'Key setup did not complete. The MCP package is installed; rerun setup when ready.' }
-    }
-    Write-Host "Set UTHANA_API_KEY_FILE to: $KeyFile"
+    Write-Host 'Create an API key in your Uthana account settings and set UTHANA_API_KEY in your host configuration.'
     Write-Host 'Restart your MCP host after configuring it.'
 } catch {
     Write-Error $_

@@ -50,7 +50,6 @@ Changelog = "https://github.com/Uthana/uthana-mcp/releases"
 
 [project.scripts]
 uthana-mcp = "uthana_mcp.server:main"
-uthana-mcp-setup = "uthana_mcp.setup:main"
 uthana-mcp-smoke = "uthana_mcp.smoke:main"
 
 [tool.setuptools.packages.find]
