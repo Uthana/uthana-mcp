@@ -124,7 +124,7 @@ def create_server(operations=None):
     def ops():
         nonlocal runtime
         if runtime is None:
-            api = UthanaAPI(config.api_key(), config.domain)
+            api = UthanaAPI(config._key, config.domain)
             runtime = Operations(api, config.data_dir, config.input_dir)
         return runtime
 

@@ -16,7 +16,7 @@ def test_default_is_production_and_config_captures_environment(monkeypatch, tmp_
     monkeypatch.setenv("UTHANA_DOMAIN", "other.example.com")
     monkeypatch.setenv("UTHANA_API_KEY", "changed")
     assert original.domain == UTHANA_DOMAIN
-    assert original.api_key() == "private-test-key"
+    assert original._key == "private-test-key"
     assert "private-test-key" not in repr(original)
     assert Config.from_env().domain == "other.example.com"
 

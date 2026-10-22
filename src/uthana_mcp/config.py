@@ -1,4 +1,4 @@
-"""Explicit local server configuration; secrets are loaded only for API operations."""
+"""Local server configuration captured from the environment at startup."""
 
 import os
 from dataclasses import dataclass, field
@@ -41,7 +41,7 @@ class Config:
     domain: str
     data_dir: str
     input_dir: str | None
-    key: str = field(repr=False)
+    _key: str = field(repr=False)
 
     @classmethod
     def from_env(cls):
@@ -50,8 +50,5 @@ class Config:
             domain=os.environ.get("UTHANA_DOMAIN") or UTHANA_DOMAIN,
             data_dir=os.environ.get("UTHANA_MCP_DATA_DIR", str(Path.home() / ".local/state/uthana-mcp")),
             input_dir=os.environ.get("UTHANA_MCP_INPUT_DIR") or None,
-            key=os.environ.get("UTHANA_API_KEY", ""),
+            _key=os.environ.get("UTHANA_API_KEY", ""),
         )
-
-    def api_key(self) -> str:
-        return self.key
