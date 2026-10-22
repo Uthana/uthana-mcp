@@ -59,13 +59,16 @@ jobs:
           if "uthana" in config.get("tool", {}).get("uv", {}).get("sources", {}):
               raise SystemExit("Publish the Uthana client, remove its review source pin, and refresh uv.lock before release.")
           PY
+      - name: Build release artifacts
+        if: steps.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+        run: uv build --clear
       - name: Publish to PyPI
         if: steps.detect.outputs.should_release == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
-            uv publish --dry-run
+            uv publish --check-url https://pypi.org/simple/ --dry-run
           else
-            uv publish --trusted-publishing always
+            uv publish --check-url https://pypi.org/simple/ --trusted-publishing always
           fi
       - name: Create and push release tag
         if: steps.detect.outputs.should_release == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
