@@ -11,30 +11,36 @@ The host supplies the reasoning model. This server uses the shared [Uthana Pytho
 
 ## Install
 
-Python 3.11 or later.
+Download and run the installer for your platform:
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to let your MCP host run `uvx uthana-mcp` automatically. Alternatively, install with `pip install uthana-mcp` and configure the host command as `uthana-mcp` with no arguments.
-
-Create an API key at [uthana.com](https://uthana.com) under account settings. Prefer a private key file over putting the key in a config file:
-
-Run the setup command and paste the key at its hidden prompt (Linux, macOS, or Windows):
+**macOS / Linux**
 
 ```sh
-uvx --from uthana-mcp uthana-mcp-setup
+curl -fsSL https://raw.githubusercontent.com/Uthana/uthana-mcp/main/install.sh -o install.sh
+sh install.sh
 ```
 
-Use the printed key-file path in the configuration below. See the [installation guide](docs/installation.md) for key creation commands, Windows permissions, environment settings, and tool timeouts.
+**Windows (PowerShell)**
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/Uthana/uthana-mcp/main/install.ps1 -OutFile install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+The installer checks for uv, installs it if needed, and installs the MCP with Python 3.12. No existing Python installation is required. It then prompts for an API key from [uthana.com](https://uthana.com) account settings and saves it privately. Existing key files are preserved. It prints the server command and key-file path for your host configuration.
+
+See the [installation guide](docs/installation.md) for manual installation, Windows permissions, environment settings, and tool timeouts.
 
 ## Connect
 
-Claude Desktop (`claude_desktop_config.json`):
+Use the absolute server command and key-file path printed by the installer. For Claude Desktop (`claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "uthana": {
-      "command": "uvx",
-      "args": ["uthana-mcp"],
+      "command": "/absolute/path/to/uthana-mcp",
+      "args": [],
       "env": {
         "UTHANA_API_KEY_FILE": "/absolute/path/to/private-api-key",
         "UTHANA_MCP_INPUT_DIR": "/absolute/path/to/selected-inputs"
@@ -50,8 +56,8 @@ Codex (`~/.codex/config.toml`):
 
 ```toml
 [mcp_servers.uthana]
-command = "uvx"
-args = ["uthana-mcp"]
+command = "/absolute/path/to/uthana-mcp"
+args = []
 
 [mcp_servers.uthana.env]
 UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"

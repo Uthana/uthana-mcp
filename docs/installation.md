@@ -4,15 +4,45 @@ This guide targets Linux, macOS, and Windows with Claude Desktop, Cursor, or Cod
 
 ## Install
 
-You need Python 3.11 or later. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to use the `uvx` host configurations below; uv runs the package without a permanent installation. No checkout is required.
+### Recommended: platform installer
 
-Alternatively, install the package directly:
+Download and run the appropriate installer. You can inspect the downloaded script before running it.
+
+macOS / Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Uthana/uthana-mcp/main/install.sh -o install.sh
+sh install.sh
+```
+
+Windows (PowerShell):
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/Uthana/uthana-mcp/main/install.ps1 -OutFile install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+The scripts reuse uv when available or download its [official installer](https://docs.astral.sh/uv/getting-started/installation/). They install the MCP for your user with Python 3.12, downloading Python if needed, then run the hidden API key prompt. No administrator access or preinstalled Python is required. They do not edit your shell profile or host configuration. Copy the printed server command and key-file path into the host examples below. An existing key file is kept; the server validates it when used.
+
+### Manual installation
+
+With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
+
+```sh
+uv tool install --python 3.12 uthana-mcp
+uthana-mcp-setup
+```
+
+If your tool bin directory is not on `PATH`, find it with `uv tool dir --bin` and run the setup command from that directory (`uthana-mcp-setup.exe` on Windows). You can also run without a permanent install using `uvx --python 3.12 uthana-mcp`; configure `uvx` as the host command and `["--python", "3.12", "uthana-mcp"]` as its arguments.
+
+Alternatively, with Python 3.11 or later already installed:
 
 ```sh
 pip install uthana-mcp
+uthana-mcp-setup
 ```
 
-For this installation, use `uthana-mcp` as the host command and omit the `uvx` arguments.
+Use the installed `uthana-mcp` executable as the host command with no arguments.
 
 To develop from a checkout you need Git and [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
@@ -52,8 +82,8 @@ Claude Desktop (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "uthana": {
-      "command": "uvx",
-      "args": ["uthana-mcp"],
+      "command": "/absolute/path/to/uthana-mcp",
+      "args": [],
       "env": {
         "UTHANA_API_KEY_FILE": "/absolute/path/to/private-api-key",
         "UTHANA_MCP_INPUT_DIR": "/absolute/path/to/selected-inputs"
@@ -69,15 +99,15 @@ Codex (`~/.codex/config.toml`):
 
 ```toml
 [mcp_servers.uthana]
-command = "uvx"
-args = ["uthana-mcp"]
+command = "/absolute/path/to/uthana-mcp"
+args = []
 
 [mcp_servers.uthana.env]
 UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-Replace the key and input paths with your own absolute paths, then restart the host. The input directory is optional; omit `UTHANA_MCP_INPUT_DIR` if you do not need uploads.
+Use the absolute server command printed by the installer. Replace the key and input paths with your own absolute paths, then restart the host. The input directory is optional; omit `UTHANA_MCP_INPUT_DIR` if you do not need uploads.
 
 For a checkout installation, use the absolute path to `.venv/bin/uthana-mcp` (Windows: `.venv\Scripts\uthana-mcp.exe`) as the command with no arguments.
 
