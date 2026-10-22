@@ -1,6 +1,6 @@
 # Uthana motion workflow
 
-This server calls the Uthana environment shown in initialization and at the top of this resource. Production (`uthana.com`) is the default and uses the configured customer account and its credits. Other hosts require an explicit `UTHANA_DOMAIN` and their own credentials. The environment is fixed for this server process; restart after changing configuration. Authentication failure never switches environments. The host supplies reasoning, user interaction, editing, and pose-sampling skills. A job is pollable generation work. A request is an operation identified by `request_id`. The server keeps a local receipt for each mutating request: argument fingerprints, progress, returned IDs, and verification results. A bundle is a motion's native source file; its ID and SHA-256 identify the exact data.
+This server calls the Uthana environment shown in initialization and at the top of this resource. Production (`uthana.com`) is the default and uses the configured customer account and its credits. Other hosts require an explicit `UTHANA_DOMAIN` and their own credentials. The environment is fixed for this server process; restart after changing configuration. Authentication failure never switches environments. The host supplies reasoning, user interaction, and editing tools. Ordinary stitching uses service-side pose preparation; only advanced sampled-pose stitching requires a host sampler. A job is pollable generation work. A request is an operation identified by `request_id`. The server keeps a local receipt for each mutating request: argument fingerprints, progress, returned IDs, and verification results. A bundle is a motion's native source file; its ID and SHA-256 identify the exact data.
 
 ## Rules shared by all tools
 
@@ -83,11 +83,24 @@ Avoid submitting another candidate from the same preview request, or using a fre
 
 ## Loop and stitch
 
+Prefer `stitch_motions` for ordinary two-clip joins. It performs pose sampling and
+alignment on the service; supply motion IDs, character, transition duration, and
+optional trims in seconds. Optional placement uses forward/right meters relative
+to prefix ending facing and facing_degrees positive to the right. Omitted forward
+continues recent travel; explicit zero requests no gap. Inspect returned effective
+trims and connection poses, then review playback. Avoid implausible distance/time
+combinations and duplicate submissions; request recovery works as for advanced stitching.
+
+
 `create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
 
 `create_stitched_motion` joins two existing clips using the enhanced preview API. The host must load both motions on the same character, place them in a shared scene, and evaluate root/pelvis poses at zero and each trim boundary. It requires source-file IDs/hashes from `get_motion`, world positions in meters with Y up, unit x/y/z/w quaternions, and hip-derived yaw in radians. Times must fall within native samples. Invented poses, APNG-derived transforms, and placeholder zeros are unsuitable.
 
 Include every ancestor's scale when evaluating world positions. An export can use a small root scale, so uncomposed bone translations are not meters. The hip-yaw axis convention remains insufficiently specified upstream and needs calibration against known facing. See STITCHING.md for the pose contract and both integration traps. The tool validates types and source identity, but cannot verify host sampling. Inspect playback through the join or repeated loop cycles before accepting the motion.
+
+Automatic stitching works through the local stdio server once the required backend
+and client are released. Hosting the MCP is a separate delivery option. Until the
+automatic API is deployed and accepted, do not present that path as live-validated.
 
 ## Long calls and persistence
 

@@ -18,10 +18,9 @@ from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_jo
 class UthanaAPI:
     def __init__(self, key: str, domain: str | None = None, *, transport=None):
         self.domain = domain or UTHANA_DOMAIN
-        # Preview bytes from other hosts must not pass through MCP attribution.
-        self.transport = transport
         self.mcp_transport = MCPTransport(self.domain, transport)
         transport = self.mcp_transport
+        self.transport = transport
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
@@ -258,6 +257,19 @@ class UthanaAPI:
         if character_id != prepared["character_id"]:
             raise APIError("Character generation returned a different character ID; inspect the prepared ID")
         return {"character_id": character_id, "auto_rig_confidence": result.auto_rig_confidence}
+
+    async def stitch_auto(self, options):
+        result = await self._call(
+            self.client.motions.stitch_motions,
+            options,
+            timeout=httpx.Timeout(360, connect=15),
+            mutation_field="create_enhanced_stitched_motion",
+        )
+        return {
+            "motion_id": identifier(result["motion"]["id"]),
+            "character_id": options["character_id"],
+            "preparation": result.get("preparation"),
+        }
 
     async def preview_character_prompt(self, prompt):
         result = await self._call(

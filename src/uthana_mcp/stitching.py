@@ -131,3 +131,55 @@ def api_clip(clip, source, character_id, stitch_duration, prompt):
             )
         },
     }
+
+
+class StitchPlacement(BaseModel):
+    """Meters relative to prefix ending facing; positive degrees turn right."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    forward_m: Annotated[
+        Annotated[float, Field(strict=True, ge=-100, le=100, allow_inf_nan=False)] | None,
+        Field(description="Forward gap in meters; omit to continue travel, set zero for no forward gap."),
+    ] = None
+    right_m: Annotated[
+        float,
+        Field(
+            strict=True,
+            ge=-100,
+            le=100,
+            allow_inf_nan=False,
+            description="Gap in meters relative to prefix ending facing; explicit zero requests zero offset.",
+        ),
+    ] = 0.0
+    facing_degrees: Annotated[
+        float,
+        Field(
+            strict=True,
+            ge=-180,
+            le=180,
+            allow_inf_nan=False,
+            description="Relative facing in degrees; positive turns right, default zero.",
+        ),
+    ] = 0.0
+
+
+class AutoStitchOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    character_id: Id
+    prefix_motion_id: Id
+    suffix_motion_id: Id
+    stitch_duration: Annotated[float, Field(strict=True, ge=0.1, le=3, allow_inf_nan=False)] = 1.0
+    prefix_start_seconds: Seconds = 0.0
+    prefix_end_seconds: Seconds | None = None
+    suffix_start_seconds: Seconds = 0.0
+    suffix_end_seconds: Seconds | None = None
+    placement: StitchPlacement = Field(default_factory=StitchPlacement)
+
+    @model_validator(mode="after")
+    def ordered_trims(self):
+        for label in ("prefix", "suffix"):
+            start = getattr(self, f"{label}_start_seconds")
+            end = getattr(self, f"{label}_end_seconds")
+            if end is not None and end <= start:
+                raise ValueError(f"{label}_end_seconds must exceed {label}_start_seconds")
+        return self

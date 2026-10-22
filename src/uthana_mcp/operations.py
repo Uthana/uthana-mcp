@@ -16,7 +16,7 @@ from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
-from .stitching import StitchClip, api_clip
+from .stitching import AutoStitchOptions, StitchClip, api_clip
 from .store import Store
 from .validation import TAR, identifier, number, text
 
@@ -516,6 +516,35 @@ class Operations:
             }
 
         receipt = await self.store.mutation(request_id, "loop", args, invoke)
+        return await self.verify_saved(receipt)
+
+    async def stitch_auto(self, request_id, options):
+        options = AutoStitchOptions.model_validate(options).model_dump(exclude_none=True)
+        args = {"preparation_mode": "server", **options}
+        if self.store.completed(request_id, "stitch"):
+            return self.recovered_saved(self.store.replay(request_id, "stitch", args))
+        sources = [await self.api.motion(options[key]) for key in ("prefix_motion_id", "suffix_motion_id")]
+        for label, source in zip(("prefix", "suffix"), sources):
+            start = options[f"{label}_start_seconds"]
+            end = options.get(f"{label}_end_seconds", source["last_sample_seconds"])
+            if not start < end <= source["last_sample_seconds"]:
+                raise ValueError(f"{label} trims must fit the motion's native sample range")
+
+        async def invoke():
+            result = await self.api.stitch_auto(options)
+            return {
+                **result,
+                "source_motion_id": sources[0]["motion_id"],
+                "source_motion_ids": [source["motion_id"] for source in sources],
+                "source": sources[0],
+                "sources": sources,
+                "pose_samples_source": "server_sampled",
+                "loop_intended": False,
+                "review_status": "unreviewed",
+                "preview_api": True,
+            }
+
+        receipt = await self.store.mutation(request_id, "stitch", args, invoke)
         return await self.verify_saved(receipt)
 
     async def stitch(self, request_id, prefix, suffix, character_id=TAR, stitch_duration=2.0, prompt=""):

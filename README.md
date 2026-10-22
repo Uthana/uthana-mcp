@@ -5,11 +5,13 @@
 
 Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
 
-The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 24 tools and the `uthana://workflow` resource.
+The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 25 tools and the `uthana://workflow` resource.
 
 📖 [API documentation](https://uthana.com/docs/api) · [First animation](FIRST-RESULT.md)
 
 ## Install
+
+Release prerequisite: automatic stitching requires the deployed automatic-input API and Python client 0.6.0. This preparation branch still pins the draft client until 0.6.0 is published.
 
 Python 3.11 or later.
 
@@ -96,7 +98,8 @@ Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read
 | `preview_character_from_prompt` | Preview images for a character description |
 | `create_character_from_prompt` | Rig the preview you chose |
 | `create_looped_motion` | Closed or open loop of an existing motion |
-| `create_stitched_motion` | Join two clips using host-sampled poses |
+| `stitch_motions` | Join two clips with server sampling and optional placement |
+| `create_stitched_motion` | Advanced join using host-sampled poses |
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
@@ -105,6 +108,10 @@ Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
 
 `UthanaAPI.generate_v1` is a Python adapter method for V1 generation. It is not a separate MCP tool.
+
+## Join two motions
+
+Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch_motions` tool asks Uthana to sample and align both clips. Optional forward/right offsets use meters relative to the first clip’s ending facing; positive facing degrees turn right. Review playback before accepting the result. See [stitching guidance](STITCHING.md).
 
 ## Documentation
 
@@ -121,7 +128,7 @@ Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read
 
 ```sh
 uv sync --locked
-uv run --locked ./test.sh
+uv run --locked bash ./test.sh
 ```
 
 Licensed under [Apache-2.0](LICENSE).

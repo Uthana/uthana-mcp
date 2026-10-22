@@ -45,6 +45,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 "create_character_from_prompt",
                 "create_looped_motion",
                 "create_stitched_motion",
+                "stitch_motions",
                 "list_characters",
                 "list_motions",
                 "get_usage",
@@ -154,6 +155,6 @@ async def test_actual_entrypoint_discovers_without_credentials(domain):
             assert domain in initialized.instructions
             workflow = await client.read_resource("uthana://workflow")
             assert domain in workflow.contents[0].text.splitlines()[0]
-            assert len((await client.list_tools()).tools) == 24
+            assert len((await client.list_tools()).tools) == 25
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

@@ -1,4 +1,49 @@
-# Stitching integration contract
+# Stitching workflow
+
+## Try the simple operation first
+
+Use `stitch_motions` with `request_id`, `prefix_motion_id`, `suffix_motion_id`, and
+`character_id`. Uthana samples both clips and aligns them on the server; no local
+Blender, pose sampler, or installed skill is required. Default transition: one second.
+
+Optional `placement` contains `forward_m`, `right_m`, and `facing_degrees`, relative
+to the prefix ending pelvis and facing. Positive angles turn right. Omitting the
+forward distance continues recent travel; explicit zero requests no forward gap.
+Try automatic placement first, and specify offsets/facing for scene requirements.
+Match transition duration to the requested distance and inspect playback.
+
+Optional trim fields use seconds. Omit ends for safe defaults. The server snaps
+trims inward, reserves prefix context, and returns effective trims and connection
+poses in `preparation`. Transition duration snaps to 20 Hz model frames. Avoid
+guessing pose values, repeatedly submitting an unresolved request, or treating a
+saved motion as visually approved. Use the existing request-recovery tools.
+
+Requires the automatic stitching backend and Python client 0.6.0. Deploy the
+backend first, release the clients, then release this MCP. Older backends reject
+the new input; do not silently fall back to invented samples or a second mutation.
+
+## Release sequence and validation status
+
+This addition can run through the local stdio MCP. Hosting the MCP is not a
+prerequisite: pose preparation runs on Uthana's backend in either deployment.
+The current MCP can be open-sourced separately from releasing this new capability.
+
+Review and release this coordinated change in order:
+
+1. [Backend/API #1748](https://github.com/Uthana/uthana/pull/1748): deploy automatic input and preparation to the app server and poselib workers in a test environment.
+2. [Python #18](https://github.com/Uthana/uthana-python-client/pull/18) and [JavaScript #12](https://github.com/Uthana/uthana-js-client/pull/12): validate against that API and release both clients at 0.6.0 after the backend is available in the target environment.
+3. [MCP #10](https://github.com/Uthana/uthana-mcp/pull/10): remove the temporary draft-client Git pin, refresh the lock against published PyPI 0.6.0, and validate a clean installation.
+4. Run the complete MCP → deployed automatic API → saved motion → export flow, including automatic placement, explicit distance/facing, and request recovery, before advertising the new tool as available.
+
+Validation recorded on October 19, 2026: backend CI and 20 focused backend tests
+passed; Python had 261 passing tests, JavaScript 119, and MCP 370. A local
+cross-repository contract check passed with real BVH sampling and mocked generation.
+Two live runs submitted the new preparation to the existing enhanced stitching
+API and produced exported animations. Neither test establishes that the new
+`auto_input` entry point works after deployment; that acceptance check remains open.
+See the linked PRs for current review and release status.
+
+## Advanced sampled-pose operation
 
 `create_stitched_motion` joins exactly two selected clips and returns a separate
 motion. The upstream [enhanced stitching API](https://uthana.com/docs/api/capabilities/stitch-loop-motions)
@@ -75,7 +120,7 @@ A sampler that reads bone translations without composing ancestor scales can ret
 
 A correct loader composes the full transform hierarchy, including root and ancestor translation, rotation, and scale, before extracting world positions. Checking character height and pelvis height in meters provides a useful unit check. This repository does not include a pose sampler or silently rescale supplied coordinates.
 
-The API calls for hip-derived facing yaw but does not fully specify hip-axis order, cross-product order, or yaw zero direction. Reversing the hip vector flips facing by pi radians. One candidate convention is `forward = (right_hip - left_hip) cross up`, then `atan2(forward.x, forward.z)` (zero toward +Z, positive toward +X). This is not a confirmed upstream contract; validate it before using it.
+The API calls for hip-derived facing yaw but does not fully specify hip-axis order, cross-product order, or yaw zero direction. Reversing the hip vector flips facing by pi radians. The application and backend convention is `forward = (left_hip - right_hip) cross up`, then `atan2(forward.x, forward.z)` (zero toward +Z, positive toward +X). Calibrate the selected hip joints against known forward facing before using it.
 
 Integration needs a character with known forward facing to calibrate hip selection, vector order, and signs, followed by playback inspection of the join. Use an upstream-confirmed convention or a validated host sampler before submitting a stitch. The MCP cannot infer the intended yaw from a scalar or certify pose correctness.
 

@@ -1267,14 +1267,10 @@ wheels = [
 
 [[package]]
 name = "uthana"
-version = "0.5.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.6.0"
+source = { git = "https://github.com/Uthana/uthana-python-client.git?rev=87a7c82bdfcb7f7f3e2f267406b1e146e584f655#87a7c82bdfcb7f7f3e2f267406b1e146e584f655" }
 dependencies = [
     { name = "httpx" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fe/0d/1575b063949095c4a970fa38cf727f6f907a4125a9778013975cf4f406fd/uthana-0.5.1.tar.gz", hash = "sha256:5f02e6635f71e3b029255ec7f7b3a0f31cd3a69b7bef37528ff6982440d9a9c7", size = 56714, upload-time = "2026-09-21T18:54:11.238Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/78/47a7ba2fa7a0c188c14fe490a7b3b7b2aea4d10345e674358bc34e028c4a/uthana-0.5.1-py3-none-any.whl", hash = "sha256:7f92c5175347b99e1274e7292f76513d353342c05a09167a0efe603cf2e67f10", size = 36978, upload-time = "2026-09-21T18:54:09.395Z" },
 ]
 
 [[package]]
@@ -1311,7 +1307,7 @@ requires-dist = [
     { name = "pillow", specifier = "==12.3.0" },
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "python-dotenv", specifier = "==1.2.3" },
-    { name = "uthana", specifier = ">=0.5.1" },
+    { name = "uthana", git = "https://github.com/Uthana/uthana-python-client.git?rev=87a7c82bdfcb7f7f3e2f267406b1e146e584f655" },
 ]
 
 [package.metadata.requires-dev]

@@ -30,9 +30,10 @@ jobs:
       - name: Check source and build package
         run: |
           uv sync --locked
-          uv run --frozen ./test.sh
+          uv run --frozen bash ./test.sh
       - name: Install built wheel outside checkout and check protocol
         run: |
+          uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt --output-file "$RUNNER_TEMP/mcp-requirements.txt"
           uv venv --python '${{ matrix.python }}' "$RUNNER_TEMP/mcp-clean"
           if [ -x "$RUNNER_TEMP/mcp-clean/bin/python" ]; then
             py="$RUNNER_TEMP/mcp-clean/bin/python"
@@ -41,6 +42,6 @@ jobs:
             py="$RUNNER_TEMP/mcp-clean/Scripts/python.exe"
             smoke="$RUNNER_TEMP/mcp-clean/Scripts/uthana-mcp-smoke.exe"
           fi
-          uv pip install --python "$py" dist/*.whl
+          uv pip install --python "$py" -r "$RUNNER_TEMP/mcp-requirements.txt" dist/*.whl
           cd "$RUNNER_TEMP"
           env -u PYTHONPATH -u UTHANA_API_KEY -u UTHANA_API_KEY_FILE "$smoke"

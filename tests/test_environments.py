@@ -121,7 +121,7 @@ async def test_key_file_not_read_for_discovery_and_configuration_stays_fixed(mon
     monkeypatch.setenv("UTHANA_DOMAIN", "other.example.com")
     monkeypatch.setenv("UTHANA_API_KEY", "must-not-be-used")
     assert UTHANA_DOMAIN in server._mcp_server.instructions
-    assert len(await server.list_tools()) == 24
+    assert len(await server.list_tools()) == 25
     with pytest.raises(Exception, match="UTHANA_API_KEY_FILE"):
         await server._tool_manager.get_tool("get_usage").run({})
 
@@ -149,7 +149,7 @@ async def test_overridden_domain_routes_through_sdk_and_reports_origin(monkeypat
         monkeypatch.delenv("UTHANA_API_KEY_FILE", raising=False)
         server = create_server()
         assert domain in server._mcp_server.instructions
-        assert len(await server.list_tools()) == 24
+        assert len(await server.list_tools()) == 25
         result = await server.read_resource("uthana://workflow")
         assert domain in str(result)
     finally:
