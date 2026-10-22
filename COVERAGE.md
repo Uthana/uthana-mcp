@@ -21,4 +21,4 @@ The MCP uses the shared Uthana Python client and exposes 22 tools for the config
 
 The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
 
-The transport is local stdio on Linux. Authenticated remote hosting and production access are separate work. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.
+The transport is local stdio on Linux and Windows; macOS verification is pending. Authenticated remote hosting and production access are separate work. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.

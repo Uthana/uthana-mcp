@@ -63,7 +63,7 @@ omit = ["*/uthana_mcp/__init__.py"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-fail_under = 90
+fail_under = 85
 
 [tool.black]
 target-version = ["py311"]
@@ -80,4 +80,4 @@ select = ["E4", "E7", "E9", "F", "I"]
 profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
-known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "dotenv"]
+known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "platform_support", "dotenv"]

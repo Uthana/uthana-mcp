@@ -10,7 +10,7 @@ The host supplies the reasoning model and any editing or pose-sampling skills. T
 
 ## Install and connect
 
-Targets: Linux and macOS (package/protocol CI passed; native host acceptance pending), Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Windows support is proposed in [PR #11](https://github.com/Uthana/uthana-mcp/pull/11) and is not in this release baseline.
+Targets: Linux, macOS, and Windows 11, with Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Package and protocol CI covers all three operating systems; native host acceptance is separate. Paths below are written for Linux/macOS; [partner setup](PARTNER-SETUP.md#windows) lists the Windows equivalents.
 
 ```sh
 uv sync --locked
@@ -20,12 +20,12 @@ This installs the package and development tools from `pyproject.toml` and `uv.lo
 
 This baseline uses the published Uthana Python client. The lockfile records the exact dependency versions. Git is needed only when installing from a Git checkout.
 
-The host starts `.venv/bin/uthana-mcp` as a stdio server. **Production (`uthana.com`) is the default.** Override with `UTHANA_DOMAIN` (host env, constructor, or a checkout `.env` / `.env.local`). Tool discovery and the workflow resource work without credentials; Uthana operations require a key for the selected environment, supplied through a private file or the host environment.
+The host starts `.venv/bin/uthana-mcp` (Windows: `.venv\Scripts\uthana-mcp.exe`) as a stdio server. **Production (`uthana.com`) is the default.** Override with `UTHANA_DOMAIN` (host env, constructor, or a checkout `.env` / `.env.local`). Tool discovery and the workflow resource work without credentials; Uthana operations require a key for the selected environment, supplied through a private file or the host environment.
 
 | Variable | Purpose |
 | --- | --- |
 | `UTHANA_API_KEY` | API key for the selected environment; use this or the private file option |
-| `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600; not a symlink |
+| `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600 (Windows: an access list granting only you, `OWNER RIGHTS`, `SYSTEM`, and `Administrators`); not a symlink |
 | `UTHANA_DOMAIN` | Defaults to `uthana.com`; override with any host. Host env wins over checkout `.env` / `.env.local` |
 | `UTHANA_MCP_DATA_DIR` | Persistent private state; defaults to `~/.local/state/uthana-mcp` |
 | `UTHANA_MCP_INPUT_DIR` | Selected input files on the server machine; uploads disabled when absent |
@@ -110,6 +110,6 @@ Context7 can provide optional documentation lookup alongside this operational MC
 uv run --locked ./test.sh
 ```
 
-The checks run offline tests, formatting, lint, and package builds. Live model acceptance is a separate explicitly configured run that incurs model charges; tests must not silently select production.
+The checks run offline tests, formatting, lint, and package builds. `test.sh` needs a POSIX shell; on Windows, run the offline tests with `uv run --no-sync pytest -q`. There, symlink tests skip unless Developer Mode or an elevated shell allows creating symlinks, and FIFO tests skip because Windows has no FIFOs. Live model acceptance is a separate explicitly configured run that incurs model charges; tests must not silently select production.
 
 Licensed under [Apache-2.0](LICENSE).

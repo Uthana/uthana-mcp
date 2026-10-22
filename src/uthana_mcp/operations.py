@@ -13,6 +13,7 @@ from PIL import Image
 
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
+from .safe_open import open_nofollow
 from .stitching import StitchClip, api_clip
 from .store import Store
 from .validation import TAR, identifier, number, text
@@ -241,7 +242,7 @@ class Operations:
                 detail = "; .gltf means self-contained JSON, not binary .glb" if extensions == {".gltf"} else ""
                 raise ValueError(f"file_path must use {formats} inside UTHANA_MCP_INPUT_DIR{detail}")
             # Open without following a final symlink; read a bounded snapshot used for both hashing and upload.
-            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            fd = open_nofollow(path)
             with os.fdopen(fd, "rb") as f:
                 info = os.fstat(f.fileno())
                 if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
