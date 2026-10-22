@@ -23,6 +23,7 @@ Apply these conventions to new code and the code you change. Preserve existing p
   if wrong_origin or request_pending:
       return None
   ```
+
 - Give a nested `any()` or `all()` a helper or variable when its predicate is complicated. Keep checks that narrow a type in the condition where that type is used.
 - Use `:=` when a lookup is tested and its result is reused, provided it keeps the condition readable. Do not introduce an assignment expression whose name is never read again.
 - Let unexpected errors propagate. Catch an exception when the failure is expected and recovery or another code path is required. At an external boundary, redact credentials and private provider details while preserving a useful error category.
@@ -53,3 +54,15 @@ The verification script runs Ruff, Black, isort, Flake8, pytest with coverage, a
 - Fix actionable findings and rerun affected checks after the final fix. State what passed, what was not checked, and which findings were judged non-actionable. Distinguish manual review from automated review.
 - Keep pull request descriptions focused on the problem, resulting behavior, compatibility, and verification. Do not claim a check covers components it did not exercise.
 - Do not merge or publish without authorization.
+
+## Boundary validation and style reviews
+
+- Name predicates for the domain rule they express, then combine names at a shared error, return, or continuation. Keep simple type-narrowing guards inline before field access. Do not compute an unsafe or expensive predicate eagerly just to give it a name.
+- Treat untrusted values as `object` in Python or `unknown` in TypeScript until validated. Build owned normalized records with declared types; a cast is not runtime validation. Keep any necessary assertion local to the checks that justify it.
+- Distinguish omitted fields from explicit null, zero, and false. Apply defaults only where the contract permits them. Validation must not mutate caller-owned nested data.
+- Name domain limits and non-obvious numeric tolerances, including units. Keep equivalent cross-language contracts aligned with shared acceptance, rejection, and normalization fixtures.
+- Keep runtime validation in normal control flow; do not use Python `assert` for caller input, permissions, or side-effect preconditions. Assertions may narrow already-proven internal invariants, but prefer a type design that avoids repeating the proof.
+- Use module-level imports, including TypeScript `import type`. Local imports need a circular-dependency or measurable startup-cost reason. Keep module summaries accurate when a file serves both current and legacy interfaces.
+- Preserve published signatures, error categories, unknown-outcome recovery, and side-effect order during style changes. Do not retrofit unrelated existing code. Add tests for changed behavior or meaningful gaps, not for a cosmetic rewrite of the same implementation.
+
+Use the shared SDK types for SDK calls and core results. Pydantic models own the MCP tool schema; retain normalization needed for durable receipt fingerprints rather than silently changing numeric/default representation during a style refactor.

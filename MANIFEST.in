@@ -1,3 +1,4 @@
+include AGENTS.md
 include README.md CONTRIBUTING.md
 include SECURITY.md CODE_OF_CONDUCT.md
 recursive-include docs *.md

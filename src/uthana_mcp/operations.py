@@ -521,7 +521,7 @@ class Operations:
         receipt = await self.store.mutation(request_id, "loop", args, invoke)
         return await self.verify_saved(receipt)
 
-    async def stitch(self, request_id: str, options: dict) -> dict:
+    async def stitch(self, request_id: str, options: object) -> dict:
         options = StitchInput.model_validate(options).model_dump(exclude_none=True)
         args = {"contract": "typed_steps", **options}
         if self.store.completed(request_id, "stitch"):

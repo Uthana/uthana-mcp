@@ -7,12 +7,17 @@ This layer applies explicit environment configuration and conservative, redacted
 import hashlib
 
 import httpx
-from uthana import Uthana
+from uthana import StitchInput, StitchResult, Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
 from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
+
+
+class StitchAPIResult(StitchResult):
+    motion_id: str
+    character_id: str
 
 
 class UthanaAPI:
@@ -258,7 +263,7 @@ class UthanaAPI:
             raise APIError("Character generation returned a different character ID; inspect the prepared ID")
         return {"character_id": character_id, "auto_rig_confidence": result.auto_rig_confidence}
 
-    async def stitch(self, options: dict) -> dict:
+    async def stitch(self, options: StitchInput) -> StitchAPIResult:
         result = await self._call(
             self.client.motions.stitch,
             options,

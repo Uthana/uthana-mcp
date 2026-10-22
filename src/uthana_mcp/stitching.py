@@ -6,6 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 MAX_OFFSET_METERS = 100
 MAX_FRAME_INDEX = 2**53 - 1
+MAX_TURN_DEGREES = 180
+MIN_TRANSITION_SECONDS = 0.1
+MAX_TRANSITION_SECONDS = 3
+DEFAULT_TRANSITION_SECONDS = 1.0
 Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
 Seconds = Annotated[Number, Field(ge=0)]
 
@@ -48,13 +52,13 @@ class MotionRange(BaseModel):
 class RelativePlacement(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     forward_m: Annotated[Number, Field(ge=-MAX_OFFSET_METERS, le=MAX_OFFSET_METERS)] = Field(
-        default=0.0, description="Relative offset in meters; turn_degrees uses degrees turning right."
+        default=0.0, description="Forward gap in meters relative to the preceding motion’s ending facing."
     )
     right_m: Annotated[Number, Field(ge=-MAX_OFFSET_METERS, le=MAX_OFFSET_METERS)] = Field(
-        default=0.0, description="Relative offset in meters; turn_degrees uses degrees turning right."
+        default=0.0, description="Rightward gap in meters relative to the preceding motion’s ending facing."
     )
-    turn_degrees: Annotated[Number, Field(ge=-180, le=180)] = Field(
-        default=0.0, description="Relative offset in meters; turn_degrees uses degrees turning right."
+    turn_degrees: Annotated[Number, Field(ge=-MAX_TURN_DEGREES, le=MAX_TURN_DEGREES)] = Field(
+        default=0.0, description="Relative turn in degrees; positive turns right."
     )
     absolute: Literal[False] = Field(
         default=False, description="Only false is supported; absolute spatial placement is reserved."
@@ -91,8 +95,8 @@ class MotionStep(BaseModel):
 class TransitionStep(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     type: Literal["transition"] = Field(description="Generated transition between adjacent motions.")
-    duration_seconds: Annotated[Number, Field(ge=0.1, le=3)] = Field(
-        default=1.0, description="Transition seconds, 0.1-3; quantized to model frames."
+    duration_seconds: Annotated[Number, Field(ge=MIN_TRANSITION_SECONDS, le=MAX_TRANSITION_SECONDS)] = Field(
+        default=DEFAULT_TRANSITION_SECONDS, description="Transition seconds, 0.1-3; quantized to model frames."
     )
 
 
