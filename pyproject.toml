@@ -31,6 +31,7 @@ dev = [
     "black==26.5.1",
     "isort==7.0.0",
     "flake8==7.3.0",
+    "pytest-cov==7.1.0",
 ]
 
 [project.urls]
@@ -41,6 +42,7 @@ Issues = "https://github.com/Uthana/uthana-mcp/issues"
 
 [project.scripts]
 uthana-mcp = "uthana_mcp.server:main"
+uthana-mcp-smoke = "uthana_mcp.smoke:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -51,6 +53,17 @@ uthana_mcp = ["WORKFLOW.md"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["uthana_mcp"]
+parallel = true
+patch = ["subprocess"]
+omit = ["*/uthana_mcp/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 85
 
 [tool.black]
 target-version = ["py311"]

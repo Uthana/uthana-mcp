@@ -10,6 +10,7 @@ import httpx
 from uthana import Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
+from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
 from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
 
@@ -17,6 +18,8 @@ from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_jo
 class UthanaAPI:
     def __init__(self, key: str, domain: str | None = None, *, transport=None):
         self.domain = domain or UTHANA_DOMAIN
+        self.mcp_transport = MCPTransport(self.domain, transport)
+        transport = self.mcp_transport
         self.transport = transport
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
@@ -47,6 +50,7 @@ class UthanaAPI:
     async def close(self):
         self.client.close()
         self.catalog_client.close()
+        await self.mcp_transport.shutdown()
 
     async def _call(self, function, *args, read_only=False, mutation_field=None, resource=None, **kwargs):
         if read_only and mutation_field:

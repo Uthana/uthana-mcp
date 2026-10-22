@@ -79,9 +79,9 @@ Use a second host entry if you need another API host. Set `UTHANA_DOMAIN` to tha
 
 Ask your agent:
 
-> Read Uthana's workflow and confirm the active environment is uthana.com. Check account usage and list characters named Tar. Estimate a four-second V3 motion of a person walking forward and waving, and show me the estimate before generating it. After I approve, generate it once, track its job, inspect preview frames, trim a usable interval, and download a GLB with mesh at 30 FPS. Report the saved file path and any limitations you observe.
+> Read Uthana's workflow and confirm the active environment is uthana.com. Check account usage and confirm that I can access Uthana's Tar character ID `cXi2eAP19XwQ`. Estimate a four-second V3 motion of a person walking forward and waving on Tar, and show me the estimate before generating it. After I approve, generate it once, track its job, inspect preview frames, trim a usable interval, and download a GLB with mesh at 30 FPS. Report the saved file path and any limitations you observe.
 
-Use the returned character ID explicitly when possible. Tar is the shared client's default, but account access must be checked. Initialization identifies the selected environment; it does not prove authentication succeeded. A successful account read establishes that separately.
+Use the exact character ID: an account may contain multiple characters named Tar. Tar is the shared client's default, but account access must be checked. Initialization identifies the selected environment; it does not prove authentication succeeded. A successful account read establishes that separately.
 
 Keep the private data directory across restarts: it contains request receipts and exports. Different credentials or environments use different scopes. Changing a key or deleting state does not establish that earlier work never happened. Follow the workflow's request recovery rules before resubmitting.
 

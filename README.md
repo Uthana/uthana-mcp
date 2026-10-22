@@ -1,12 +1,16 @@
 # Uthana MCP
 
+Animate a bipedal character through an AI assistant and export the result into your game. Start with [Uthana's rigged Tar GLB](examples/tar/cXi2eAP19XwQ.glb): “Upload my Tar character, make a four-second walk that ends with a wave, show me the motion, then export an animated FBX at 30 FPS.” The assistant can upload your selected FBX/GLB, generate motion, inspect previews, and request a retargeted export. [Follow the first-result walkthrough](FIRST-RESULT.md) to reproduce that sequence.
+
 This package exposes Uthana's motion platform to MCP-capable coding agents: generate motions from text or video, create characters from images or rigged files, trim, loop, and stitch motions, and export retargeted animation. See [partner setup](PARTNER-SETUP.md) for local installation and [acceptance](BETA-ACCEPTANCE.md) for environment and host verification.
+
+**Release review:** [Brandon's overview](BRANDON-REVIEW.md) explains what has been built, what to check before making this repository public, and how the related PRs fit together.
 
 The host supplies the reasoning model and any editing or pose-sampling skills. The server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and local stdio transport. A browser-hosted connector requires a separate authenticated remote transport.
 
 ## Install and connect
 
-Targets: Linux, macOS (verification pending), and Windows 11, with Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Paths below are written for Linux/macOS; [partner setup](PARTNER-SETUP.md#windows) lists the Windows equivalents.
+Targets: Linux, macOS, and Windows 11, with Python 3.11 or later, Git, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Package and protocol CI covers all three operating systems; native host acceptance is separate. Paths below are written for Linux/macOS; [partner setup](PARTNER-SETUP.md#windows) lists the Windows equivalents.
 
 ```sh
 uv sync --locked
@@ -14,7 +18,7 @@ uv sync --locked
 
 This installs the package and development tools from `pyproject.toml` and `uv.lock`. A server-only installation uses `uv sync --locked --no-dev`.
 
-The shared Python client is temporarily pinned to a Git commit until a reviewed client release includes the required APIs. Git is needed for this dependency. The lockfile records the exact revision; the pin will be replaced with a released version after review.
+This baseline uses the published Uthana Python client. The lockfile records the exact dependency versions. Git is needed only when installing from a Git checkout.
 
 The host starts `.venv/bin/uthana-mcp` (Windows: `.venv\Scripts\uthana-mcp.exe`) as a stdio server. **Production (`uthana.com`) is the default.** Override with `UTHANA_DOMAIN` (host env, constructor, or a checkout `.env` / `.env.local`). Tool discovery and the workflow resource work without credentials; Uthana operations require a key for the selected environment, supplied through a private file or the host environment.
 
@@ -42,6 +46,8 @@ A host-neutral connection descriptor, with field names adapted to the host:
 ```
 
 Only the key file path belongs in this descriptor. Keep the key itself outside prompts and Git; setting both key options is an error. Restart the server after changing environment or credentials. Production operations use the customer account and its credits. Authentication failures never switch environments. Inputs and exported files live on the server machine; remote hosts need a way to transfer those files.
+
+Run `.venv/bin/uthana-mcp-smoke` to verify installation, tool discovery, and workflow loading without credentials or paid operations. With an explicitly configured API key, `--api-read` also checks one read-only account call. See [operational checks](OPERATIONS.md) for limits and troubleshooting.
 
 | Operation | Host tool timeout |
 | --- | --- |
@@ -92,6 +98,10 @@ The [workflow](src/uthana_mcp/WORKFLOW.md) defines pricing, request recovery, an
 - [Stitching pose contract](STITCHING.md)
 - [Acceptance procedure](ACCEPTANCE.md)
 - [Example prompts and expected outcomes](PROMPT-TESTS.md)
+- [First animation and export](FIRST-RESULT.md)
+- [Operational checks and attribution](OPERATIONS.md)
+- [Release review handoff](RELEASE-REVIEW.md)
+- [Brandon's release overview](BRANDON-REVIEW.md)
 - [Public API documentation](https://uthana.com/docs/api)
 
 Context7 can provide optional documentation lookup alongside this operational MCP. Uthana's library identifier is `/websites/uthana_api`; documentation versions can differ from the installed tool schema.
