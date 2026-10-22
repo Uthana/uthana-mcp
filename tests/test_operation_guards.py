@@ -47,7 +47,7 @@ async def test_uploads_reject_missing_directory_bad_type_and_empty_files(setup, 
         ops.read_input(str(empty), {".mp4"})
     with pytest.raises(ValueError, match="video-to-motion"):
         await ops.video("vid1", str(empty), "Clip", model="other")
-    with pytest.raises(ValueError, match="auto_rig must be a boolean"):
+    with pytest.raises(ValueError, match="must be booleans"):
         await ops.upload_character("char1", str(empty), "Tar", auto_rig="yes")
 
 
