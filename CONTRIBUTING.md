@@ -2,6 +2,8 @@
 
 Development uses Python 3.11 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
+See [AGENTS.md](AGENTS.md) for Python style, testing, coverage, and review conventions.
+
 ```sh
 uv sync --locked
 uv run --locked bash ./test.sh
