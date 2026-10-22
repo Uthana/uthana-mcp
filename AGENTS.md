@@ -27,7 +27,7 @@ Apply these conventions to new code and the code you change. Preserve existing p
 - Give a nested `any()` or `all()` a helper or variable when its predicate is complicated. Keep checks that narrow a type in the condition where that type is used.
 - Use `:=` when a lookup is tested and its result is reused, provided it keeps the condition readable. Do not introduce an assignment expression whose name is never read again.
 - Let unexpected errors propagate. Catch an exception when the failure is expected and recovery or another code path is required. At an external boundary, redact credentials and private provider details while preserving a useful error category.
-- Write errors that identify the failed lookup or operation and explain the next action. Avoid generic messages such as "No resource found."
+- Write error messages that say what failed and what to do next. Identify the record, field, or operation and include safe lookup values when useful, for example, "No character_id found matching {character_id}." For validation errors, state the expected shape, range, or step order. Use distinct errors for distinct failures rather than a generic "incomplete result" or "No resource found." Never include credentials or private provider details, and do not suggest resubmitting a paid operation when its outcome is unknown.
 
 ## Tests and coverage
 
