@@ -1273,7 +1273,7 @@ wheels = [
 [[package]]
 name = "uthana"
 version = "0.6.0"
-source = { git = "https://github.com/Uthana/uthana-python-client.git?rev=cc44b84ec0f4042a1b43b01e60c82065ea384565#cc44b84ec0f4042a1b43b01e60c82065ea384565" }
+source = { git = "https://github.com/Uthana/uthana-python-client.git?rev=63c1256007f69ba02fcfd86f5e9a151465ff4c1c#63c1256007f69ba02fcfd86f5e9a151465ff4c1c" }
 dependencies = [
     { name = "httpx" },
 ]
@@ -1312,7 +1312,7 @@ requires-dist = [
     { name = "pillow", specifier = "==13.0.0" },
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "python-dotenv", specifier = "==1.2.3" },
-    { name = "uthana", git = "https://github.com/Uthana/uthana-python-client.git?rev=cc44b84ec0f4042a1b43b01e60c82065ea384565" },
+    { name = "uthana", git = "https://github.com/Uthana/uthana-python-client.git?rev=63c1256007f69ba02fcfd86f5e9a151465ff4c1c" },
 ]
 
 [package.metadata.requires-dev]

@@ -18,9 +18,9 @@ Apply these conventions to new code and the code you change. Preserve existing p
 - Prefer early returns for cases that leave the function. When checks share a return, continuation, or error, combine them. Two or three simple comparisons may stay inline; for a long condition, name each piece for the rule it represents and combine those names. Prefer semantic names over splitting one condition into repeated branches. Keep type-narrowing guards inline before reading fields or computing dependent predicates.
 
   ```python
-  wrong_origin = scope != expected_origin
-  request_pending = state == "pending"
-  if wrong_origin or request_pending:
+  has_wrong_origin = scope != expected_origin
+  is_request_pending = state == "pending"
+  if has_wrong_origin or is_request_pending:
       return None
   ```
 
@@ -57,6 +57,7 @@ The verification script runs Ruff, Black, isort, Flake8, pytest with coverage, a
 
 ## Boundary validation and style reviews
 
+- Start boolean variable names with `is` or `has`, using the language’s casing: `is_valid_motion`, `has_frame_range` in Python; `isValidMotion`, `hasFrameRange` in TypeScript. Prefer names that read as a clear predicate. Preserve published parameter and field names for compatibility.
 - Name predicates for the domain rule they express, then combine names at a shared error, return, or continuation. Keep simple type-narrowing guards inline before field access. Do not compute an unsafe or expensive predicate eagerly just to give it a name.
 - Treat untrusted values as `object` in Python or `unknown` in TypeScript until validated. Build owned normalized records with declared types; a cast is not runtime validation. Keep any necessary assertion local to the checks that justify it.
 - Distinguish omitted fields from explicit null, zero, and false. Apply defaults only where the contract permits them. Validation must not mutate caller-owned nested data.

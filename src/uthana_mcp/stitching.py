@@ -31,12 +31,12 @@ class MotionRange(BaseModel):
 
     @model_validator(mode="after")
     def units_and_order(self) -> Self:
-        frame_units = self.start_frame is not None or self.end_frame is not None
-        second_units = self.start_seconds is not None or self.end_seconds is not None
-        if frame_units and second_units:
+        has_frame_range = self.start_frame is not None or self.end_frame is not None
+        has_second_range = self.start_seconds is not None or self.end_seconds is not None
+        if has_frame_range and has_second_range:
             raise ValueError("Use frames or seconds within a range, not both")
-        start = self.start_frame if frame_units else self.start_seconds
-        end = self.end_frame if frame_units else self.end_seconds
+        start = self.start_frame if has_frame_range else self.start_seconds
+        end = self.end_frame if has_frame_range else self.end_seconds
         if end is not None and end <= (start or 0):
             raise ValueError("Range end must exceed start")
         if any(value is None for value in self.model_dump(exclude_unset=True).values()):
