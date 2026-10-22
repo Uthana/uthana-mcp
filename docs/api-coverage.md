@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 25 tools for the configured environment.
+The MCP uses the shared Uthana Python client and exposes 24 tools for the configured environment.
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ The MCP uses the shared Uthana Python client and exposes 25 tools for the config
 | Character from image | Image preparation and generation | PNG/JPEG, 16 MiB, 16 megapixels, one frame |
 | Character from prompt | Preview images, then finalize one preview | A preview can be finalized by only one request ID |
 | Existing-motion loop | Simplified loop preview API | Contract may change |
-| Two-clip stitching | `stitch_motions` samples and aligns on the server; `create_stitched_motion` accepts advanced host samples | Automatic input requires the coordinated backend and Python client 0.6.0; see [stitching](stitching.md) |
+| Two-clip stitching | `stitch` accepts typed motion/transition/motion steps with server sampling and alignment | Automatic input requires the coordinated backend and Python client 0.6.0; see [stitching](stitching.md) |
 | Native motion edits | Trim and register edited GLTF | Custom pose editing belongs to host tools |
 | Character listing | Name filter and result pages | Local filtering over a 16 MiB catalog; no upstream pagination |
 | Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |

@@ -83,23 +83,16 @@ Avoid submitting another candidate from the same preview request, or using a fre
 
 ## Loop and stitch
 
-Prefer `stitch_motions` for ordinary two-clip joins. It performs pose sampling and
-alignment on the service; supply motion IDs, character, transition duration, and
-optional trims in seconds. Optional placement uses forward/right meters relative
-to prefix ending facing and facing_degrees positive to the right. Omitted forward
-continues recent travel; explicit zero requests no gap. Inspect returned effective
-trims and connection poses, then review playback. Avoid implausible distance/time
-combinations and duplicate submissions; request recovery works as for advanced stitching.
+Use `stitch` with character_id and exactly three typed steps: motion, transition, motion.
+Motion steps identify existing motions and optionally select native frame or second ranges (never mixed).
+The transition defaults to one second. The service samples and aligns both clips; no local pose sampler is needed.
+Omit arriving-motion placement for automatic continuation. An explicit placement uses forward_m/right_m
+relative meters and turn_degrees positive right, with unspecified values zero. Absolute placement is unsupported.
+Inspect resolved_steps for effective ranges and transition duration, then review playback. Keep request_id;
+recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
+See [stitching](../../docs/stitching.md) for details. This path requires the coordinated backend and client release.
 
 `create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
-
-`create_stitched_motion` joins two existing clips using the enhanced preview API. The host must load both motions on the same character, place them in a shared scene, and evaluate root/pelvis poses at zero and each trim boundary. It requires source-file IDs/hashes from `get_motion`, world positions in meters with Y up, unit x/y/z/w quaternions, and hip-derived yaw in radians. Times must fall within native samples. Invented poses, APNG-derived transforms, and placeholder zeros are unsuitable.
-
-Include every ancestor's scale when evaluating world positions. An export can use a small root scale, so uncomposed bone translations are not meters. Facing yaw uses `atan2(forward.x, forward.z)`, with zero toward +Z and positive toward +X; verify the selected hip joints against known facing. See [the stitching guide](../../docs/stitching.md) for the pose contract and both integration traps. The tool validates types and source identity, but cannot verify host sampling. Inspect playback through the join or repeated loop cycles before accepting the motion.
-
-Automatic stitching works through the local stdio server once the required backend
-and client are released. Hosting the MCP is a separate delivery option. Until the
-automatic API is deployed and accepted, do not present that path as live-validated.
 
 ## Long calls and persistence
 

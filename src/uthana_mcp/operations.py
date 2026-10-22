@@ -16,7 +16,7 @@ from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
-from .stitching import AutoStitchOptions, StitchClip, api_clip
+from .stitching import StitchInput
 from .store import Store
 from .validation import TAR, identifier, number, text
 
@@ -521,20 +521,23 @@ class Operations:
         receipt = await self.store.mutation(request_id, "loop", args, invoke)
         return await self.verify_saved(receipt)
 
-    async def stitch_auto(self, request_id, options):
-        options = AutoStitchOptions.model_validate(options).model_dump(exclude_none=True)
-        args = {"preparation_mode": "server", **options}
+    async def stitch(self, request_id: str, options: dict) -> dict:
+        options = StitchInput.model_validate(options).model_dump(exclude_none=True)
+        args = {"contract": "typed_steps", **options}
         if self.store.completed(request_id, "stitch"):
             return self.recovered_saved(self.store.replay(request_id, "stitch", args))
-        sources = [await self.api.motion(options[key]) for key in ("prefix_motion_id", "suffix_motion_id")]
-        for label, source in zip(("prefix", "suffix"), sources):
-            start = options[f"{label}_start_seconds"]
-            end = options.get(f"{label}_end_seconds", source["last_sample_seconds"])
+        motion_steps = [options["steps"][0], options["steps"][2]]
+        sources = [await self.api.motion(step["motion_id"]) for step in motion_steps]
+        for step, source in zip(motion_steps, sources):
+            selected = step["range"]
+            fps = source["fps"]
+            start = selected.get("start_seconds", selected.get("start_frame", 0) / fps)
+            end = selected.get("end_seconds", selected.get("end_frame", source["frame_count"] - 1) / fps)
             if not start < end <= source["last_sample_seconds"]:
-                raise ValueError(f"{label} trims must fit the motion's native sample range")
+                raise ValueError("Motion range must fit its native source samples")
 
         async def invoke():
-            result = await self.api.stitch_auto(options)
+            result = await self.api.stitch(options)
             return {
                 **result,
                 "source_motion_id": sources[0]["motion_id"],
@@ -542,49 +545,6 @@ class Operations:
                 "source": sources[0],
                 "sources": sources,
                 "pose_samples_source": "server_sampled",
-                "loop_intended": False,
-                "review_status": "unreviewed",
-                "preview_api": True,
-            }
-
-        receipt = await self.store.mutation(request_id, "stitch", args, invoke)
-        return await self.verify_saved(receipt)
-
-    async def stitch(self, request_id, prefix, suffix, character_id=TAR, stitch_duration=2.0, prompt=""):
-        identifier(character_id)
-        number(stitch_duration, 0.1, 3)
-        if not isinstance(prompt, str) or len(prompt) > 1000:
-            raise ValueError("Stitch prompt must be text of at most 1000 characters")
-        # Validate/copy the complete sampled input before any API access.
-        clips = [StitchClip.model_validate(clip).model_dump() for clip in (prefix, suffix)]
-        for clip in clips:
-            if clip["sampled_character_id"] != character_id:
-                raise ValueError("Both clips must be sampled on the selected character")
-            clip["source_bundle_sha256"] = clip["source_bundle_sha256"].lower()
-        completed = self.store.completed(request_id, "stitch")
-        args = {
-            "prefix": clips[0],
-            "suffix": clips[1],
-            "character_id": character_id,
-            "stitch_duration": stitch_duration,
-            "prompt": prompt,
-        }
-        if completed:
-            return self.recovered_saved(self.store.replay(request_id, "stitch", args))
-        sources = [await self.api.motion(clip["motion_id"]) for clip in clips]
-        params = [api_clip(clip, source, character_id, stitch_duration, prompt) for clip, source in zip(clips, sources)]
-
-        async def invoke():
-            result = await self.api.stitch(character_id, params[0], params[1])
-            return {
-                **result,
-                "source_motion_id": clips[0]["motion_id"],
-                "source_motion_ids": [clip["motion_id"] for clip in clips],
-                "source": sources[0],
-                "sources": sources,
-                "stitch_duration_seconds": stitch_duration,
-                "requested_intervals_seconds": [[clip["start_seconds"], clip["end_seconds"]] for clip in clips],
-                "pose_samples_source": "host_supplied_not_independently_verified",
                 "loop_intended": False,
                 "review_status": "unreviewed",
                 "preview_api": True,

@@ -1,185 +1,123 @@
-"""Explicit sampled-pose contract for stitching two existing motions."""
+"""Typed steps shared by server-prepared stitching interfaces."""
 
-import math
-from typing import Annotated
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
-Scalar = Annotated[float, Field(strict=True, ge=-1e6, le=1e6, allow_inf_nan=False)]
-Seconds = Annotated[float, Field(strict=True, ge=0, le=1e6, allow_inf_nan=False)]
-Unit = Annotated[float, Field(strict=True, ge=-1, le=1, allow_inf_nan=False)]
+MAX_OFFSET_METERS = 100
+MAX_FRAME_INDEX = 2**53 - 1
+Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
+Seconds = Annotated[Number, Field(ge=0)]
 
 
-class Vector3(BaseModel):
-    """World position in meters, Y up; x/z are horizontal."""
-
-    model_config = ConfigDict(extra="forbid")
-    x: Annotated[Scalar, Field(description="World X position in meters, -1000000 to 1000000; Y is vertical.")]
-    y: Annotated[Scalar, Field(description="World Y position in meters, -1000000 to 1000000; Y is vertical.")]
-    z: Annotated[Scalar, Field(description="World Z position in meters, -1000000 to 1000000; Y is vertical.")]
-
-
-class Quaternion(BaseModel):
-    """Sampled world rotation in x/y/z/w order, approximately unit length."""
-
-    model_config = ConfigDict(extra="forbid")
-    x: Annotated[Unit, Field(description="Quaternion x component, -1 to 1; total length must be within 0.001 of 1.")]
-    y: Annotated[Unit, Field(description="Quaternion y component, -1 to 1; total length must be within 0.001 of 1.")]
-    z: Annotated[Unit, Field(description="Quaternion z component, -1 to 1; total length must be within 0.001 of 1.")]
-    w: Annotated[Unit, Field(description="Quaternion w component, -1 to 1; total length must be within 0.001 of 1.")]
+class MotionRange(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    start_frame: Annotated[int, Field(ge=0, le=MAX_FRAME_INDEX)] | None = Field(
+        default=None, description="Zero-based first native frame, inclusive; do not mix with seconds."
+    )
+    end_frame: Annotated[int, Field(ge=0, le=MAX_FRAME_INDEX)] | None = Field(
+        default=None, description="Last native frame, inclusive; omit for safe model context."
+    )
+    start_seconds: Seconds | None = Field(
+        default=None, description="Source start in seconds; snaps inward to native frames."
+    )
+    end_seconds: Seconds | None = Field(
+        default=None, description="Source end in seconds, inclusive; omit for safe model context."
+    )
 
     @model_validator(mode="after")
-    def unit_length(self):
-        if not math.isclose(math.hypot(self.x, self.y, self.z, self.w), 1, abs_tol=1e-3):
-            raise ValueError("Supply a sampled unit quaternion")
+    def units_and_order(self) -> Self:
+        frame_units = self.start_frame is not None or self.end_frame is not None
+        second_units = self.start_seconds is not None or self.end_seconds is not None
+        if frame_units and second_units:
+            raise ValueError("Use frames or seconds within a range, not both")
+        start = self.start_frame if frame_units else self.start_seconds
+        end = self.end_frame if frame_units else self.end_seconds
+        if end is not None and end <= (start or 0):
+            raise ValueError("Range end must exceed start")
+        if any(value is None for value in self.model_dump(exclude_unset=True).values()):
+            raise ValueError("Omit unspecified range fields instead of passing null")
         return self
 
-
-class PelvisState(BaseModel):
-    """Pelvis world transform and hip-derived facing yaw in radians."""
-
-    model_config = ConfigDict(extra="forbid")
-    pelvis_world_pos: Annotated[
-        Vector3, Field(description="Pelvis world position in meters, Y up; include all ancestor scale transforms.")
-    ]
-    pelvis_world_rot: Annotated[Quaternion, Field(description="Pelvis world rotation as a unit x/y/z/w quaternion.")]
-    hips_forward_facing_world_yaw: Annotated[
-        Scalar,
-        Field(
-            description="Hip-derived facing yaw in radians, -1000000 to 1000000. Zero faces +Z; positive yaw turns toward +X. Sample hip-derived facing on the selected rig."
-        ),
-    ]
+    def seconds(self, fps: float) -> tuple[float, float | None]:
+        if self.start_frame is not None or self.end_frame is not None:
+            return (self.start_frame or 0) / fps, self.end_frame / fps if self.end_frame is not None else None
+        return self.start_seconds or 0.0, self.end_seconds
 
 
-class StitchClip(BaseModel):
-    """Clip sampled by a motion loader on the specified character in a shared scene.
+class RelativePlacement(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    forward_m: Annotated[Number, Field(ge=-MAX_OFFSET_METERS, le=MAX_OFFSET_METERS)] = Field(
+        default=0.0, description="Relative offset in meters; turn_degrees uses degrees turning right."
+    )
+    right_m: Annotated[Number, Field(ge=-MAX_OFFSET_METERS, le=MAX_OFFSET_METERS)] = Field(
+        default=0.0, description="Relative offset in meters; turn_degrees uses degrees turning right."
+    )
+    turn_degrees: Annotated[Number, Field(ge=-180, le=180)] = Field(
+        default=0.0, description="Relative offset in meters; turn_degrees uses degrees turning right."
+    )
+    absolute: Literal[False] = Field(
+        default=False, description="Only false is supported; absolute spatial placement is reserved."
+    )
 
-    Get bundle identity from get_motion before sampling; it is checked before
-    submission. Pose values must come from the real animation, not guessed zeros.
-    """
+    @model_validator(mode="before")
+    @classmethod
+    def reject_absolute(cls, value: object) -> object:
+        if isinstance(value, dict) and "absolute" in value and value["absolute"] is not False:
+            raise ValueError("Only relative placement (absolute: false) is supported")
+        return value
 
-    model_config = ConfigDict(extra="forbid")
-    motion_id: Annotated[Id, Field(description="Existing motion ID for this clip.")]
-    sampled_character_id: Annotated[
-        Id, Field(description="Character used to evaluate these poses; must match character_id.")
+
+class MotionStep(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    type: Literal["motion"] = Field(description="Motion source step.")
+    motion_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$", description="Existing source motion ID.")]
+    range: MotionRange = Field(
+        default_factory=MotionRange, description="Optional source interval in native frames or seconds, never both."
+    )
+    placement: RelativePlacement | None = Field(
+        default=None,
+        description="Arriving-motion placement; omit for automatic continuation, supply an object for explicit offsets.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_null_placement(cls, value: object) -> object:
+        if isinstance(value, dict) and "placement" in value and value["placement"] is None:
+            raise ValueError("Omit placement for automatic continuation")
+        return value
+
+
+class TransitionStep(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    type: Literal["transition"] = Field(description="Generated transition between adjacent motions.")
+    duration_seconds: Annotated[Number, Field(ge=0.1, le=3)] = Field(
+        default=1.0, description="Transition seconds, 0.1-3; quantized to model frames."
+    )
+
+
+Step = Annotated[MotionStep | TransitionStep, Field(discriminator="type")]
+
+
+class StitchInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    character_id: Annotated[
+        str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$", description="Character used for all motion steps.")
     ]
-    source_bundle_id: Annotated[Id, Field(description="Native source-file ID returned by get_motion before sampling.")]
-    source_bundle_sha256: Annotated[
-        Annotated[str, Field(pattern=r"^[a-fA-F0-9]{64}$")],
-        Field(description="64 hexadecimal digits identifying the source file returned by get_motion."),
+    steps: Annotated[
+        list[Step],
+        Field(min_length=3, max_length=3, description="Exactly motion, transition, motion in playback order."),
     ]
-    start_seconds: Annotated[
-        Seconds, Field(description="Native sample time in seconds, 0-1000000, less than end_seconds.")
-    ]
-    end_seconds: Annotated[
-        Seconds,
-        Field(
-            description="Native sample time in seconds, greater than start_seconds and no later than last_sample_seconds."
-        ),
-    ]
-    root_node_world_pos: Annotated[
-        Vector3, Field(description="Root world position in meters, Y up; include all ancestor scale transforms.")
-    ]
-    root_node_world_rot: Annotated[Quaternion, Field(description="Root world rotation as a unit x/y/z/w quaternion.")]
-    at_zero_time: Annotated[PelvisState, Field(description="Pelvis state evaluated at time zero.")]
-    at_lower_trim_time: Annotated[PelvisState, Field(description="Pelvis state evaluated at start_seconds.")]
-    at_upper_trim_time: Annotated[PelvisState, Field(description="Pelvis state evaluated at end_seconds.")]
 
     @model_validator(mode="after")
-    def ordered_times(self):
-        if self.start_seconds >= self.end_seconds:
-            raise ValueError(
-                f"start_seconds must be less than end_seconds (received {self.start_seconds}, {self.end_seconds})"
-            )
-        return self
-
-
-def api_clip(clip, source, character_id, stitch_duration, prompt):
-    """Use authoritative native timing; keep caller-supplied poses explicit."""
-    if clip["sampled_character_id"] != character_id:
-        raise ValueError("Both clips must be sampled on the selected character")
-    if (
-        clip["source_bundle_id"] != source["bundle_id"]
-        or clip["source_bundle_sha256"].lower() != source["bundle_sha256"].lower()
-    ):
-        raise ValueError("Sampled source bundle changed; inspect the current motion and resample before stitching")
-    start, end = clip["start_seconds"], clip["end_seconds"]
-    if end > source["last_sample_seconds"]:
-        raise ValueError("Stitch trim times must be within actual native samples, not beyond the final frame")
-    if int(start * source["fps"]) >= int(end * source["fps"]):
-        raise ValueError("Stitch selection must span at least one native frame interval")
-    duration = source["duration_seconds"]
-    return {
-        "motion_id": clip["motion_id"],
-        "prompt": prompt,
-        "stitch_loop": False,
-        "stitch_duration": stitch_duration,
-        "motion_duration": duration,
-        "motion_lower_trim_time": start,
-        "motion_upper_trim_time": end,
-        "motion_lower_trim_fraction": start / duration,
-        "motion_upper_trim_fraction": end / duration,
-        **{
-            key: clip[key]
-            for key in (
-                "root_node_world_pos",
-                "root_node_world_rot",
-                "at_zero_time",
-                "at_lower_trim_time",
-                "at_upper_trim_time",
-            )
-        },
-    }
-
-
-class StitchPlacement(BaseModel):
-    """Meters relative to prefix ending facing; positive degrees turn right."""
-
-    model_config = ConfigDict(extra="forbid", strict=True)
-    forward_m: Annotated[
-        Annotated[float, Field(strict=True, ge=-100, le=100, allow_inf_nan=False)] | None,
-        Field(description="Forward gap in meters; omit to continue travel, set zero for no forward gap."),
-    ] = None
-    right_m: Annotated[
-        float,
-        Field(
-            strict=True,
-            ge=-100,
-            le=100,
-            allow_inf_nan=False,
-            description="Gap in meters relative to prefix ending facing; explicit zero requests zero offset.",
-        ),
-    ] = 0.0
-    facing_degrees: Annotated[
-        float,
-        Field(
-            strict=True,
-            ge=-180,
-            le=180,
-            allow_inf_nan=False,
-            description="Relative facing in degrees; positive turns right, default zero.",
-        ),
-    ] = 0.0
-
-
-class AutoStitchOptions(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    character_id: Id
-    prefix_motion_id: Id
-    suffix_motion_id: Id
-    stitch_duration: Annotated[float, Field(strict=True, ge=0.1, le=3, allow_inf_nan=False)] = 1.0
-    prefix_start_seconds: Seconds = 0.0
-    prefix_end_seconds: Seconds | None = None
-    suffix_start_seconds: Seconds = 0.0
-    suffix_end_seconds: Seconds | None = None
-    placement: StitchPlacement = Field(default_factory=StitchPlacement)
-
-    @model_validator(mode="after")
-    def ordered_trims(self):
-        for label in ("prefix", "suffix"):
-            start = getattr(self, f"{label}_start_seconds")
-            end = getattr(self, f"{label}_end_seconds")
-            if end is not None and end <= start:
-                raise ValueError(f"{label}_end_seconds must exceed {label}_start_seconds")
+    def sequence(self) -> Self:
+        first, transition, last = self.steps
+        if (
+            not isinstance(first, MotionStep)
+            or not isinstance(transition, TransitionStep)
+            or not isinstance(last, MotionStep)
+        ):
+            raise ValueError("Supported sequence is motion, transition, motion")
+        if first.placement is not None:
+            raise ValueError("Placement is supported only on the arriving motion")
         return self

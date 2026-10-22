@@ -101,9 +101,9 @@ async def test_save_rejects_oversized_and_non_animated_gltf(setup):
         await ops.save("save-still", str(still), "motion1", "mixamo1", "Edited")
 
 
-async def test_stitch_prompt_and_character_query_limits(setup):
+async def test_stitch_step_and_character_query_limits(setup):
     _api, ops, _inputs = setup
-    with pytest.raises(ValueError, match="Stitch prompt"):
-        await ops.stitch("stitch1", {}, {}, prompt="x" * 1001)
+    with pytest.raises(ValueError):
+        await ops.stitch("stitch1", {"character_id": "c1", "steps": []})
     with pytest.raises(ValueError, match="query must be text"):
         await ops.characters(query="x" * 201)

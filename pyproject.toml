@@ -93,4 +93,4 @@ known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fak
 
 # Temporary review pin until the coordinated 0.6.0 client release.
 [tool.uv.sources]
-uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "87a7c82bdfcb7f7f3e2f267406b1e146e584f655" }
+uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "dd1b6978ec5a5f23b3325c8741bb6cfb7c70ddb0" }

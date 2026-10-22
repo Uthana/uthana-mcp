@@ -5,7 +5,7 @@
 
 Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
 
-The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 25 tools and the `uthana://workflow` resource.
+The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 24 tools and the `uthana://workflow` resource.
 
 📖 [API documentation](https://uthana.com/docs/api) · [First animation](docs/first-animation.md)
 
@@ -89,8 +89,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `preview_character_from_prompt` | Preview images for a character description |
 | `create_character_from_prompt` | Rig the preview you chose |
 | `create_looped_motion` | Closed or open loop of an existing motion |
-| `stitch_motions` | Join two clips with server sampling and optional placement |
-| `create_stitched_motion` | Advanced join using host-sampled poses |
+| `stitch` | Join typed motion/transition/motion steps with server preparation |
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
@@ -102,7 +101,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 
 ## Join two motions
 
-Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch_motions` tool asks Uthana to sample and align both clips. Optional forward/right offsets use meters relative to the first clip’s ending facing; positive facing degrees turn right. Review playback before accepting the result. See [stitching guidance](docs/stitching.md).
+Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch` tool takes typed motion/transition/motion steps. Uthana samples and aligns the sources; optional ranges use native frames or seconds, and placement belongs to the arriving motion. See [stitching](docs/stitching.md).
 
 ## Documentation
 

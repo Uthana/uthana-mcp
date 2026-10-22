@@ -13,7 +13,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from PIL import Image
 from platform_support import symlink_or_skip
-from test_stitch import clip
+from test_stitch import options as stitch_options
 
 import uthana_mcp
 import uthana_mcp.server as server_module
@@ -273,7 +273,7 @@ async def test_wire_schemas_and_progress_for_all_four_long_tools(tmp_path):
                 ("upload_character", {"request_id": "up", "file_path": str(character), "name": "Chosen"}),
                 ("create_character_from_image", {"request_id": "img", "file_path": str(reference), "name": "Hero"}),
                 ("create_looped_motion", {"request_id": "loop", "motion_id": "motion1"}),
-                ("create_stitched_motion", {"request_id": "join", "prefix": clip(), "suffix": clip("motion2")}),
+                ("stitch", {"request_id": "join", **stitch_options()}),
             ]
             for name, arguments in calls:
                 events = []

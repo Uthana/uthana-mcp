@@ -18,7 +18,7 @@ from .api import UthanaAPI
 from .config import Config
 from .errors import APIError
 from .operations import Operations
-from .stitching import StitchClip, StitchPlacement
+from .stitching import Step
 from .validation import TAR
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
@@ -570,107 +570,30 @@ def create_server(operations=None):
         )
 
     @tool(annotations=WRITE)
-    async def stitch_motions(
-        request_id: Annotated[Id, Field(description="Durable request ID; recover unresolved work before retrying.")],
-        prefix_motion_id: Annotated[Id, Field(description="Existing motion that plays first.")],
-        suffix_motion_id: Annotated[Id, Field(description="Existing motion that plays second.")],
-        character_id: Annotated[Id, Field(description="Target character for both motions; defaults to Tar.")] = TAR,
-        stitch_duration: Annotated[
-            float,
-            Field(
-                strict=True,
-                ge=0.1,
-                le=3,
-                allow_inf_nan=False,
-                description="Transition seconds, 0.1-3; server rounds to 20 Hz model frames.",
-            ),
-        ] = 1.0,
-        prefix_start_seconds: Annotated[
-            float,
-            Field(
-                strict=True, ge=0, allow_inf_nan=False, description="Prefix start in native seconds; defaults to zero."
-            ),
-        ] = 0.0,
-        prefix_end_seconds: Annotated[
-            Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] | None,
-            Field(description="Prefix end in native seconds; omit for safe defaults with required context."),
-        ] = None,
-        suffix_start_seconds: Annotated[
-            float,
-            Field(
-                strict=True, ge=0, allow_inf_nan=False, description="Suffix start in native seconds; defaults to zero."
-            ),
-        ] = 0.0,
-        suffix_end_seconds: Annotated[
-            Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)] | None,
-            Field(description="Suffix end in native seconds; omit for safe defaults with required context."),
-        ] = None,
-        placement: Annotated[
-            StitchPlacement | None,
-            Field(description="Optional relative gap and facing; omit for automatic continuation."),
-        ] = None,
-        ctx: Context = None,
-    ) -> dict[str, Any]:
-        """Join two motions with server sampling and alignment. Prefer this for ordinary stitching requests.
-        Omit end trims to use safe defaults. The service snaps trims inward and reserves prefix context.
-        Placement: forward_m/right_m are relative to prefix ending facing; facing_degrees is positive right.
-        Omitted forward_m continues recent travel; explicit zero means no forward gap. The service returns
-        effective trims and connection poses. Allow at least 420 seconds. Review playback before accepting.
-        No Blender, external sampler, or installed skill is required. Billing uses full output seconds.
-        """
-        options = dict(
-            character_id=character_id,
-            prefix_motion_id=prefix_motion_id,
-            suffix_motion_id=suffix_motion_id,
-            stitch_duration=stitch_duration,
-            prefix_start_seconds=prefix_start_seconds,
-            prefix_end_seconds=prefix_end_seconds,
-            suffix_start_seconds=suffix_start_seconds,
-            suffix_end_seconds=suffix_end_seconds,
-        )
-        if placement is not None:
-            options["placement"] = placement.model_dump(exclude_none=True)
-        return await with_progress(ctx, ops().stitch_auto(request_id, options), "stitch_motions")
-
-    @tool(annotations=WRITE)
-    async def create_stitched_motion(
+    async def stitch(
         request_id: Annotated[
             Id,
             Field(
-                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+                description="Durable request key; reuse only for identical arguments and recover uncertain requests before retrying."
             ),
         ],
-        prefix: Annotated[
-            StitchClip, Field(description="Leading clip with real sampled root/pelvis poses; plays first.")
-        ],
-        suffix: Annotated[
-            StitchClip, Field(description="Trailing clip with real sampled root/pelvis poses; plays second.")
-        ],
-        character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
-        stitch_duration: Annotated[
-            Annotated[float, Field(strict=True, ge=0.1, le=3, allow_inf_nan=False)],
+        character_id: Annotated[Id, Field(description="Target character ID for both motions.")],
+        steps: Annotated[
+            list[Step],
             Field(
-                description="Transition duration in seconds, 0.1-3 inclusive; billing uses total generated output seconds."
+                min_length=3,
+                max_length=3,
+                description="Exactly motion, transition, motion. Motion ranges use native frames or seconds. Omit arriving placement for automatic continuation.",
             ),
-        ] = 2.0,
-        prompt: Annotated[
-            Annotated[str, Field(max_length=1000)],
-            Field(description="Optional transition prompt, at most 1000 characters; empty uses model defaults."),
-        ] = "",
+        ],
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Advanced sampled-pose stitching. Prefer stitch_motions for server preparation. You must
-        supply root/pelvis samples evaluated on the same character in a shared scene. Use a motion loader; this
-        tool does not load, sample, or align motions. Sample at zero, start_seconds, and end_seconds within the
-        native sample range. Get each source-file ID/hash from get_motion first. See docs/stitching.md and
-        uthana://workflow. Allow at least 420 seconds in the host, longer for slow transfers. Reports MCP
-        progress when requested.
+        """Stitch typed steps with server sampling and alignment. No pose sampling is required.
+        Transition duration defaults to one second. Allow at least 420 seconds. Review playback;
+        billing uses output seconds. Recover uncertain requests instead of submitting again.
         """
-        return await with_progress(
-            ctx,
-            ops().stitch(request_id, prefix.model_dump(), suffix.model_dump(), character_id, stitch_duration, prompt),
-            "create_stitched_motion",
-        )
+        options = {"character_id": character_id, "steps": [step.model_dump(exclude_none=True) for step in steps]}
+        return await with_progress(ctx, ops().stitch(request_id, options), "stitch")
 
     @tool(annotations=READ)
     async def list_characters(
