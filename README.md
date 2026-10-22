@@ -101,13 +101,80 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 
 ## Join two motions
 
-Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch` tool takes typed motion/transition/motion steps. Uthana samples and aligns the sources; optional ranges use native frames or seconds, and placement belongs to the arriving motion. See [stitching](docs/stitching.md).
+Call the `stitch` tool with the following arguments, or ask your host to stitch the selected motions. Replace the character and motion IDs with your own.
+
+### Simple join
+
+Join two motions with automatic positioning. The server handles sampling and alignment.
+
+```json
+{
+  "request_id": "stitch-basic",
+  "character_id": "CHARACTER_ID",
+  "steps": [
+    {
+      "type": "motion",
+      "motion_id": "FIRST_MOTION_ID"
+    },
+    {
+      "type": "transition",
+      "duration_seconds": 1.0
+    },
+    {
+      "type": "motion",
+      "motion_id": "SECOND_MOTION_ID"
+    }
+  ]
+}
+```
+
+### Join with ranges and positioning
+
+Select source intervals and place the second motion one meter forward and half a meter right of the first motion’s ending pelvis, turned 45 degrees right. Placement is relative to the first motion’s ending facing.
+
+```json
+{
+  "request_id": "stitch-positioned",
+  "character_id": "CHARACTER_ID",
+  "steps": [
+    {
+      "type": "motion",
+      "motion_id": "FIRST_MOTION_ID",
+      "range": {
+        "start_frame": 12,
+        "end_frame": 60
+      }
+    },
+    {
+      "type": "transition",
+      "duration_seconds": 1.5
+    },
+    {
+      "type": "motion",
+      "motion_id": "SECOND_MOTION_ID",
+      "range": {
+        "start_seconds": 0.5,
+        "end_seconds": 3.0
+      },
+      "placement": {
+        "forward_m": 1.0,
+        "right_m": 0.5,
+        "turn_degrees": 45.0
+      }
+    }
+  ]
+}
+```
+
+Choose ranges that fit your source motions and leave the required transition context. Frame indices use each source’s native FPS; do not mix frames and seconds within one range. Inspect `resolved_steps` and review playback before accepting the result.
+
+Each example makes a separate mutation. Use a distinct request ID for different arguments; recover an uncertain request before retrying. See [stitching](docs/stitching.md) for the full contract.
 
 ## Documentation
 
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)
 - [API coverage and limits](docs/api-coverage.md)
-- [Stitching pose contract](docs/stitching.md)
+- [Stitching steps and positioning](docs/stitching.md)
 - [Install and connect](docs/installation.md)
 - [First animation and export](docs/first-animation.md)
 - [Operational checks](docs/operations.md)
