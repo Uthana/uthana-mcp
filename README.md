@@ -72,7 +72,7 @@ Slow transfers may require longer. These four tools send MCP progress notificati
 | `get_preview` | APNG or WebM preview |
 | `get_preview_frame` | One APNG image with frame index and available timing |
 | `generate_motion_from_video` | Video-to-motion (V2M) 2.0 or 2.1 job |
-| `upload_character` | FBX/GLB upload with optional auto-rig |
+| `upload_character` | FBX/GLB upload with optional auto-rig, finger-joint control, and r15/ue5 skeleton conversion |
 | `create_character_from_image` | PNG/JPEG to a rigged character |
 | `preview_character_from_prompt` | Text prompt to candidate character images (stage 1) |
 | `create_character_from_prompt` | Rig the chosen preview into a character (stage 2) |

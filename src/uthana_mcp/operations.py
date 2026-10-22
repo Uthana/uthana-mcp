@@ -266,12 +266,35 @@ class Operations:
         args = {"content_sha256": digest, "filename": filename, "name": name, "model": model}
         return await self.store.mutation(request_id, "video", args, lambda: self.api.video(filename, data, name, model))
 
-    async def upload_character(self, request_id, file_path, name, auto_rig=False):
+    async def upload_character(
+        self,
+        request_id,
+        file_path,
+        name,
+        auto_rig=False,
+        front_facing=True,
+        include_fingers=True,
+        rerig_target=None,
+    ):
         text(name)
-        if not isinstance(auto_rig, bool):
-            raise ValueError("auto_rig must be a boolean")
-        filename, data, digest = self.read_input(file_path, {".fbx", ".glb"})
+        if (
+            not isinstance(auto_rig, bool)
+            or not isinstance(front_facing, bool)
+            or not isinstance(include_fingers, bool)
+        ):
+            raise ValueError("auto_rig, front_facing, and include_fingers must be booleans")
+        if rerig_target not in (None, "r15", "ue5"):
+            raise ValueError("Choose rerig_target r15 or ue5, or omit it to keep the original skeleton")
+        filename, data, digest = self.read_input(file_path, {".fbx", ".glb"}, 30 * 1024 * 1024)
         args = {"content_sha256": digest, "filename": filename, "name": name, "auto_rig": auto_rig}
+
+        # Omit new default options from the fingerprint so pre-expansion receipts still replay.
+        if not front_facing:
+            args["front_facing"] = False
+        if not include_fingers:
+            args["include_fingers"] = False
+        if rerig_target is not None:
+            args["rerig_target"] = rerig_target
 
         async def invoke():
             self.store.record_progress(
@@ -284,12 +307,16 @@ class Operations:
                     "inspection": {"tool": "list_characters", "arguments": {"query": name, "limit": 50}},
                 },
             )
-            return await self.api.upload_character(filename, data, name, auto_rig)
+            return await self.api.upload_character(
+                filename, data, name, auto_rig, front_facing, include_fingers, rerig_target
+            )
 
         return await self.store.mutation(request_id, "upload_character", args, invoke)
 
-    async def create_character_from_image(self, request_id, file_path, name):
+    async def create_character_from_image(self, request_id, file_path, name, include_fingers=True):
         text(name)
+        if not isinstance(include_fingers, bool):
+            raise ValueError("include_fingers must be a boolean")
         filename, data, digest = self.read_input(file_path, {".png", ".jpg", ".jpeg"}, 16 * 1024 * 1024)
         try:
             with warnings.catch_warnings():
@@ -304,6 +331,9 @@ class Operations:
         except (OSError, SyntaxError, Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
             raise ValueError("Choose a valid PNG/JPEG reference image") from error
         args = {"filename": filename, "content_sha256": digest, "name": name}
+        # Omit the new default option from the fingerprint so pre-expansion receipts still replay.
+        if not include_fingers:
+            args["include_fingers"] = False
 
         async def invoke():
             # A confirmed rejection in finalization can retry that stage without
@@ -312,7 +342,7 @@ class Operations:
             if prepared is None:
                 prepared = await self.api.prepare_character_image(filename, data)
                 self.store.record_progress(request_id, "character_from_image", prepared)
-            result = await self.api.finalize_character_image(prepared, name)
+            result = await self.api.finalize_character_image(prepared, name, include_fingers)
             return {
                 **result,
                 "name": name,
