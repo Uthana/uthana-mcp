@@ -65,6 +65,9 @@ def receipt_billing(operation, args):
         "locomotion": "locomotion-1.0",
         "video": args.get("model"),
         "character_from_image": "character-gen-1.0",
+        "character_from_prompt": "character-gen-1.0",
+        # Text-to-image previews have no published price of their own; leave the charge unmeasured.
+        "character_prompt_preview": None,
         "loop": "stitch-loop-2.0",
         "stitch": "stitch-loop-2.0",
     }.get(operation)

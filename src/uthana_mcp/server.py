@@ -449,6 +449,64 @@ def create_server(operations=None):
             "create_character_from_image",
         )
 
+    @tool(annotations=WRITE, structured_output=False)
+    async def preview_character_from_prompt(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        prompt: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=1000,
+                description="Text description of the character's appearance, at most 1000 characters. Describe one full-body person, outfit, and colors.",
+            ),
+        ],
+        ctx: Context = None,
+    ) -> list[TextContent | ImageContent]:
+        """Stage 1 of text-to-character: generate candidate reference images from a prompt. Returns the
+        preview receipt and each image. No rigged character exists yet; show the previews to the user and
+        finalize only the chosen one with create_character_from_prompt.
+        """
+        result = await with_progress(
+            ctx, ops().preview_character_from_prompt(request_id, prompt), "preview_character_from_prompt"
+        )
+        content: list[TextContent | ImageContent] = [TextContent(type="text", text=json.dumps(result))]
+        for index, data in ops().character_preview_images(result):
+            content.append(TextContent(type="text", text=f"preview_index {index}"))
+            content.append(ImageContent(type="image", data=base64.b64encode(data).decode(), mimeType="image/jpeg"))
+        return content
+
+    @tool(annotations=WRITE)
+    async def create_character_from_prompt(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        preview_request_id: Annotated[
+            Id, Field(description="request_id of a completed preview_character_from_prompt call.")
+        ],
+        preview_index: Annotated[
+            Annotated[int, Field(ge=0)], Field(description="The user-chosen preview_index from that preview list.")
+        ],
+        name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
+        ctx: Context = None,
+    ) -> dict[str, Any]:
+        """Stage 2 of text-to-character: rig the chosen preview into a usable character (character-gen-1.0).
+        Finalize one preview per preview request. Allow at least 1080 seconds in the host. Reports MCP progress
+        when requested.
+        """
+        return await with_progress(
+            ctx,
+            ops().create_character_from_prompt(request_id, preview_request_id, preview_index, name),
+            "create_character_from_prompt",
+        )
+
     @tool(annotations=WRITE)
     async def create_looped_motion(
         request_id: Annotated[

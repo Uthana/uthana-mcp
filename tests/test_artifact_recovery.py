@@ -1,11 +1,11 @@
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 from fakes import FakeAPI
+from platform_support import mkfifo_or_skip
 
 from uthana_mcp import artifact_io
 from uthana_mcp.artifact_io import MAX_ARTIFACT_BYTES
@@ -37,7 +37,7 @@ async def test_request_status_reports_replaced_artifact_and_retains_ids_promptly
     path = Path(original["local_path"])
     path.unlink()
     if replacement == "fifo":
-        os.mkfifo(path)
+        mkfifo_or_skip(path)
     else:
         with path.open("wb") as stream:
             stream.truncate(MAX_ARTIFACT_BYTES + 1)

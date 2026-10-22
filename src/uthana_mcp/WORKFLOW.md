@@ -75,6 +75,12 @@ An unresolved upload receipt includes its selected name and a `list_characters` 
 
 `create_character_from_image` accepts one-frame PNG/JPEG files up to 16 MiB and 16 megapixels, with the same `include_fingers` choice as upload. Preparation and generation are separate stages. After preparation, the receipt records the character ID; that ID is not yet a usable character. After a confirmed finalization rejection, retry the same request with the same arguments to resume from the saved image. A completed character still needs visual review.
 
+Text-to-character has two stages. `preview_character_from_prompt` turns a prompt of up to 1000 characters into candidate reference images, saved locally and returned for review; no rigged character exists yet, and the preview stage has no published price of its own. Show the candidates to the user. `create_character_from_prompt` then rigs the one they chose (`character-gen-1.0`), referencing the preview by its `request_id` and `preview_index`. Finalize at most one preview per preview request; generate new previews to try another prompt. Describe one full-body person facing the camera with arms slightly away from the body, hands empty, and legs apart; held props and touching limbs tend to fuse into the mesh.
+
+Keep the finalization request ID and selected arguments for recovery. A completed request replays its saved result; after a confirmed rejection, retry only that same request ID and arguments. For a pending or unknown outcome, inspect `get_request_status` and the character in the configured Uthana account before taking further action. Preview generation and character finalization use different request IDs.
+
+Avoid submitting another candidate from the same preview request, or using a fresh finalization request ID to retry an uncertain outcome. The MCP currently deduplicates by finalization request ID, not by preview request or character ID: the one-candidate rule is agent guidance, not an enforced cross-request guard. Do not describe an unmeasured preview cost as free, or regenerate previews merely to recover a failed image download.
+
 ## Loop and stitch
 
 `create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.

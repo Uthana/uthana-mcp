@@ -94,6 +94,28 @@ class FakeAPI:
         self.calls.append(("finalize_image", {"prepared": prepared, "name": name, "include_fingers": include_fingers}))
         return {"character_id": prepared["character_id"], "auto_rig_confidence": 0.9}
 
+    async def preview_character_prompt(self, prompt):
+        self.calls.append(("preview_prompt", {"prompt": prompt}))
+        return {
+            "character_id": "promptchar1",
+            "previews": [
+                {"image_key": "promptchar1-0.png", "url": "https://storage.example/0.png"},
+                {"image_key": "promptchar1-1.png", "url": "https://storage.example/1.png"},
+            ],
+        }
+
+    async def fetch_preview_image(self, url, max_bytes=16 * 1024 * 1024):
+        self.calls.append(("fetch_preview", {"url": url}))
+        output = io.BytesIO()
+        Image.new("RGB", (64, 96), "orange").save(output, format="PNG")
+        return output.getvalue()
+
+    async def finalize_character_prompt(self, character_id, prompt, image_key, name):
+        self.calls.append(
+            ("finalize_prompt", {"character_id": character_id, "prompt": prompt, "image_key": image_key, "name": name})
+        )
+        return {"character_id": character_id, "auto_rig_confidence": 1.0}
+
     async def stitch(self, character_id, prefix, suffix):
         self.calls.append(("stitch", {"character_id": character_id, "prefix": prefix, "suffix": suffix}))
         self.motions["stitched1"] = native("stitched1", count=300)

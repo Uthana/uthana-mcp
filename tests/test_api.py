@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from uthana_mcp.api import APIError, UthanaAPI
+from uthana_mcp.attribution import MCPTransport
 from uthana_mcp.validation import motion_metadata, normalize_job
 
 
@@ -12,6 +13,47 @@ async def test_uses_configured_host(domain):
     api = UthanaAPI("fake", domain)
     assert api.domain == domain
     await api.close()
+
+
+@pytest.mark.parametrize("domain", ["uthana.com", "other.example.com:8443"])
+async def test_mcp_requests_are_attributed_only_to_configured_api_host(domain):
+    seen = []
+
+    class CloseAwareTransport(httpx.AsyncBaseTransport):
+        closed = False
+
+        async def handle_async_request(self, request):
+            assert not self.closed
+            seen.append(request)
+            return httpx.Response(200, json={"data": {"org": {"payg_prices": []}}})
+
+        async def aclose(self):
+            self.closed = True
+
+    upstream = CloseAwareTransport()
+    api = UthanaAPI("fake", domain, transport=upstream)
+    try:
+        await api.prices()
+        await api.prices()
+        assert seen[0].headers["X-Uthana-AppId"] == "mcp"
+        assert seen[0].headers["User-Agent"].startswith("uthana-mcp/")
+        assert seen[0].headers["authorization"] == "Basic ZmFrZTo="
+        assert seen[1].headers["X-Uthana-AppId"] == "mcp"
+    finally:
+        await api.close()
+    assert upstream.closed
+
+    external = []
+
+    def respond(request):
+        external.append(request)
+        return httpx.Response(200, content=b"external")
+
+    transport = MCPTransport("uthana.com", httpx.MockTransport(respond))
+    async with httpx.AsyncClient(transport=transport) as client:
+        await client.get("https://storage.example/file")
+        await client.get("https://uthana.com.evil.example/file")
+    assert all("X-Uthana-AppId" not in request.headers for request in external)
 
 
 @pytest.mark.parametrize(
