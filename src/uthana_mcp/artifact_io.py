@@ -19,18 +19,17 @@ def read_artifact_bytes(path: Path, metadata: dict) -> bytes:
     A missing or malformed size/hash receipt cannot establish local integrity.
     Preserve missing-file OS errors for callers that distinguish them from changes.
     """
+    metadata_error = "Saved artifact metadata is invalid or changed; do not redownload automatically"
     if not isinstance(metadata, dict):
-        raise ValueError("Saved artifact metadata is invalid or changed; do not redownload automatically")
+        raise ValueError(metadata_error)
     expected = metadata.get("bytes")
     digest = metadata.get("sha256")
-    if (
-        isinstance(expected, bool)
-        or not isinstance(expected, int)
-        or not 0 <= expected <= MAX_ARTIFACT_BYTES
-        or not isinstance(digest, str)
-        or re.fullmatch(r"[a-fA-F0-9]{64}", digest) is None
-    ):
-        raise ValueError("Saved artifact metadata is invalid or changed; do not redownload automatically")
+    if isinstance(expected, bool) or not isinstance(expected, int):
+        raise ValueError(metadata_error)
+    if not 0 <= expected <= MAX_ARTIFACT_BYTES:
+        raise ValueError(metadata_error)
+    if not isinstance(digest, str) or re.fullmatch(r"[a-fA-F0-9]{64}", digest) is None:
+        raise ValueError(metadata_error)
 
     try:
         descriptor = open_nofollow(path)

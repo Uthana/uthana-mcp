@@ -243,6 +243,12 @@ async def test_save_rejects_external_gltf_dependencies(setup):
 @pytest.mark.parametrize(
     "document",
     [
+        None,
+        [],
+        {},
+        {"asset": {"version": "1.0"}, "animations": [{}]},
+        {"asset": {"version": "2.0"}},
+        {"asset": {"version": "2.0"}, "animations": []},
         {"asset": None, "animations": [{}]},
         {"asset": [], "animations": [{}]},
         {"asset": {"version": "2.0"}, "animations": "invalid"},

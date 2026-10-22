@@ -48,7 +48,9 @@ def motion_page(data, query, source, method, offset, limit):
         method_name = tags.get("Method") if isinstance(tags, dict) else None
         if not isinstance(method_name, str):
             method_name = None
-        if source == "organization" and not is_own or source == "examples" and is_own:
+        if source == "organization" and not is_own:
+            continue
+        if source == "examples" and is_own:
             continue
         if method is not None and (method_name or "").casefold() != method.strip().casefold():
             continue
