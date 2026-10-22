@@ -1,5 +1,6 @@
-include STITCHING.md README.md COVERAGE.md INSTALL.md CONTRIBUTING.md
-include FIRST-RESULT.md OPERATIONS.md SECURITY.md CODE_OF_CONDUCT.md
+include README.md CONTRIBUTING.md
+include SECURITY.md CODE_OF_CONDUCT.md
+recursive-include docs *.md
 include test.sh .flake8 pyproject.toml uv.lock
 recursive-include tests *.py
 recursive-include examples/tar *.md *.fbx *.glb

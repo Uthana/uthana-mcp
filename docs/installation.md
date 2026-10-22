@@ -4,17 +4,7 @@ This guide targets Linux, macOS, and Windows with Codex or Claude Code. [Windows
 
 ## Install
 
-You need Python 3.11 or later. The published package does not require a git checkout:
-
-```sh
-pip install uthana-mcp
-```
-
-Or run it without a permanent install:
-
-```sh
-uvx uthana-mcp
-```
+Use the [README installation and host configuration](../README.md#install) to get started. This guide covers private key setup, environment selection, and platform details.
 
 To develop from a checkout you need Git and [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
@@ -46,7 +36,7 @@ Never paste the key into a chat, GitHub issue, or shell command. For an existing
 
 ## Connect a host
 
-Use the [README configuration examples](README.md#connect) for Claude Desktop, Cursor, or Codex. Configure host tool timeouts of at least 420 seconds for upload, loop, and stitch, and 1080 seconds for character generation. Allow longer for slow transfers.
+Use the [README configuration examples](../README.md#connect) for Claude Desktop, Cursor, or Codex. Configure host tool timeouts of at least 420 seconds for upload, loop, and stitch, and 1080 seconds for character generation. Allow longer for slow transfers.
 
 ## Separate host connection
 
@@ -54,11 +44,7 @@ Use a second host entry if you need another API host. Set `UTHANA_DOMAIN` to tha
 
 ## First session
 
-Ask your agent:
-
-> Read Uthana's workflow and confirm the active environment is uthana.com. Check account usage and confirm that I can access Uthana's Tar character ID `cXi2eAP19XwQ`. Estimate a four-second V3 motion of a person walking forward and waving on Tar, and show me the estimate before generating it. After I approve, generate it once, track its job, inspect preview frames, trim a usable interval, and download a GLB with mesh at 30 FPS. Report the saved file path and any limitations you observe.
-
-Use the exact character ID: an account may contain multiple characters named Tar. Tar is the shared client's default, but account access must be checked. Initialization identifies the selected environment; it does not prove authentication succeeded. A successful account read establishes that separately.
+Follow the [first animation and export walkthrough](first-animation.md) to check account access, select a character, estimate costs, and generate and export a motion.
 
 Keep the private data directory across restarts: it contains request receipts and exports. Different credentials or environments use different scopes. Changing a key or deleting state does not establish that earlier work never happened. Follow the workflow's request recovery rules before resubmitting.
 

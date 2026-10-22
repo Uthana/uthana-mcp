@@ -7,7 +7,7 @@ Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.
 
 The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 25 tools and the `uthana://workflow` resource.
 
-📖 [API documentation](https://uthana.com/docs/api) · [First animation](FIRST-RESULT.md)
+📖 [API documentation](https://uthana.com/docs/api) · [First animation](docs/first-animation.md)
 
 ## Install
 
@@ -71,7 +71,7 @@ UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](INSTALL.md) has the Windows commands and host timeout settings.
+On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](docs/installation.md) has the Windows commands and host timeout settings.
 
 Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read-only account call. The smoke command creates no characters, motions, or jobs.
 
@@ -109,16 +109,16 @@ Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read
 
 ## Join two motions
 
-Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch_motions` tool asks Uthana to sample and align both clips. Optional forward/right offsets use meters relative to the first clip’s ending facing; positive facing degrees turn right. Review playback before accepting the result. See [stitching guidance](STITCHING.md).
+Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch_motions` tool asks Uthana to sample and align both clips. Optional forward/right offsets use meters relative to the first clip’s ending facing; positive facing degrees turn right. Review playback before accepting the result. See [stitching guidance](docs/stitching.md).
 
 ## Documentation
 
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)
-- [API coverage and limits](COVERAGE.md)
-- [Stitching pose contract](STITCHING.md)
-- [Install and connect](INSTALL.md)
-- [First animation and export](FIRST-RESULT.md)
-- [Operational checks](OPERATIONS.md)
+- [API coverage and limits](docs/api-coverage.md)
+- [Stitching pose contract](docs/stitching.md)
+- [Install and connect](docs/installation.md)
+- [First animation and export](docs/first-animation.md)
+- [Operational checks](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
 - [Public API documentation](https://uthana.com/docs/api)
 

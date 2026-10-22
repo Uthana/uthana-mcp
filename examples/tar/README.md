@@ -9,6 +9,6 @@ These Uthana-owned Tar source files are included for the first MCP workflow:
 
 The GLB has one mesh, one skin with 79 joints, and no animation; it has no external buffer URI. A headless Blender import of the FBX found one armature with 79 bones, two mesh objects, and no action. The shared joint names include `pelvis`, `head`, and left arm/hand joints. These are static character inputs. They have not yet been uploaded and animated through this draft MCP release flow.
 
-Use the GLB for the [first animation walkthrough](../../FIRST-RESULT.md); the FBX is an alternate source for host and engine checks. The existing Uthana character ID `cXi2eAP19XwQ` is a separate shortcut for accounts that can access it. Uploading either source file may return a different character ID; use the ID returned by `upload_character`.
+Use the GLB for the [first animation walkthrough](../../docs/first-animation.md); the FBX is an alternate source for host and engine checks. The existing Uthana character ID `cXi2eAP19XwQ` is a separate shortcut for accounts that can access it. Uploading either source file may return a different character ID; use the ID returned by `upload_character`.
 
 Copyright Uthana, Inc.

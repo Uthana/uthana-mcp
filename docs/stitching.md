@@ -105,4 +105,4 @@ The backend convention is `forward = (left_hip - right_hip) cross up`, then `ata
 
 The host deadline is at least 420 seconds, longer for slow transfers. This synchronous operation reports MCP activity when given a progress token; it has no job ID. The result ID is saved before native verification reads. Both sources must remain unchanged, and the result must use a separate motion ID and source file.
 
-Request recovery, output-second pricing, and review rules are defined in [WORKFLOW.md](src/uthana_mcp/WORKFLOW.md).
+Request recovery, output-second pricing, and review rules are defined in [WORKFLOW.md](../src/uthana_mcp/WORKFLOW.md).

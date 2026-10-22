@@ -662,7 +662,7 @@ def create_server(operations=None):
         """Advanced sampled-pose stitching. Prefer stitch_motions for server preparation. You must
         supply root/pelvis samples evaluated on the same character in a shared scene. Use a motion loader; this
         tool does not load, sample, or align motions. Sample at zero, start_seconds, and end_seconds within the
-        native sample range. Get each source-file ID/hash from get_motion first. See STITCHING.md and
+        native sample range. Get each source-file ID/hash from get_motion first. See docs/stitching.md and
         uthana://workflow. Allow at least 420 seconds in the host, longer for slow transfers. Reports MCP
         progress when requested.
         """
