@@ -13,30 +13,11 @@ The host supplies the reasoning model. This server uses the shared [Uthana Pytho
 
 Python 3.11 or later.
 
-```sh
-pip install uthana-mcp
-```
-
-```sh
-uvx uthana-mcp
-```
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to let your MCP host run `uvx uthana-mcp` automatically. Alternatively, install with `pip install uthana-mcp` and configure the host command as `uthana-mcp` with no arguments.
 
 Create an API key at [uthana.com](https://uthana.com) under account settings. Prefer a private key file over putting the key in a config file:
 
-| Variable | Purpose |
-| --- | --- |
-| `UTHANA_API_KEY` | API key for the selected environment. Use this or the key file, not both |
-| `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600. Not a symlink |
-| `UTHANA_DOMAIN` | Defaults to `uthana.com` |
-| `UTHANA_MCP_DATA_DIR` | Persistent private state. Defaults to `~/.local/state/uthana-mcp` |
-| `UTHANA_MCP_INPUT_DIR` | Folder of files the server may upload. Uploads stay disabled when this is unset |
-
-Tool discovery works without a key. Uthana operations use the account for the selected environment. Production operations spend that account's credits.
-
-| Operation | Host tool timeout |
-| --- | --- |
-| Character upload, looping, stitching | At least 420 seconds |
-| Character from an image or a chosen prompt preview | At least 1080 seconds |
+Store the key in a private file owned by your user (`chmod 600` on Linux/macOS), then use its absolute path in the configuration below. See the [installation guide](docs/installation.md) for key creation commands, Windows permissions, environment settings, and tool timeouts.
 
 ## Connect
 
@@ -73,7 +54,7 @@ UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 
 On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](docs/installation.md) has the Windows commands and host timeout settings.
 
-Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read-only account call. The smoke command creates no characters, motions, or jobs.
+Restart your host, then ask it to read Uthana’s workflow, check account access, and estimate a motion before generating it. Production generation spends your account’s credits. Continue with the [first-animation walkthrough](docs/first-animation.md) for upload, generation, and export.
 
 ## Tools
 
