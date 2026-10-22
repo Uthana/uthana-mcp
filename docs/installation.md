@@ -34,13 +34,15 @@ Set `UTHANA_DOMAIN` in the coding host configuration, or in a checkout `.env` / 
 
 Use your normal uthana.com API key for production. A key for another host is different. Keep it in a private regular file outside the checkout, owned by you with permissions `600`. Set `UTHANA_API_KEY_FILE` to that file's absolute path. Do not also set `UTHANA_API_KEY`.
 
-The following works from bash or zsh on Linux/macOS and asks for the key without echoing it. It creates a new file and will not overwrite an existing one:
+Run the interactive setup command in a terminal on Linux, macOS, or Windows:
 
 ```sh
-python3 -c 'import getpass, os; from pathlib import Path; os.umask(0o077); p=Path.home()/".config/uthana/production-key"; p.parent.mkdir(parents=True, exist_ok=True, mode=0o700); key=getpass.getpass("Uthana production API key: ").strip(); assert key and not any(c.isspace() for c in key), "Enter one key"; p.open("x").write(key+"\n"); print("Saved private key file:", p)'
+uvx --from uthana-mcp uthana-mcp-setup
 ```
 
-Never paste the key into a chat, GitHub issue, or shell command. For an existing file, use `chmod 600 /absolute/path/to/key` and confirm it is owned by your OS user. The MCP rejects symlinks, shared-readable files, directories, empty files, and conflicting key settings.
+For a direct pip installation, run `uthana-mcp-setup` instead. Paste your key at the hidden prompt. The command stores it in `~/.config/uthana/production-key` (under your user profile on Windows), applies private permissions, and prints the path to use in your host configuration. It makes no API request and never overwrites an existing file. To use a different destination, add `--key-file /absolute/path/to/new-key`.
+
+Never paste the key into a chat, GitHub issue, or shell command. If you manage a key file yourself, the MCP rejects symlinks, shared-readable files, directories, empty files, and conflicting key settings.
 
 ## Connect a host
 
@@ -120,30 +122,7 @@ The server runs natively on Windows. Follow the steps above with these differenc
 
 - The server executable is `.venv\Scripts\uthana-mcp.exe`. Use it wherever this guide says `.venv/bin/uthana-mcp`. In TOML, write Windows paths with forward slashes or doubled backslashes.
 - The key file belongs in `%USERPROFILE%\.config\uthana\production-key`. The MCP accepts it only when you own it and its access list grants access to no one except you, `OWNER RIGHTS`, `SYSTEM`, and `Administrators`. Symlinks, junctions, and other reparse points are rejected.
-- From PowerShell, create the key file with the same code passed through a here-string. With Python 3.12.4 or later, a newly created `%USERPROFILE%\.config\uthana` folder is owner-only, so the file it writes is accepted:
-
-  ```powershell
-  @'
-  import getpass, os
-  from pathlib import Path
-  os.umask(0o077)
-  p = Path.home() / ".config/uthana/production-key"
-  p.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-  key = getpass.getpass("Uthana production API key: ").strip()
-  assert key and not any(c.isspace() for c in key), "Enter one key"
-  p.open("x").write(key + "\n")
-  print("Saved private key file:", p)
-  '@ | python -
-  ```
-
-- For an existing file, or one in a folder that already existed, remove inherited entries and grant only yourself, then check the result:
-
-  ```powershell
-  icacls "$env:USERPROFILE\.config\uthana\production-key" /inheritance:r /grant:r "${env:USERNAME}:F"
-  icacls "$env:USERPROFILE\.config\uthana\production-key"
-  ```
-
-  If any other user or group is still listed, remove it with `icacls <file> /remove:g <name>`.
+- Use `uthana-mcp-setup` to create the key file with private permissions. The same command works in PowerShell; no separate permission commands are needed.
 - The default data directory is `%USERPROFILE%\.local\state\uthana-mcp`.
 - In PowerShell, start Claude Code with the tool deadline as `$env:MCP_TOOL_TIMEOUT = "1200000"; claude`.
 

@@ -17,7 +17,13 @@ Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to let you
 
 Create an API key at [uthana.com](https://uthana.com) under account settings. Prefer a private key file over putting the key in a config file:
 
-Store the key in a private file owned by your user (`chmod 600` on Linux/macOS), then use its absolute path in the configuration below. See the [installation guide](docs/installation.md) for key creation commands, Windows permissions, environment settings, and tool timeouts.
+Run the setup command and paste the key at its hidden prompt (Linux, macOS, or Windows):
+
+```sh
+uvx --from uthana-mcp uthana-mcp-setup
+```
+
+Use the printed key-file path in the configuration below. See the [installation guide](docs/installation.md) for key creation commands, Windows permissions, environment settings, and tool timeouts.
 
 ## Connect
 
