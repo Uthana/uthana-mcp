@@ -240,6 +240,31 @@ async def test_save_rejects_external_gltf_dependencies(setup):
     assert not api.calls
 
 
+@pytest.mark.parametrize(
+    "document",
+    [
+        None,
+        [],
+        {},
+        {"asset": {"version": "1.0"}, "animations": [{}]},
+        {"asset": {"version": "2.0"}},
+        {"asset": {"version": "2.0"}, "animations": []},
+        {"asset": None, "animations": [{}]},
+        {"asset": [], "animations": [{}]},
+        {"asset": {"version": "2.0"}, "animations": "invalid"},
+        {"asset": {"version": "2.0"}, "animations": [None]},
+    ],
+)
+async def test_save_rejects_invalid_gltf_structure_before_submission(setup, document):
+    api, ops, inputs = setup
+    file = inputs / "invalid.gltf"
+    file.write_text(json.dumps(document))
+    with pytest.raises(ValueError, match="animated GLTF 2.0"):
+        await ops.save("invalid", str(file), "motion1", "mixamo1", "Edited")
+    assert not api.calls
+    assert ops.store.get_request("invalid")["state"] == "not_found"
+
+
 async def test_whole_clip_trim_clamps_inclusive_end_to_final_frame(setup):
     _, ops, _ = setup
     result = await ops.trim("whole", "motion1", 0, 4, "Whole")

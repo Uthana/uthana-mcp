@@ -47,7 +47,7 @@ class PelvisState(BaseModel):
     hips_forward_facing_world_yaw: Annotated[
         Scalar,
         Field(
-            description="Hip-derived facing yaw in radians, -1000000 to 1000000. Calibrate the unresolved hip-axis convention described in STITCHING.md."
+            description="Hip-derived facing yaw in radians, -1000000 to 1000000. Zero faces +Z; positive yaw turns toward +X. Sample hip-derived facing on the selected rig."
         ),
     ]
 

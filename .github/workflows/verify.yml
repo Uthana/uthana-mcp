@@ -44,4 +44,4 @@ jobs:
           fi
           uv pip install --python "$py" -r "$RUNNER_TEMP/mcp-requirements.txt" dist/*.whl
           cd "$RUNNER_TEMP"
-          env -u PYTHONPATH -u UTHANA_API_KEY -u UTHANA_API_KEY_FILE "$smoke"
+          env -u PYTHONPATH -u UTHANA_API_KEY "$smoke"

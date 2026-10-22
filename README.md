@@ -7,51 +7,42 @@ Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.
 
 The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 25 tools and the `uthana://workflow` resource.
 
-📖 [API documentation](https://uthana.com/docs/api) · [First animation](FIRST-RESULT.md)
+📖 [API documentation](https://uthana.com/docs/api) · [First animation](docs/first-animation.md)
 
 ## Install
 
-Release prerequisite: automatic stitching requires the deployed automatic-input API and Python client 0.6.0. This preparation branch still pins the draft client until 0.6.0 is published.
+Download and run the installer for your platform:
 
-Python 3.11 or later.
-
-```sh
-pip install uthana-mcp
-```
+**macOS / Linux**
 
 ```sh
-uvx uthana-mcp
+curl -fsSL https://raw.githubusercontent.com/Uthana/uthana-mcp/main/install.sh -o install.sh
+sh install.sh
 ```
 
-Create an API key at [uthana.com](https://uthana.com) under account settings. Prefer a private key file over putting the key in a config file:
+**Windows (PowerShell)**
 
-| Variable | Purpose |
-| --- | --- |
-| `UTHANA_API_KEY` | API key for the selected environment. Use this or the key file, not both |
-| `UTHANA_API_KEY_FILE` | Private regular file containing the key, owned by the current user with mode 600. Not a symlink |
-| `UTHANA_DOMAIN` | Defaults to `uthana.com` |
-| `UTHANA_MCP_DATA_DIR` | Persistent private state. Defaults to `~/.local/state/uthana-mcp` |
-| `UTHANA_MCP_INPUT_DIR` | Folder of files the server may upload. Uploads stay disabled when this is unset |
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/Uthana/uthana-mcp/main/install.ps1 -OutFile install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
 
-Tool discovery works without a key. Uthana operations use the account for the selected environment. Production operations spend that account's credits.
+The installer checks for uv, installs it if needed, and installs the MCP with Python 3.12. No existing Python installation is required. It prints the server command for your host configuration. Create an API key in your [Uthana account settings](https://uthana.com) and paste its value into `UTHANA_API_KEY` below.
 
-| Operation | Host tool timeout |
-| --- | --- |
-| Character upload, looping, stitching | At least 420 seconds |
-| Character from an image or a chosen prompt preview | At least 1080 seconds |
+See the [installation guide](docs/installation.md) for manual installation, environment settings, and tool timeouts.
 
 ## Connect
 
-Claude Desktop (`claude_desktop_config.json`):
+Use the absolute server command printed by the installer. For Claude Desktop (`claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "uthana": {
-      "command": "uvx",
-      "args": ["uthana-mcp"],
+      "command": "/absolute/path/to/uthana-mcp",
+      "args": [],
       "env": {
-        "UTHANA_API_KEY_FILE": "/absolute/path/to/private-api-key",
+        "UTHANA_API_KEY": "your-api-key",
         "UTHANA_MCP_INPUT_DIR": "/absolute/path/to/selected-inputs"
       }
     }
@@ -65,17 +56,17 @@ Codex (`~/.codex/config.toml`):
 
 ```toml
 [mcp_servers.uthana]
-command = "uvx"
-args = ["uthana-mcp"]
+command = "/absolute/path/to/uthana-mcp"
+args = []
 
 [mcp_servers.uthana.env]
-UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"
+UTHANA_API_KEY = "your-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](PARTNER-SETUP.md) has the Windows commands and host timeout settings.
+[Install and connect](docs/installation.md) has Windows path examples and host timeout settings.
 
-Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read-only account call. The smoke command creates no characters, motions, or jobs.
+Restart your host, then ask it to read Uthana’s workflow, check account access, and estimate a motion before generating it. Production generation spends your account’s credits. Continue with the [first-animation walkthrough](docs/first-animation.md) for upload, generation, and export.
 
 ## Tools
 
@@ -111,16 +102,16 @@ Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read
 
 ## Join two motions
 
-Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch_motions` tool asks Uthana to sample and align both clips. Optional forward/right offsets use meters relative to the first clip’s ending facing; positive facing degrees turn right. Review playback before accepting the result. See [stitching guidance](STITCHING.md).
+Ask: “Stitch these two motions on my character with a one-second transition.” The `stitch_motions` tool asks Uthana to sample and align both clips. Optional forward/right offsets use meters relative to the first clip’s ending facing; positive facing degrees turn right. Review playback before accepting the result. See [stitching guidance](docs/stitching.md).
 
 ## Documentation
 
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)
-- [API coverage and limits](COVERAGE.md)
-- [Stitching pose contract](STITCHING.md)
-- [Install and connect](PARTNER-SETUP.md)
-- [First animation and export](FIRST-RESULT.md)
-- [Operational checks](OPERATIONS.md)
+- [API coverage and limits](docs/api-coverage.md)
+- [Stitching pose contract](docs/stitching.md)
+- [Install and connect](docs/installation.md)
+- [First animation and export](docs/first-animation.md)
+- [Operational checks](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
 - [Public API documentation](https://uthana.com/docs/api)
 

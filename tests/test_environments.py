@@ -1,16 +1,11 @@
 import httpx
 import pytest
-from platform_support import make_private, make_public, mkfifo_or_skip, pretend_other_owner, symlink_or_skip
 
 from uthana_mcp.api import UthanaAPI
 from uthana_mcp.config import Config
 from uthana_mcp.errors import APIError
 from uthana_mcp.operations import Operations
 from uthana_mcp.validation import TAR, UTHANA_DOMAIN
-
-
-def config(path=None, key=""):
-    return Config(UTHANA_DOMAIN, "/unused", None, key, str(path) if path else None)
 
 
 def test_default_is_production_and_config_captures_environment(monkeypatch, tmp_path):
@@ -21,47 +16,9 @@ def test_default_is_production_and_config_captures_environment(monkeypatch, tmp_
     monkeypatch.setenv("UTHANA_DOMAIN", "other.example.com")
     monkeypatch.setenv("UTHANA_API_KEY", "changed")
     assert original.domain == UTHANA_DOMAIN
-    assert original.api_key() == "private-test-key"
+    assert original._key == "private-test-key"
     assert "private-test-key" not in repr(original)
     assert Config.from_env().domain == "other.example.com"
-
-
-def test_private_key_file_and_ambiguous_configuration(tmp_path):
-    path = tmp_path / "key"
-    path.write_text("private-test-key\n")
-    make_private(path)
-    assert config(path).api_key() == "private-test-key"
-    with pytest.raises(ValueError, match="only one"):
-        config(path, "other-key").api_key()
-
-
-@pytest.mark.parametrize(
-    "kind", ["missing", "directory", "symlink", "public", "fifo", "empty", "large", "binary", "multiline", "owner"]
-)
-def test_invalid_key_files_are_redacted_and_do_not_block(tmp_path, monkeypatch, kind):
-    path = tmp_path / "private-filename"
-    if kind == "directory":
-        path.mkdir()
-    elif kind == "symlink":
-        target = tmp_path / "target"
-        target.write_text("secret")
-        make_private(target)
-        symlink_or_skip(path, target)
-    elif kind == "fifo":
-        mkfifo_or_skip(path, 0o600)
-    elif kind != "missing":
-        content = {"empty": b"", "large": b"x" * 8193, "binary": b"\xff", "multiline": b"key1\nkey2"}.get(
-            kind, b"secret"
-        )
-        path.write_bytes(content)
-        make_public(path) if kind == "public" else make_private(path)
-        if kind == "owner":
-            pretend_other_owner(monkeypatch, path)
-    with pytest.raises(ValueError) as exc:
-        config(path).api_key()
-    message = str(exc.value)
-    assert "UTHANA_API_KEY_FILE" in message
-    assert "private-filename" not in message and "Errno" not in message and "secret" not in message
 
 
 async def test_receipts_and_artifacts_are_isolated_by_environment_and_key(tmp_path):
@@ -111,18 +68,17 @@ async def test_errors_never_fall_back_or_leak(status):
         await api.close()
 
 
-async def test_key_file_not_read_for_discovery_and_configuration_stays_fixed(monkeypatch, tmp_path):
+async def test_discovery_without_key_and_configuration_stays_fixed(monkeypatch, tmp_path):
     from uthana_mcp.server import create_server
 
     monkeypatch.setenv("UTHANA_DOMAIN", UTHANA_DOMAIN)
     monkeypatch.setenv("UTHANA_API_KEY", "")
-    monkeypatch.setenv("UTHANA_API_KEY_FILE", str(tmp_path / "missing"))
     server = create_server()
     monkeypatch.setenv("UTHANA_DOMAIN", "other.example.com")
     monkeypatch.setenv("UTHANA_API_KEY", "must-not-be-used")
     assert UTHANA_DOMAIN in server._mcp_server.instructions
     assert len(await server.list_tools()) == 25
-    with pytest.raises(Exception, match="UTHANA_API_KEY_FILE"):
+    with pytest.raises(Exception, match="UTHANA_API_KEY"):
         await server._tool_manager.get_tool("get_usage").run({})
 
 
@@ -146,7 +102,6 @@ async def test_overridden_domain_routes_through_sdk_and_reports_origin(monkeypat
         assert seen == [("https", domain)]
         monkeypatch.setenv("UTHANA_DOMAIN", domain)
         monkeypatch.delenv("UTHANA_API_KEY", raising=False)
-        monkeypatch.delenv("UTHANA_API_KEY_FILE", raising=False)
         server = create_server()
         assert domain in server._mcp_server.instructions
         assert len(await server.list_tools()) == 25

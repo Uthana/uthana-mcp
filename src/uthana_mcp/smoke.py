@@ -25,8 +25,7 @@ async def check(api_read: bool, timeout: float) -> None:
     env = os.environ.copy()
     if not api_read:
         env.pop("UTHANA_API_KEY", None)
-        env.pop("UTHANA_API_KEY_FILE", None)
-    elif not env.get("UTHANA_API_KEY") and not env.get("UTHANA_API_KEY_FILE"):
+    elif not env.get("UTHANA_API_KEY"):
         raise SmokeFailure("authentication configuration")
     with tempfile.TemporaryDirectory(prefix="uthana-mcp-smoke-") as state:
         env["UTHANA_MCP_DATA_DIR"] = state

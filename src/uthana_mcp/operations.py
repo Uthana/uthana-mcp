@@ -277,11 +277,10 @@ class Operations:
         rerig_target=None,
     ):
         text(name)
-        if (
-            not isinstance(auto_rig, bool)
-            or not isinstance(front_facing, bool)
-            or not isinstance(include_fingers, bool)
-        ):
+        invalid_rigging_switches = not all(
+            isinstance(value, bool) for value in (auto_rig, front_facing, include_fingers)
+        )
+        if invalid_rigging_switches:
             raise ValueError("auto_rig, front_facing, and include_fingers must be booleans")
         if rerig_target not in (None, "r15", "ue5"):
             raise ValueError("Choose rerig_target r15 or ue5, or omit it to keep the original skeleton")
@@ -389,9 +388,9 @@ class Operations:
                     entry.update(
                         {"artifact_id": saved["artifact_id"], "local_path": saved["local_path"], "mime_type": mime}
                     )
-                except (APIError, OSError, ValueError, httpx.HTTPError) as error:
+                except (APIError, OSError, ValueError, httpx.HTTPError):
                     # The character ID is still usable; a missing image only limits review.
-                    entry["image_unavailable"] = str(error)[:300]
+                    entry["image_unavailable"] = "Preview image unavailable; inspect the character in Uthana."
                 previews.append(entry)
             return {
                 "stage": "previews_ready",
@@ -426,7 +425,10 @@ class Operations:
         identifier(preview_request_id)
         if isinstance(preview_index, bool) or not isinstance(preview_index, int) or preview_index < 0:
             raise ValueError("preview_index must be a whole number from the preview list")
-        result = self.store.claim_preview_finalization(preview_request_id, request_id)
+        preview = self.store.get_request(preview_request_id)
+        if preview.get("operation") != "character_prompt_preview" or preview["state"] != "complete":
+            raise ValueError("preview_request_id must name a completed preview_character_from_prompt request")
+        result = preview["result"]
         chosen = next((p for p in result["previews"] if p["preview_index"] == preview_index), None)
         if chosen is None:
             raise ValueError("preview_index is not in that preview list")
@@ -476,12 +478,13 @@ class Operations:
         if loop_mode not in {"closed", "open"} or zone_mode not in {"modify", "extend"}:
             raise ValueError("Choose closed/open and modify/extend")
         if zone_end_position is not None:
-            if (
-                loop_mode != "open"
-                or not isinstance(zone_end_position, dict)
-                or not {"x", "y"} <= zone_end_position.keys() <= {"x", "y", "facing_angle"}
-            ):
-                raise ValueError("An open-loop target requires x/y and optional facing_angle")
+            target_error = "An open-loop target requires x/y and optional facing_angle"
+            if not isinstance(zone_end_position, dict):
+                raise ValueError(target_error)
+            target_in_closed_loop = loop_mode != "open"
+            invalid_target_fields = not {"x", "y"} <= zone_end_position.keys() <= {"x", "y", "facing_angle"}
+            if target_in_closed_loop or invalid_target_fields:
+                raise ValueError(target_error)
             for value in zone_end_position.values():
                 number(value, -1e6, 1e6)
         completed = self.store.completed(request_id, "loop")
@@ -727,13 +730,11 @@ class Operations:
     ):
         identifier(motion_id)
         identifier(character_id)
-        if (
-            format not in {"glb", "fbx", "bvh"}
-            or isinstance(fps, bool)
-            or not isinstance(fps, int)
-            or fps not in {24, 30, 60}
-        ):
-            raise ValueError("Choose glb/fbx/bvh and 24/30/60 FPS")
+        export_error = "Choose glb/fbx/bvh and 24/30/60 FPS"
+        unsupported_format = format not in {"glb", "fbx", "bvh"}
+        invalid_frame_rate = isinstance(fps, bool) or not isinstance(fps, int) or fps not in {24, 30, 60}
+        if unsupported_format or invalid_frame_rate:
+            raise ValueError(export_error)
         if not all(isinstance(x, bool) for x in (include_mesh, in_place, roblox_compatible, torso_only)):
             raise ValueError("Export switches must be booleans")
         speed_multiplier = float(number(speed_multiplier, 0, 2))
@@ -809,12 +810,20 @@ class Operations:
             document = json.loads(gltf)
         except (UnicodeDecodeError, ValueError):
             raise ValueError("Supply valid self-contained GLTF JSON") from None
-        if (
-            not isinstance(document, dict)
-            or document.get("asset", {}).get("version") != "2.0"
-            or not document.get("animations")
-        ):
-            raise ValueError("Supply animated GLTF 2.0 JSON exported for this character")
+        gltf_error = "Supply animated GLTF 2.0 JSON exported for this character"
+        if not isinstance(document, dict):
+            raise ValueError(gltf_error)
+        asset = document.get("asset")
+        if not isinstance(asset, dict):
+            raise ValueError(gltf_error)
+        animations = document.get("animations")
+        if not isinstance(animations, list):
+            raise ValueError(gltf_error)
+        unsupported_gltf_version = asset.get("version") != "2.0"
+        missing_animations = not animations
+        invalid_animation_entries = not all(isinstance(animation, dict) for animation in animations)
+        if unsupported_gltf_version or missing_animations or invalid_animation_entries:
+            raise ValueError(gltf_error)
 
         # The native importer writes one file. Reject network/sidecar dependencies anywhere in it.
         def validate_uris(value):

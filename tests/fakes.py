@@ -108,8 +108,8 @@ class FakeAPI:
         return {
             "character_id": "promptchar1",
             "previews": [
-                {"image_key": "promptchar1-0.png", "url": "https://storage.example/0.png"},
-                {"image_key": "promptchar1-1.png", "url": "https://storage.example/1.png"},
+                {"image_key": "preview0.png", "url": "https://storage.example/0.png"},
+                {"image_key": "preview1.png", "url": "https://storage.example/1.png"},
             ],
         }
 
