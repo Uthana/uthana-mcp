@@ -389,14 +389,34 @@ def create_server(operations=None):
                 description="Whether to generate a skeleton using the priced auto-rig capability; false for already-rigged files."
             ),
         ] = False,
+        front_facing: Annotated[
+            bool,
+            Field(description="Rotate an auto-rigged character to face forward. Applies when a skeleton is generated."),
+        ] = True,
+        include_fingers: Annotated[
+            bool,
+            Field(
+                description="Include finger joints in a generated skeleton. On meshes with poor finger geometry, false can improve rig quality."
+            ),
+        ] = True,
+        rerig_target: Annotated[
+            Literal["r15", "ue5"] | None,
+            Field(
+                description="Convert the skeleton to a target format: r15 (Roblox) or ue5 (Unreal Engine 5). Requires pelvis, hip, and shoulder joints. Omit to keep the original skeleton."
+            ),
+        ] = None,
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Upload a selected FBX/GLB, at most 128 MiB. Use auto_rig=false for already-rigged characters. Returns
-        compatibility warnings when available. See workflow handling of untrusted backend data. Allow at least
-        420 seconds in the host tool timeout, longer for slow transfers. Reports MCP progress when requested.
+        """Upload a selected FBX/GLB, at most 30 MiB. Use auto_rig=false for already-rigged characters. For a
+        Roblox-compatible export later, upload with rerig_target=r15. Returns auto_rig_confidence (0-1; inspect
+        previews before further spend on low values) and compatibility warnings when available. See workflow
+        handling of untrusted backend data. Allow at least 420 seconds in the host tool timeout, longer for slow
+        transfers. Reports MCP progress when requested.
         """
         return await with_progress(
-            ctx, ops().upload_character(request_id, file_path, name, auto_rig), "upload_character"
+            ctx,
+            ops().upload_character(request_id, file_path, name, auto_rig, front_facing, include_fingers, rerig_target),
+            "upload_character",
         )
 
     @tool(annotations=WRITE)
@@ -411,6 +431,12 @@ def create_server(operations=None):
             str, Field(description="Path on the MCP server to a selected readable file inside UTHANA_MCP_INPUT_DIR.")
         ],
         name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
+        include_fingers: Annotated[
+            bool,
+            Field(
+                description="Include finger joints in the generated skeleton. On characters with poor finger geometry, false can improve rig quality."
+            ),
+        ] = True,
         ctx: Context = None,
     ) -> dict[str, Any]:
         """Create a rigged character from a selected PNG/JPEG: at most 16 MiB, 16 megapixels, and one frame. After
@@ -418,7 +444,67 @@ def create_server(operations=None):
         least 1080 seconds in the host, longer for slow transfers. Reports MCP progress when requested.
         """
         return await with_progress(
-            ctx, ops().create_character_from_image(request_id, file_path, name), "create_character_from_image"
+            ctx,
+            ops().create_character_from_image(request_id, file_path, name, include_fingers),
+            "create_character_from_image",
+        )
+
+    @tool(annotations=WRITE, structured_output=False)
+    async def preview_character_from_prompt(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        prompt: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=1000,
+                description="Text description of the character's appearance, at most 1000 characters. Describe one full-body person, outfit, and colors.",
+            ),
+        ],
+        ctx: Context = None,
+    ) -> list[TextContent | ImageContent]:
+        """Stage 1 of text-to-character: generate candidate reference images from a prompt. Returns the
+        preview receipt and each image. No rigged character exists yet; show the previews to the user and
+        finalize only the chosen one with create_character_from_prompt.
+        """
+        result = await with_progress(
+            ctx, ops().preview_character_from_prompt(request_id, prompt), "preview_character_from_prompt"
+        )
+        content: list[TextContent | ImageContent] = [TextContent(type="text", text=json.dumps(result))]
+        for index, data in ops().character_preview_images(result):
+            content.append(TextContent(type="text", text=f"preview_index {index}"))
+            content.append(ImageContent(type="image", data=base64.b64encode(data).decode(), mimeType="image/jpeg"))
+        return content
+
+    @tool(annotations=WRITE)
+    async def create_character_from_prompt(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        preview_request_id: Annotated[
+            Id, Field(description="request_id of a completed preview_character_from_prompt call.")
+        ],
+        preview_index: Annotated[
+            Annotated[int, Field(ge=0)], Field(description="The user-chosen preview_index from that preview list.")
+        ],
+        name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
+        ctx: Context = None,
+    ) -> dict[str, Any]:
+        """Stage 2 of text-to-character: rig the chosen preview into a usable character (character-gen-1.0).
+        Finalize one preview per preview request. Allow at least 1080 seconds in the host. Reports MCP progress
+        when requested.
+        """
+        return await with_progress(
+            ctx,
+            ops().create_character_from_prompt(request_id, preview_request_id, preview_index, name),
+            "create_character_from_prompt",
         )
 
     @tool(annotations=WRITE)

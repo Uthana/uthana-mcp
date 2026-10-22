@@ -1,6 +1,6 @@
 # Local partner beta setup
 
-This guide targets Linux and macOS with Codex or Claude Code. macOS and native host acceptance are pending; see [beta acceptance](BETA-ACCEPTANCE.md). The MCP runs locally and calls Uthana using your account. Choose your preferred model in your coding host; no Uthana-specific model subscription is bundled.
+This guide targets Linux, macOS, and Windows 11 with Codex or Claude Code; [Windows](#windows) lists the path and command differences. macOS and native host acceptance are pending; see [beta acceptance](BETA-ACCEPTANCE.md). The MCP runs locally and calls Uthana using your account. Choose your preferred model in your coding host; no Uthana-specific model subscription is bundled.
 
 ## Install the supplied version
 
@@ -79,15 +79,48 @@ Use a second host entry if you need another API host. Set `UTHANA_DOMAIN` to tha
 
 Ask your agent:
 
-> Read Uthana's workflow and confirm the active environment is uthana.com. Check account usage and list characters named Tar. Estimate a four-second V3 motion of a person walking forward and waving, and show me the estimate before generating it. After I approve, generate it once, track its job, inspect preview frames, trim a usable interval, and download a GLB with mesh at 30 FPS. Report the saved file path and any limitations you observe.
+> Read Uthana's workflow and confirm the active environment is uthana.com. Check account usage and confirm that I can access Uthana's Tar character ID `cXi2eAP19XwQ`. Estimate a four-second V3 motion of a person walking forward and waving on Tar, and show me the estimate before generating it. After I approve, generate it once, track its job, inspect preview frames, trim a usable interval, and download a GLB with mesh at 30 FPS. Report the saved file path and any limitations you observe.
 
-Use the returned character ID explicitly when possible. Tar is the shared client's default, but account access must be checked. Initialization identifies the selected environment; it does not prove authentication succeeded. A successful account read establishes that separately.
+Use the exact character ID: an account may contain multiple characters named Tar. Tar is the shared client's default, but account access must be checked. Initialization identifies the selected environment; it does not prove authentication succeeded. A successful account read establishes that separately.
 
 Keep the private data directory across restarts: it contains request receipts and exports. Different credentials or environments use different scopes. Changing a key or deleting state does not establish that earlier work never happened. Follow the workflow's request recovery rules before resubmitting.
 
 For uploads, add `UTHANA_MCP_INPUT_DIR` pointing to a dedicated local input folder. Uploads are disabled without it. Export and preview paths are on the machine running the connector. Character upload has a known unresolved upstream failure on a tested fixture; image, loop, and stitch operations remain experimental. Stitching additionally requires accurate host-sampled poses; this connector does not supply a sampler.
 
 Production model usage consumes your Uthana account credits at the published prices. The connector adds no separate MCP fee; your coding host may bill separately. Tell the agent your spending limit. Use your own account; do not share another customer's key or state directory.
+
+## Windows
+
+The server runs natively on Windows. Follow the steps above with these differences:
+
+- The server executable is `.venv\Scripts\uthana-mcp.exe`. Use it wherever this guide says `.venv/bin/uthana-mcp`. In TOML, write Windows paths with forward slashes or doubled backslashes.
+- The key file belongs in `%USERPROFILE%\.config\uthana\production-key`. The MCP accepts it only when you own it and its access list grants access to no one except you, `OWNER RIGHTS`, `SYSTEM`, and `Administrators`. Symlinks, junctions, and other reparse points are rejected.
+- From PowerShell, create the key file with the same code passed through a here-string. With Python 3.12.4 or later, a newly created `%USERPROFILE%\.config\uthana` folder is owner-only, so the file it writes is accepted:
+
+  ```powershell
+  @'
+  import getpass, os
+  from pathlib import Path
+  os.umask(0o077)
+  p = Path.home() / ".config/uthana/production-key"
+  p.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+  key = getpass.getpass("Uthana production API key: ").strip()
+  assert key and not any(c.isspace() for c in key), "Enter one key"
+  p.open("x").write(key + "\n")
+  print("Saved private key file:", p)
+  '@ | uv run --no-sync python -
+  ```
+
+- For an existing file, or one in a folder that already existed, remove inherited entries and grant only yourself, then check the result:
+
+  ```powershell
+  icacls "$env:USERPROFILE\.config\uthana\production-key" /inheritance:r /grant:r "${env:USERNAME}:F"
+  icacls "$env:USERPROFILE\.config\uthana\production-key"
+  ```
+
+  If any other user or group is still listed, remove it with `icacls <file> /remove:g <name>`.
+- The default data directory is `%USERPROFILE%\.local\state\uthana-mcp`.
+- In PowerShell, start Claude Code with the tool deadline as `$env:MCP_TOOL_TIMEOUT = "1200000"; claude`.
 
 ## Feedback
 

@@ -1,0 +1,46 @@
+name: Verify MCP package
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@v10.3.0
+      - name: Check source and build package
+        run: |
+          uv sync --locked
+          uv run --frozen bash ./test.sh
+      - name: Install built wheel outside checkout and check protocol
+        run: |
+          uv venv --python '${{ matrix.python }}' "$RUNNER_TEMP/mcp-clean"
+          if [ -x "$RUNNER_TEMP/mcp-clean/bin/python" ]; then
+            py="$RUNNER_TEMP/mcp-clean/bin/python"
+            smoke="$RUNNER_TEMP/mcp-clean/bin/uthana-mcp-smoke"
+          else
+            py="$RUNNER_TEMP/mcp-clean/Scripts/python.exe"
+            smoke="$RUNNER_TEMP/mcp-clean/Scripts/uthana-mcp-smoke.exe"
+          fi
+          uv pip install --python "$py" dist/*.whl
+          cd "$RUNNER_TEMP"
+          env -u PYTHONPATH -u UTHANA_API_KEY -u UTHANA_API_KEY_FILE "$smoke"

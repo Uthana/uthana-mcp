@@ -9,10 +9,13 @@ import time
 import warnings
 from pathlib import Path
 
+import httpx
 from PIL import Image
 
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
+from .errors import APIError
+from .safe_open import open_nofollow
 from .stitching import AutoStitchOptions, StitchClip, api_clip
 from .store import Store
 from .validation import TAR, identifier, number, text
@@ -241,7 +244,7 @@ class Operations:
                 detail = "; .gltf means self-contained JSON, not binary .glb" if extensions == {".gltf"} else ""
                 raise ValueError(f"file_path must use {formats} inside UTHANA_MCP_INPUT_DIR{detail}")
             # Open without following a final symlink; read a bounded snapshot used for both hashing and upload.
-            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            fd = open_nofollow(path)
             with os.fdopen(fd, "rb") as f:
                 info = os.fstat(f.fileno())
                 if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
@@ -263,12 +266,35 @@ class Operations:
         args = {"content_sha256": digest, "filename": filename, "name": name, "model": model}
         return await self.store.mutation(request_id, "video", args, lambda: self.api.video(filename, data, name, model))
 
-    async def upload_character(self, request_id, file_path, name, auto_rig=False):
+    async def upload_character(
+        self,
+        request_id,
+        file_path,
+        name,
+        auto_rig=False,
+        front_facing=True,
+        include_fingers=True,
+        rerig_target=None,
+    ):
         text(name)
-        if not isinstance(auto_rig, bool):
-            raise ValueError("auto_rig must be a boolean")
-        filename, data, digest = self.read_input(file_path, {".fbx", ".glb"})
+        if (
+            not isinstance(auto_rig, bool)
+            or not isinstance(front_facing, bool)
+            or not isinstance(include_fingers, bool)
+        ):
+            raise ValueError("auto_rig, front_facing, and include_fingers must be booleans")
+        if rerig_target not in (None, "r15", "ue5"):
+            raise ValueError("Choose rerig_target r15 or ue5, or omit it to keep the original skeleton")
+        filename, data, digest = self.read_input(file_path, {".fbx", ".glb"}, 30 * 1024 * 1024)
         args = {"content_sha256": digest, "filename": filename, "name": name, "auto_rig": auto_rig}
+
+        # Omit new default options from the fingerprint so pre-expansion receipts still replay.
+        if not front_facing:
+            args["front_facing"] = False
+        if not include_fingers:
+            args["include_fingers"] = False
+        if rerig_target is not None:
+            args["rerig_target"] = rerig_target
 
         async def invoke():
             self.store.record_progress(
@@ -281,12 +307,16 @@ class Operations:
                     "inspection": {"tool": "list_characters", "arguments": {"query": name, "limit": 50}},
                 },
             )
-            return await self.api.upload_character(filename, data, name, auto_rig)
+            return await self.api.upload_character(
+                filename, data, name, auto_rig, front_facing, include_fingers, rerig_target
+            )
 
         return await self.store.mutation(request_id, "upload_character", args, invoke)
 
-    async def create_character_from_image(self, request_id, file_path, name):
+    async def create_character_from_image(self, request_id, file_path, name, include_fingers=True):
         text(name)
+        if not isinstance(include_fingers, bool):
+            raise ValueError("include_fingers must be a boolean")
         filename, data, digest = self.read_input(file_path, {".png", ".jpg", ".jpeg"}, 16 * 1024 * 1024)
         try:
             with warnings.catch_warnings():
@@ -301,6 +331,9 @@ class Operations:
         except (OSError, SyntaxError, Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
             raise ValueError("Choose a valid PNG/JPEG reference image") from error
         args = {"filename": filename, "content_sha256": digest, "name": name}
+        # Omit the new default option from the fingerprint so pre-expansion receipts still replay.
+        if not include_fingers:
+            args["include_fingers"] = False
 
         async def invoke():
             # A confirmed rejection in finalization can retry that stage without
@@ -309,7 +342,7 @@ class Operations:
             if prepared is None:
                 prepared = await self.api.prepare_character_image(filename, data)
                 self.store.record_progress(request_id, "character_from_image", prepared)
-            result = await self.api.finalize_character_image(prepared, name)
+            result = await self.api.finalize_character_image(prepared, name, include_fingers)
             return {
                 **result,
                 "name": name,
@@ -319,6 +352,105 @@ class Operations:
             }
 
         return await self.store.mutation(request_id, "character_from_image", args, invoke)
+
+    async def preview_character_from_prompt(self, request_id, prompt):
+        text(prompt, 1000)
+        args = {"prompt": prompt}
+
+        async def invoke():
+            prepared = await self.api.preview_character_prompt(prompt)
+            # Persist the character ID before fetching images, so an interrupted fetch never hides it.
+            self.store.record_progress(
+                request_id, "character_prompt_preview", {"character_id": prepared["character_id"]}
+            )
+            previews = []
+            for index, preview in enumerate(prepared["previews"]):
+                entry = {"preview_index": index, "image_key": preview["image_key"]}
+                try:
+                    if not preview["url"]:
+                        raise ValueError("Uthana returned no preview URL")
+                    data = await self.api.fetch_preview_image(preview["url"])
+                    with Image.open(io.BytesIO(data)) as image:
+                        if image.format not in {"PNG", "JPEG", "WEBP"} or image.width * image.height > 16_000_000:
+                            raise ValueError("Preview is not a supported still image")
+                        suffix = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}[image.format]
+                        mime = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}[image.format]
+                        entry.update({"width": image.width, "height": image.height})
+                    saved = self.store.artifact(
+                        data,
+                        suffix,
+                        {
+                            "character_id": prepared["character_id"],
+                            "preview_index": index,
+                            "format": "character_preview",
+                            "mime_type": mime,
+                        },
+                    )
+                    entry.update(
+                        {"artifact_id": saved["artifact_id"], "local_path": saved["local_path"], "mime_type": mime}
+                    )
+                except (APIError, OSError, ValueError, httpx.HTTPError) as error:
+                    # The character ID is still usable; a missing image only limits review.
+                    entry["image_unavailable"] = str(error)[:300]
+                previews.append(entry)
+            return {
+                "stage": "previews_ready",
+                "character_id": prepared["character_id"],
+                "prompt": prompt,
+                "previews": previews,
+                "review_status": "unreviewed",
+                "next_step": "Show the previews to the user. After they choose one, call "
+                "create_character_from_prompt with this request_id as preview_request_id and the chosen preview_index.",
+            }
+
+        return await self.store.mutation(request_id, "character_prompt_preview", args, invoke)
+
+    def character_preview_images(self, result, max_side=768):
+        """Hash-verified previews saved by preview_character_from_prompt, as bounded JPEG thumbnails."""
+        images = []
+        for preview in result.get("previews", []):
+            artifact_id = preview.get("artifact_id")
+            if not artifact_id:
+                continue
+            data, _ = self.store.read_artifact(artifact_id)
+            with Image.open(io.BytesIO(data)) as image:
+                image = image.convert("RGB")
+                image.thumbnail((max_side, max_side))
+                output = io.BytesIO()
+                image.save(output, format="JPEG", quality=85)
+            images.append((preview["preview_index"], output.getvalue()))
+        return images
+
+    async def create_character_from_prompt(self, request_id, preview_request_id, preview_index, name):
+        text(name)
+        identifier(preview_request_id)
+        if isinstance(preview_index, bool) or not isinstance(preview_index, int) or preview_index < 0:
+            raise ValueError("preview_index must be a whole number from the preview list")
+        result = self.store.claim_preview_finalization(preview_request_id, request_id)
+        chosen = next((p for p in result["previews"] if p["preview_index"] == preview_index), None)
+        if chosen is None:
+            raise ValueError("preview_index is not in that preview list")
+        args = {
+            "preview_request_id": preview_request_id,
+            "character_id": result["character_id"],
+            "image_key": chosen["image_key"],
+            "name": name,
+        }
+
+        async def invoke():
+            created = await self.api.finalize_character_prompt(
+                result["character_id"], result["prompt"], chosen["image_key"], name
+            )
+            return {
+                **created,
+                "name": name,
+                "prompt": result["prompt"],
+                "preview_index": preview_index,
+                "review_status": "unreviewed",
+                "stage": "character_created",
+            }
+
+        return await self.store.mutation(request_id, "character_from_prompt", args, invoke)
 
     async def loop(
         self,

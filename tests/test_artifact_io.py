@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from platform_support import mkfifo_or_skip, symlink_or_skip
 
 from uthana_mcp import artifact_io
 from uthana_mcp.artifact_io import MAX_ARTIFACT_BYTES, read_artifact_bytes
@@ -37,7 +38,7 @@ def test_final_symlink_is_rejected_even_when_target_matches_hash(tmp_path):
     original = tmp_path / "original.fbx"
     original.write_bytes(b"original")
     path = tmp_path / "export.fbx"
-    path.symlink_to(original)
+    symlink_or_skip(path, original)
     with pytest.raises(ValueError, match="symlink"):
         read_artifact_bytes(path, metadata(b"original"))
 
@@ -49,7 +50,7 @@ def test_directory_is_rejected_before_reading(tmp_path):
 
 def test_fifo_without_writer_cannot_block_recovery(tmp_path):
     path = tmp_path / "export.fbx"
-    artifact_io.os.mkfifo(path)
+    mkfifo_or_skip(path)
     # A regression to blocking open must fail this child, rather than hang pytest.
     script = """
 import hashlib

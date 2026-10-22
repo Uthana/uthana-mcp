@@ -10,6 +10,7 @@ import httpx
 from uthana import Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
+from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
 from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
 
@@ -17,6 +18,9 @@ from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_jo
 class UthanaAPI:
     def __init__(self, key: str, domain: str | None = None, *, transport=None):
         self.domain = domain or UTHANA_DOMAIN
+        self.mcp_transport = MCPTransport(self.domain, transport)
+        transport = self.mcp_transport
+        self.transport = transport
         if not key or not key.strip():
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
         self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
@@ -46,6 +50,7 @@ class UthanaAPI:
     async def close(self):
         self.client.close()
         self.catalog_client.close()
+        await self.mcp_transport.shutdown()
 
     async def _call(self, function, *args, read_only=False, mutation_field=None, resource=None, **kwargs):
         if read_only and mutation_field:
@@ -125,6 +130,18 @@ class UthanaAPI:
         )
         return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "character_id": character_id}
 
+    async def generate_v1(self, prompt: str, *, character_id: str) -> dict[str, str]:
+        """Generate a native V1 motion; this model chooses its own duration."""
+        result = await self._call(
+            self.client.ttm.create,
+            prompt,
+            model="vqvae-v1",
+            character_id=identifier(character_id),
+            foot_ik=True,
+            mutation_field="create_text_to_motion",
+        )
+        return {"motion_id": identifier(result.motion_id), "character_id": character_id}
+
     async def generate_v2(self, prompt, duration_seconds, character_id):
         result = await self._call(
             self.client.ttm.create,
@@ -187,16 +204,19 @@ class UthanaAPI:
         )
         return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "model": model}
 
-    async def upload_character(self, filename, content, name, auto_rig):
+    async def upload_character(
+        self, filename, content, name, auto_rig, front_facing=True, include_fingers=True, rerig_target=None
+    ):
         result = await self._call(
             self.client.characters.create_from_bytes,
             filename,
             content,
             name=name,
             auto_rig=auto_rig,
-            # Preserve defaults previously applied when the direct mutation omitted these fields.
-            front_facing=True,
-            include_fingers=True,
+            # Defaults match those previously applied when the direct mutation omitted these fields.
+            front_facing=front_facing,
+            include_fingers=include_fingers,
+            rerig_target=rerig_target,
             timeout=httpx.Timeout(360, connect=15),
             mutation_field="create_character",
         )
@@ -222,14 +242,14 @@ class UthanaAPI:
             raise APIError("Uthana returned an invalid prepared image key")
         return {"stage": "image_prepared", "character_id": identifier(result.character_id), "image_key": image_key}
 
-    async def finalize_character_image(self, prepared, name):
+    async def finalize_character_image(self, prepared, name, include_fingers=True):
         pending = CharacterPreviewResult(character_id=prepared["character_id"], previews=[], prompt="")
         result = await self._call(
             self.client.characters.generate_from_image,
             pending,
             prepared["image_key"],
             name=name,
-            include_fingers=True,
+            include_fingers=include_fingers,
             timeout=httpx.Timeout(660, connect=15),
             mutation_field="create_character_from_image",
         )
@@ -250,6 +270,64 @@ class UthanaAPI:
             "character_id": options["character_id"],
             "preparation": result.get("preparation"),
         }
+
+    async def preview_character_prompt(self, prompt):
+        result = await self._call(
+            self.client.characters.create_from_prompt,
+            prompt=prompt,
+            mutation_field="create_image_from_text",
+        )
+        previews = []
+        for preview in result.previews if isinstance(result.previews, list) else []:
+            key = preview.get("key") if isinstance(preview, dict) else None
+            url = preview.get("url") if isinstance(preview, dict) else None
+            if not isinstance(key, str) or not key.strip() or len(key) > 1024:
+                raise APIError("Uthana returned an invalid character preview key")
+            previews.append({"image_key": key, "url": url if isinstance(url, str) else None})
+        if not previews:
+            raise APIError("Uthana returned no character preview images")
+        return {"character_id": identifier(result.character_id), "previews": previews}
+
+    async def fetch_preview_image(self, url, max_bytes=16 * 1024 * 1024):
+        """Fetch a generated preview. Send credentials only to the configured Uthana host."""
+        parsed = httpx.URL(url)
+        if parsed.scheme != "https":
+            raise APIError("Character preview URL is not HTTPS")
+        host = parsed.host or ""
+        if host == self.domain or host.endswith("." + self.domain):
+            return await self.client._request_bytes("GET", url, max_bytes=max_bytes)
+        # Presigned storage URLs carry their own authorization; never attach the API key.
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(60, connect=15),
+            follow_redirects=False,
+            trust_env=False,
+            transport=self.transport,
+        ) as http:
+            async with http.stream("GET", url) as response:
+                if response.status_code != 200:
+                    raise APIError(f"Character preview fetch failed with HTTP {response.status_code}")
+                data = b""
+                async for chunk in response.aiter_bytes():
+                    data += chunk
+                    if len(data) > max_bytes:
+                        raise APIError("Character preview exceeds the size limit")
+        return data
+
+    async def finalize_character_prompt(self, character_id, prompt, image_key, name):
+        pending = CharacterPreviewResult(character_id=character_id, previews=[], prompt=prompt)
+        result = await self._call(
+            self.client.characters.generate_from_image,
+            pending,
+            image_key,
+            name=name,
+            include_fingers=True,
+            timeout=httpx.Timeout(660, connect=15),
+            mutation_field="create_character_from_image",
+        )
+        returned = identifier(result.character["id"])
+        if returned != character_id:
+            raise APIError("Character generation returned a different character ID; inspect the preview's ID")
+        return {"character_id": returned, "auto_rig_confidence": result.auto_rig_confidence}
 
     async def stitch(self, character_id, prefix, suffix):
         result = await self._call(

@@ -65,13 +65,18 @@ def receipt_billing(operation, args):
         "locomotion": "locomotion-1.0",
         "video": args.get("model"),
         "character_from_image": "character-gen-1.0",
+        "character_from_prompt": "character-gen-1.0",
+        # Text-to-image previews have no published price of their own; leave the charge unmeasured.
+        "character_prompt_preview": None,
         "loop": "stitch-loop-2.0",
         "stitch": "stitch-loop-2.0",
     }.get(operation)
-    if operation == "upload_character" and args.get("auto_rig") is True:
+    # Policy: choosing a target skeleton during initial auto-rig is one auto-rig charge;
+    # converting an already-rigged character (rerig_target without auto_rig) uses the same price.
+    if operation == "upload_character" and (args.get("auto_rig") is True or args.get("rerig_target")):
         model = "autorig"
     free = operation in {"trim", "save", "download", "preview"} or (
-        operation == "upload_character" and args.get("auto_rig") is False
+        operation == "upload_character" and args.get("auto_rig") is False and not args.get("rerig_target")
     )
     return {
         "api_mcp_fee_usd": "0",
