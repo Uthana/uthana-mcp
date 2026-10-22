@@ -389,9 +389,9 @@ class Operations:
                     entry.update(
                         {"artifact_id": saved["artifact_id"], "local_path": saved["local_path"], "mime_type": mime}
                     )
-                except (APIError, OSError, ValueError, httpx.HTTPError) as error:
+                except (APIError, OSError, ValueError, httpx.HTTPError):
                     # The character ID is still usable; a missing image only limits review.
-                    entry["image_unavailable"] = str(error)[:300]
+                    entry["image_unavailable"] = "Preview image unavailable; inspect the character in Uthana."
                 previews.append(entry)
             return {
                 "stage": "previews_ready",
@@ -426,7 +426,10 @@ class Operations:
         identifier(preview_request_id)
         if isinstance(preview_index, bool) or not isinstance(preview_index, int) or preview_index < 0:
             raise ValueError("preview_index must be a whole number from the preview list")
-        result = self.store.claim_preview_finalization(preview_request_id, request_id)
+        preview = self.store.get_request(preview_request_id)
+        if preview.get("operation") != "character_prompt_preview" or preview["state"] != "complete":
+            raise ValueError("preview_request_id must name a completed preview_character_from_prompt request")
+        result = preview["result"]
         chosen = next((p for p in result["previews"] if p["preview_index"] == preview_index), None)
         if chosen is None:
             raise ValueError("preview_index is not in that preview list")
@@ -811,8 +814,11 @@ class Operations:
             raise ValueError("Supply valid self-contained GLTF JSON") from None
         if (
             not isinstance(document, dict)
-            or document.get("asset", {}).get("version") != "2.0"
-            or not document.get("animations")
+            or not isinstance(asset := document.get("asset"), dict)
+            or asset.get("version") != "2.0"
+            or not isinstance(animations := document.get("animations"), list)
+            or not animations
+            or not all(isinstance(animation, dict) for animation in animations)
         ):
             raise ValueError("Supply animated GLTF 2.0 JSON exported for this character")
 

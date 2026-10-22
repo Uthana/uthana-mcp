@@ -3,6 +3,7 @@ import pytest
 from fakes import FakeAPI
 
 from uthana_mcp.api import UthanaAPI
+from uthana_mcp.errors import APIError
 from uthana_mcp.operations import Operations
 
 
@@ -31,13 +32,14 @@ async def test_missing_preview_image_keeps_character_id(setup):
     api, ops = setup
 
     async def broken(url, max_bytes=0):
-        raise ValueError("storage unavailable")
+        raise httpx.ConnectError("private storage URL with a signed credential")
 
     api.fetch_preview_image = broken
     result = await ops.preview_character_from_prompt("prev1", "A worker")
     assert result["character_id"] == "promptchar1"
     assert all("image_unavailable" in p and "artifact_id" not in p for p in result["previews"])
     assert ops.character_preview_images(result) == []
+    assert "private storage" not in str(result)
 
 
 async def test_finalize_uses_chosen_preview_and_prompt(setup):
@@ -50,7 +52,7 @@ async def test_finalize_uses_chosen_preview_and_prompt(setup):
     assert call == {
         "character_id": "promptchar1",
         "prompt": "A worker",
-        "image_key": "promptchar1-1.png",
+        "image_key": "preview1.png",
         "name": "Worker",
     }
     assert (await ops.create_character_from_prompt("char1", "prev1", 1, "Worker"))["replayed"]
@@ -79,6 +81,68 @@ async def test_finalize_rejects_a_second_request_id_for_the_same_preview(setup):
     # The original finalizing request_id may still retry (for example with a corrected name).
     assert (await ops.create_character_from_prompt("char1", "prev1", 1, "Worker"))["replayed"]
     assert sum(c[0] == "finalize_prompt" for c in api.calls) == 1
+
+
+async def test_invalid_selection_does_not_consume_preview(setup):
+    api, ops = setup
+    await ops.preview_character_from_prompt("prev1", "A worker")
+    with pytest.raises(ValueError, match="not in that preview list"):
+        await ops.create_character_from_prompt("invalid", "prev1", 99, "Worker")
+    assert "finalized_by" not in ops.store.get_request("prev1")["result"]
+    created = await ops.create_character_from_prompt("corrected", "prev1", 0, "Worker")
+    assert created["character_id"] == "promptchar1"
+    assert sum(c[0] == "finalize_prompt" for c in api.calls) == 1
+
+
+async def test_conflicting_request_id_does_not_consume_another_preview(setup):
+    api, ops = setup
+    await ops.preview_character_from_prompt("prev1", "A worker")
+    await ops.preview_character_from_prompt("prev2", "An athlete")
+    await ops.create_character_from_prompt("used", "prev1", 0, "Worker")
+    with pytest.raises(ValueError, match="different arguments"):
+        await ops.create_character_from_prompt("used", "prev2", 0, "Athlete")
+    assert "finalized_by" not in ops.store.get_request("prev2")["result"]
+    await ops.create_character_from_prompt("new", "prev2", 0, "Athlete")
+    assert sum(c[0] == "finalize_prompt" for c in api.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "domain,url,authenticated",
+    [
+        ("uthana.com", "https://uthana.com/preview.png", True),
+        ("uthana.com", "https://images.uthana.com/preview.png", False),
+        ("uthana.com", "https://uthana.com:8443/preview.png", False),
+        ("uthana.com:8443", "https://uthana.com:8443/preview.png", True),
+        ("uthana.com:8443", "https://uthana.com/preview.png", False),
+    ],
+)
+async def test_preview_credentials_require_exact_origin(domain, url, authenticated):
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        return httpx.Response(200, content=b"preview")
+
+    api = UthanaAPI("test-key", domain, transport=httpx.MockTransport(handler))
+    try:
+        assert await api.fetch_preview_image(url) == b"preview"
+        assert ("authorization" in seen[0].headers) is authenticated
+    finally:
+        await api.close()
+
+
+async def test_authenticated_preview_failure_is_redacted():
+    api = UthanaAPI(
+        "test-key",
+        transport=httpx.MockTransport(lambda request: httpx.Response(403, text="private-provider-detail")),
+    )
+    try:
+        with pytest.raises(APIError) as error:
+            await api.fetch_preview_image("https://uthana.com/preview.png")
+        assert error.value.category == "permission"
+        assert "private-provider-detail" not in str(error.value)
+    finally:
+        await api.close()
 
 
 async def test_finalize_rejects_other_operation_receipts(setup, tmp_path):

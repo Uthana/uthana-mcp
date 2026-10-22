@@ -14,6 +14,10 @@ permissions:
   contents: write
   id-token: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -33,25 +37,30 @@ jobs:
       - name: Detect release
         id: detect
         run: |
-          VERSION=$(python -c "
-          import re, pathlib
-          content = pathlib.Path('pyproject.toml').read_text()
-          m = re.search(r'^version = \"([^\"]+)\"', content, re.MULTILINE)
-          print(m.group(1))
-          ")
+          VERSION=$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          if curl -sf "https://pypi.org/pypi/uthana-mcp/${VERSION}/json" > /dev/null; then
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "Version ${VERSION} is already on PyPI — skipping release."
-          else
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "Version ${VERSION} is not yet on PyPI — will release."
-          fi
+          STATUS=$(curl --silent --show-error --retry 3 --output /dev/null --write-out '%{http_code}' "https://pypi.org/pypi/uthana-mcp/${VERSION}/json")
+          case "$STATUS" in
+            200) echo "should_release=false" >> "$GITHUB_OUTPUT" ;;
+            404) echo "should_release=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "PyPI version check failed with HTTP $STATUS" >&2; exit 1 ;;
+          esac
       - name: Run tests
         if: steps.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
-        run: uv run --locked ./test.sh
-      - name: Publish to PyPI
+        run: uv run --locked bash ./test.sh
+      - name: Check client release prerequisite
         if: steps.detect.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import pathlib
+          import tomllib
+
+          config = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          if "uthana" in config.get("tool", {}).get("uv", {}).get("sources", {}):
+              raise SystemExit("Publish the Uthana client, remove its review source pin, and refresh uv.lock before release.")
+          PY
+      - name: Publish to PyPI
+        if: steps.detect.outputs.should_release == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
             uv publish --dry-run
@@ -59,7 +68,7 @@ jobs:
             uv publish --trusted-publishing always
           fi
       - name: Create and push release tag
-        if: steps.detect.outputs.should_release == 'true' && github.event_name != 'workflow_dispatch'
+        if: steps.detect.outputs.should_release == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         run: |
           VERSION="${{ steps.detect.outputs.version }}"
           git config user.name "github-actions[bot]"
@@ -67,7 +76,7 @@ jobs:
           git tag -a "v${VERSION}" -m "Release v${VERSION}"
           git push origin "v${VERSION}"
       - name: Create GitHub Release
-        if: steps.detect.outputs.should_release == 'true' && github.event_name != 'workflow_dispatch'
+        if: steps.detect.outputs.should_release == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

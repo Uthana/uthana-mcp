@@ -113,36 +113,24 @@ class Store:
             )
         return {**json.loads(row[2]), "replayed": True}
 
-    def claim_preview_finalization(self, preview_request_id, finalizing_request_id):
-        """Atomically bind a completed character-prompt preview to one finalizing request_id.
-
-        A different request_id cannot finalize the same preview, even after the first attempt
-        succeeds or ends uncertainly; this prevents a second create_character_from_prompt call
-        from generating and charging for a second character off the same preview. The same
-        finalizing request_id may retry freely, matching the rest of the mutation lifecycle
-        (for example after a locally rejected attempt).
-        """
-        identifier(preview_request_id)
-        identifier(finalizing_request_id)
-        with self.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT operation,state,result FROM requests WHERE id=?", (preview_request_id,)).fetchone()
-            if row is None or row[0] != "character_prompt_preview" or row[1] != "complete":
-                raise ValueError("preview_request_id must name a completed preview_character_from_prompt request")
-            result = json.loads(row[2])
-            claimed_by = result.get("finalized_by")
-            if claimed_by and claimed_by != finalizing_request_id:
-                raise ValueError(
-                    "This character preview is already finalized by a different request_id; "
-                    "generate a new preview to create another character"
-                )
-            if claimed_by != finalizing_request_id:
-                result["finalized_by"] = finalizing_request_id
-                db.execute(
-                    "UPDATE requests SET result=? WHERE id=?",
-                    (json.dumps(result, allow_nan=False), preview_request_id),
-                )
-        return result
+    def _claim_preview_finalization(self, db, *, preview_request_id, finalizing_request_id):
+        """Bind a preview in the same transaction that claims its finalizing request."""
+        row = db.execute("SELECT operation,state,result FROM requests WHERE id=?", (preview_request_id,)).fetchone()
+        if row is None or row[0] != "character_prompt_preview" or row[1] != "complete":
+            raise ValueError("preview_request_id must name a completed preview_character_from_prompt request")
+        result = json.loads(row[2])
+        claimed_by = result.get("finalized_by")
+        if claimed_by and claimed_by != finalizing_request_id:
+            raise ValueError(
+                "This character preview is already finalized by a different request_id; "
+                "generate a new preview to create another character"
+            )
+        if claimed_by != finalizing_request_id:
+            result["finalized_by"] = finalizing_request_id
+            db.execute(
+                "UPDATE requests SET result=? WHERE id=?",
+                (json.dumps(result, allow_nan=False), preview_request_id),
+            )
 
     def record_verification(self, request_id, observation):
         """Retain native verification evidence without rewriting the confirmed operation."""
@@ -183,6 +171,11 @@ class Store:
                     raise ValueError(
                         "Request is pending or unresolved. Inspect get_request_status and the configured Uthana account; do not resubmit"
                     )
+            if operation == "character_from_prompt":
+                self._claim_preview_finalization(
+                    db, preview_request_id=args["preview_request_id"], finalizing_request_id=request_id
+                )
+            if row:
                 db.execute(
                     "UPDATE requests SET state='pending',result=NULL,error=NULL,updated=? WHERE id=?",
                     (time.time(), request_id),

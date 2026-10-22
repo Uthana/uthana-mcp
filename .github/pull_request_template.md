@@ -2,4 +2,4 @@
 
 ## How you checked it
 
-- [ ] `uv run --locked ./test.sh`
+- [ ] `uv run --locked bash ./test.sh`

@@ -79,7 +79,7 @@ Text-to-character has two stages. `preview_character_from_prompt` turns a prompt
 
 Keep the finalization request ID and selected arguments for recovery. A completed request replays its saved result; after a confirmed rejection, retry only that same request ID and arguments. For a pending or unknown outcome, inspect `get_request_status` and the character in the configured Uthana account before taking further action. Preview generation and character finalization use different request IDs.
 
-Avoid submitting another candidate from the same preview request, or using a fresh finalization request ID to retry an uncertain outcome. The MCP currently deduplicates by finalization request ID, not by preview request or character ID: the one-candidate rule is agent guidance, not an enforced cross-request guard. Do not describe an unmeasured preview cost as free, or regenerate previews merely to recover a failed image download.
+Avoid submitting another candidate from the same preview request, or using a fresh finalization request ID to retry an uncertain outcome. The MCP binds each preview request to one finalization request ID, preventing another request ID from finalizing it again. Do not describe an unmeasured preview cost as free, or regenerate previews merely to recover a failed image download.
 
 ## Loop and stitch
 
@@ -91,12 +91,11 @@ continues recent travel; explicit zero requests no gap. Inspect returned effecti
 trims and connection poses, then review playback. Avoid implausible distance/time
 combinations and duplicate submissions; request recovery works as for advanced stitching.
 
-
 `create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
 
 `create_stitched_motion` joins two existing clips using the enhanced preview API. The host must load both motions on the same character, place them in a shared scene, and evaluate root/pelvis poses at zero and each trim boundary. It requires source-file IDs/hashes from `get_motion`, world positions in meters with Y up, unit x/y/z/w quaternions, and hip-derived yaw in radians. Times must fall within native samples. Invented poses, APNG-derived transforms, and placeholder zeros are unsuitable.
 
-Include every ancestor's scale when evaluating world positions. An export can use a small root scale, so uncomposed bone translations are not meters. The hip-yaw axis convention remains insufficiently specified upstream and needs calibration against known facing. See STITCHING.md for the pose contract and both integration traps. The tool validates types and source identity, but cannot verify host sampling. Inspect playback through the join or repeated loop cycles before accepting the motion.
+Include every ancestor's scale when evaluating world positions. An export can use a small root scale, so uncomposed bone translations are not meters. Facing yaw uses `atan2(forward.x, forward.z)`, with zero toward +Z and positive toward +X; verify the selected hip joints against known facing. See STITCHING.md for the pose contract and both integration traps. The tool validates types and source identity, but cannot verify host sampling. Inspect playback through the join or repeated loop cycles before accepting the motion.
 
 Automatic stitching works through the local stdio server once the required backend
 and client are released. Hosting the MCP is a separate delivery option. Until the

@@ -11,8 +11,6 @@ The host supplies the reasoning model. This server uses the shared [Uthana Pytho
 
 ## Install
 
-Release prerequisite: automatic stitching requires the deployed automatic-input API and Python client 0.6.0. This preparation branch still pins the draft client until 0.6.0 is published.
-
 Python 3.11 or later.
 
 ```sh
@@ -73,7 +71,7 @@ UTHANA_API_KEY_FILE = "/absolute/path/to/private-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](PARTNER-SETUP.md) has the Windows commands and host timeout settings.
+On Windows the key file lives under `%USERPROFILE%\.config\uthana\` and must stay private to your user. [Install and connect](INSTALL.md) has the Windows commands and host timeout settings.
 
 Check a local install with `uthana-mcp-smoke`. Add `--api-read` to make one read-only account call. The smoke command creates no characters, motions, or jobs.
 
@@ -118,7 +116,7 @@ Ask: â€œStitch these two motions on my character with a one-second transition.â€
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)
 - [API coverage and limits](COVERAGE.md)
 - [Stitching pose contract](STITCHING.md)
-- [Install and connect](PARTNER-SETUP.md)
+- [Install and connect](INSTALL.md)
 - [First animation and export](FIRST-RESULT.md)
 - [Operational checks](OPERATIONS.md)
 - [Contributing](CONTRIBUTING.md)

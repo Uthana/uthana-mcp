@@ -44,42 +44,9 @@ uv run --no-sync python -c 'import getpass, os; from pathlib import Path; os.uma
 
 Never paste the key into a chat, GitHub issue, or shell command. For an existing file, use `chmod 600 /absolute/path/to/key` and confirm it is owned by your OS user. The MCP rejects symlinks, shared-readable files, directories, empty files, and conflicting key settings.
 
-## Connect Codex
+## Connect a host
 
-Merge the following entry into your personal `~/.codex/config.toml`; replace every `/absolute/path` value. Leave existing unrelated settings intact.
-
-```toml
-[mcp_servers.uthana]
-command = "/absolute/path/to/uthana-mcp/.venv/bin/uthana-mcp"
-tool_timeout_sec = 1200
-
-[mcp_servers.uthana.env]
-UTHANA_DOMAIN = "uthana.com"
-UTHANA_API_KEY_FILE = "/absolute/path/to/private/production-key"
-UTHANA_MCP_DATA_DIR = "/absolute/path/to/private/uthana-state"
-```
-
-Restart the connection and check that Uthana is available. Select Astra or another supported model in Codex. [Codex MCP configuration](https://developers.openai.com/codex/mcp/) documents local server configuration and tool timeouts.
-
-## Connect Claude Code
-
-Register a local server in your personal configuration (the values below are paths, not secrets):
-
-```sh
-claude mcp add --transport stdio --scope user \
-  --env UTHANA_DOMAIN=uthana.com \
-  --env UTHANA_API_KEY_FILE=/absolute/path/to/private/production-key \
-  --env UTHANA_MCP_DATA_DIR=/absolute/path/to/private/uthana-state \
-  uthana -- /absolute/path/to/uthana-mcp/.venv/bin/uthana-mcp
-```
-
-Quote path arguments if they contain spaces. Start the CLI with a 20-minute tool deadline:
-
-```sh
-MCP_TOOL_TIMEOUT=1200000 claude
-```
-
-Use `/mcp` to inspect the connection. This timeout is in milliseconds and belongs to the Claude Code process, not just the MCP server's environment. Configure your preferred model in Claude Code. See [Claude Code MCP](https://code.claude.com/docs/en/mcp) and [environment variables](https://code.claude.com/docs/en/env-vars). Desktop variants need their own timeout verification.
+Use the [README configuration examples](README.md#connect) for Claude Desktop, Cursor, or Codex. Configure host tool timeouts of at least 420 seconds for upload, loop, and stitch, and 1080 seconds for character generation. Allow longer for slow transfers.
 
 ## Separate host connection
 

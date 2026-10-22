@@ -293,9 +293,9 @@ class UthanaAPI:
         parsed = httpx.URL(url)
         if parsed.scheme != "https":
             raise APIError("Character preview URL is not HTTPS")
-        host = parsed.host or ""
-        if host == self.domain or host.endswith("." + self.domain):
-            return await self.client._request_bytes("GET", url, max_bytes=max_bytes)
+        origin = self.mcp_transport.origin
+        if (parsed.scheme, parsed.host, parsed.port) == (origin.scheme, origin.host, origin.port):
+            return await self._call(self.client._request_bytes, "GET", url, max_bytes=max_bytes, read_only=True)
         # Presigned storage URLs carry their own authorization; never attach the API key.
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(60, connect=15),
