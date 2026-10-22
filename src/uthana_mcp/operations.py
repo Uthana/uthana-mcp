@@ -277,7 +277,10 @@ class Operations:
         rerig_target=None,
     ):
         text(name)
-        if not all(isinstance(value, bool) for value in (auto_rig, front_facing, include_fingers)):
+        invalid_rigging_switches = not all(
+            isinstance(value, bool) for value in (auto_rig, front_facing, include_fingers)
+        )
+        if invalid_rigging_switches:
             raise ValueError("auto_rig, front_facing, and include_fingers must be booleans")
         if rerig_target not in (None, "r15", "ue5"):
             raise ValueError("Choose rerig_target r15 or ue5, or omit it to keep the original skeleton")
@@ -476,9 +479,11 @@ class Operations:
             raise ValueError("Choose closed/open and modify/extend")
         if zone_end_position is not None:
             target_error = "An open-loop target requires x/y and optional facing_angle"
-            if loop_mode != "open" or not isinstance(zone_end_position, dict):
+            if not isinstance(zone_end_position, dict):
                 raise ValueError(target_error)
-            if not {"x", "y"} <= zone_end_position.keys() <= {"x", "y", "facing_angle"}:
+            target_in_closed_loop = loop_mode != "open"
+            invalid_target_fields = not {"x", "y"} <= zone_end_position.keys() <= {"x", "y", "facing_angle"}
+            if target_in_closed_loop or invalid_target_fields:
                 raise ValueError(target_error)
             for value in zone_end_position.values():
                 number(value, -1e6, 1e6)
@@ -726,11 +731,9 @@ class Operations:
         identifier(motion_id)
         identifier(character_id)
         export_error = "Choose glb/fbx/bvh and 24/30/60 FPS"
-        if format not in {"glb", "fbx", "bvh"}:
-            raise ValueError(export_error)
-        if isinstance(fps, bool) or not isinstance(fps, int):
-            raise ValueError(export_error)
-        if fps not in {24, 30, 60}:
+        unsupported_format = format not in {"glb", "fbx", "bvh"}
+        invalid_frame_rate = isinstance(fps, bool) or not isinstance(fps, int) or fps not in {24, 30, 60}
+        if unsupported_format or invalid_frame_rate:
             raise ValueError(export_error)
         if not all(isinstance(x, bool) for x in (include_mesh, in_place, roblox_compatible, torso_only)):
             raise ValueError("Export switches must be booleans")
@@ -811,12 +814,15 @@ class Operations:
         if not isinstance(document, dict):
             raise ValueError(gltf_error)
         asset = document.get("asset")
-        if not isinstance(asset, dict) or asset.get("version") != "2.0":
+        if not isinstance(asset, dict):
             raise ValueError(gltf_error)
         animations = document.get("animations")
-        if not isinstance(animations, list) or not animations:
+        if not isinstance(animations, list):
             raise ValueError(gltf_error)
-        if not all(isinstance(animation, dict) for animation in animations):
+        unsupported_gltf_version = asset.get("version") != "2.0"
+        missing_animations = not animations
+        invalid_animation_entries = not all(isinstance(animation, dict) for animation in animations)
+        if unsupported_gltf_version or missing_animations or invalid_animation_entries:
             raise ValueError(gltf_error)
 
         # The native importer writes one file. Reject network/sidecar dependencies anywhere in it.

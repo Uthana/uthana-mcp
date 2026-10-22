@@ -15,7 +15,14 @@ Apply these conventions to new code and the code you change. Preserve existing p
 - Use `pathlib.Path` for filesystem paths. Convert strings at the boundary, pass `Path` objects through, and convert back only where an API requires a string. Use `PurePosixPath` for virtual paths that are independent of the operating system.
 - Put fixed limits in named module-level constants. Name each constant for what it bounds; keep shared limits in one place.
 - Prefer a clear comprehension for building a collection. Use `next()` on a generator when only the first match is needed.
-- Prefer early returns for cases that leave the function. Combine simple conditions that lead to the same return or continuation. Give complicated predicates meaningful names instead of building long nested expressions.
+- Prefer early returns for cases that leave the function. When checks share a return, continuation, or error, combine them. Two or three simple comparisons may stay inline; for a long condition, name each piece for the rule it represents and combine those names. Prefer semantic names over splitting one condition into repeated branches. Keep type-narrowing guards inline before reading fields or computing dependent predicates.
+
+  ```python
+  wrong_origin = scope != expected_origin
+  request_pending = state == "pending"
+  if wrong_origin or request_pending:
+      return None
+  ```
 - Give a nested `any()` or `all()` a helper or variable when its predicate is complicated. Keep checks that narrow a type in the condition where that type is used.
 - Use `:=` when a lookup is tested and its result is reused, provided it keeps the condition readable. Do not introduce an assignment expression whose name is never read again.
 - Let unexpected errors propagate. Catch an exception when the failure is expected and recovery or another code path is required. At an external boundary, redact credentials and private provider details while preserving a useful error category.

@@ -26,9 +26,11 @@ def read_artifact_bytes(path: Path, metadata: dict) -> bytes:
     digest = metadata.get("sha256")
     if isinstance(expected, bool) or not isinstance(expected, int):
         raise ValueError(metadata_error)
-    if not 0 <= expected <= MAX_ARTIFACT_BYTES:
+    if not isinstance(digest, str):
         raise ValueError(metadata_error)
-    if not isinstance(digest, str) or re.fullmatch(r"[a-fA-F0-9]{64}", digest) is None:
+    size_out_of_bounds = not 0 <= expected <= MAX_ARTIFACT_BYTES
+    invalid_sha256 = re.fullmatch(r"[a-fA-F0-9]{64}", digest) is None
+    if size_out_of_bounds or invalid_sha256:
         raise ValueError(metadata_error)
 
     try:
