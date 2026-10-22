@@ -3,7 +3,7 @@
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-MCP_PYTHON="${MCP_PYTHON:-python3}"
+MCP_PYTHON="${MCP_PYTHON:-python}"
 
 # Test this checkout, including the package used by stdio child processes.
 export PYTHONPATH="$PWD/src"
