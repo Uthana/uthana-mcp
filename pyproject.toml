@@ -90,7 +90,3 @@ profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
 known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "platform_support", "dotenv"]
-
-# Review dependency until shared upload detection is published.
-[tool.uv.sources]
-uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "db4a1a8eeec28fb66e66468fc1777d3cbdc4d657" }
