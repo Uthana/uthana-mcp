@@ -41,7 +41,7 @@ REJECTIONS = {
 
 
 READ_FAILURES = {
-    "not_found": "Motion, character, or job not found or not accessible to this account. Verify the ID.",
+    "not_found": "Motion, character, or job not found. Verify the ID.",
     "authentication": "Uthana could not authenticate this read request. Check the API key for the configured Uthana environment.",
     "permission": "Uthana denied this read request. Check account and asset permissions.",
     "region": "Uthana denied this read request for the account's region.",
