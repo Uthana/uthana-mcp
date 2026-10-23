@@ -67,3 +67,7 @@ The verification script runs Ruff, Black, isort, Flake8, pytest with coverage, a
 - Preserve published signatures, error categories, unknown-outcome recovery, and side-effect order during style changes. Do not retrofit unrelated existing code. Add tests for changed behavior or meaningful gaps, not for a cosmetic rewrite of the same implementation.
 
 Use the shared SDK types for SDK calls and core results. Pydantic models own the MCP tool schema; retain normalization needed for durable receipt fingerprints rather than silently changing numeric/default representation during a style refactor.
+
+## Public project metadata
+
+Keep internal ticket identifiers, tracker links, and private planning references out of public content and metadata, including documentation, comments, examples, commit messages, branch/tag names, PRs, issues, and releases. Describe the public-facing behavior instead; track internal coordination in private systems with links to the public work.

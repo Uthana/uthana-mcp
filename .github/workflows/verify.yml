@@ -42,6 +42,7 @@ jobs:
             py="$RUNNER_TEMP/mcp-clean/Scripts/python.exe"
             smoke="$RUNNER_TEMP/mcp-clean/Scripts/uthana-mcp-smoke.exe"
           fi
-          uv pip install --python "$py" -r "$RUNNER_TEMP/mcp-requirements.txt" dist/*.whl
+          # Locked sync can use wheel URLs while index metadata predates the SDK release.
+          uv pip install --refresh-package uthana --python "$py" -r "$RUNNER_TEMP/mcp-requirements.txt" dist/*.whl
           cd "$RUNNER_TEMP"
           env -u PYTHONPATH -u UTHANA_API_KEY "$smoke"

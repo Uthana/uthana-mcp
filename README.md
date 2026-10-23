@@ -189,3 +189,5 @@ uv run --locked bash ./test.sh
 ```
 
 Licensed under [Apache-2.0](LICENSE).
+
+The hosted MCP is a technical preview and is not recommended for production use. Operator integration is described in [Hosted transport](docs/hosting.md). Local stdio installation remains supported.

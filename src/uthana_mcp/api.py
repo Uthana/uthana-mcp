@@ -21,18 +21,29 @@ class StitchAPIResult(StitchResult):
 
 
 class UthanaAPI:
-    def __init__(self, key: str, domain: str | None = None, *, transport=None):
+    def __init__(
+        self,
+        key: str | None,
+        domain: str | None = None,
+        *,
+        transport=None,
+        access_token: str | httpx.Auth | None = None,
+        scope: str | None = None,
+    ) -> None:
         self.domain = domain or UTHANA_DOMAIN
         self.mcp_transport = MCPTransport(self.domain, transport)
         transport = self.mcp_transport
         self.transport = transport
-        if not key or not key.strip():
+        if access_token is None and (not key or not key.strip()):
             raise ValueError("Configure UTHANA_API_KEY in the host environment")
-        self.scope = hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
+        if access_token is not None and not scope:
+            raise ValueError("Hosted authentication requires a stable verified identity scope")
+        self.scope = scope or hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
         # The current API has no upstream character pagination. Isolate its
         # larger, bounded catalog response from all mutation/metadata limits.
         self.catalog_client = Uthana(
             key,
+            access_token=access_token,
             domain=self.domain,
             timeout=httpx.Timeout(180, connect=15),
             telemetry=False,
@@ -43,6 +54,7 @@ class UthanaAPI:
         response_limit = 2 * 1024 * 1024
         self.client = Uthana(
             key,
+            access_token=access_token,
             domain=self.domain,
             timeout=httpx.Timeout(180, connect=15),
             telemetry=False,

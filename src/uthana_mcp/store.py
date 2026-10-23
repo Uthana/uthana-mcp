@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import sqlite3
 import time
@@ -210,6 +211,14 @@ class Store:
                 )
             )
             state = "rejected" if error.outcome == "rejected" else "unknown"
+            logging.getLogger(__name__).warning(
+                "mutation_outcome tenant=%s request_id=%s operation=%s state=%s category=%s",
+                self.directory.name,
+                request_id,
+                operation,
+                state,
+                error.category,
+            )
             with self.connect() as db:
                 db.execute(
                     "UPDATE requests SET state=?,error=?,updated=? WHERE id=?",
