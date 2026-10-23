@@ -190,4 +190,4 @@ uv run --locked bash ./test.sh
 
 Licensed under [Apache-2.0](LICENSE).
 
-Operator integration for the invitation-only hosted pilot is described in [Hosted transport](docs/hosting.md). Local stdio installation remains supported.
+Operator integration for the invitation-only hosted preview is described in [Hosted transport](docs/hosting.md). Local stdio installation remains supported.

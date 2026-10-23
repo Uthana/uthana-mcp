@@ -37,7 +37,7 @@ Keep one service instance with durable storage. Preserve that storage during
 upgrades, restore it before host replacement, and never replay pending or unknown
 mutations automatically. Use the operator's enrollment and support process.
 
-Uthana's hosted pilot is invitation-only. The public source and PyPI package do not
-grant pilot access. Hosted onboarding becomes the recommended route after pilot
+Uthana's hosted preview is invitation-only. The public source and PyPI package do not
+grant preview access. Hosted onboarding becomes the recommended route after preview
 acceptance; local stdio remains available. A ChatGPT viewer and public listing are
 separate work.
