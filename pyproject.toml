@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uthana-mcp"
-version = "0.1.0"
+version = "0.2.0"
 readme = "README.md"
 description = "Local MCP adapter for Uthana motion operations"
 license = "Apache-2.0"
@@ -19,9 +19,10 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "uthana>=0.6.0",
+    "uthana>=0.7.0",
     "mcp==1.30.0",
     "httpx==0.28.1",
+    "starlette==1.9.0",
     "Pillow==13.0.0",
     "pydantic==2.13.5",
     "python-dotenv==1.2.3",
@@ -89,3 +90,7 @@ profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
 known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "platform_support", "dotenv"]
+
+# Review dependency until delegated authentication is published.
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "ae70cc0c369fd4f74c07734c2cc246c397783fa3" }

@@ -4,6 +4,7 @@ import asyncio
 import base64
 import inspect
 import json
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from importlib.metadata import version
 from importlib.resources import files
@@ -113,16 +114,26 @@ async def with_progress(ctx, operation, label):
         raise
 
 
-def create_server(operations=None):
+def create_server(
+    operations: Operations | None = None,
+    *,
+    operations_provider: Callable[[], Operations] | None = None,
+    tool_transform: Callable[..., tuple[Callable[..., Any], dict]] | None = None,
+    http_settings: dict | None = None,
+    api_domain: str | None = None,
+    server_class: type[FastMCP] = FastMCP,
+) -> FastMCP:
     """Dependency injection supports a real stdio client test with an offline provider."""
     runtime = operations
     config = Config.from_env()
-    domain = (
+    domain = api_domain or (
         inspect.getattr_static(operations.api, "domain", config.domain) if operations is not None else config.domain
     )
 
     def ops():
         nonlocal runtime
+        if operations_provider is not None:
+            return operations_provider()
         if runtime is None:
             api = UthanaAPI(config._key, config.domain)
             runtime = Operations(api, config.data_dir, config.input_dir)
@@ -136,8 +147,9 @@ def create_server(operations=None):
             if runtime is not None:
                 await runtime.api.close()
 
-    server = FastMCP(
+    server = server_class(
         f"Uthana ({domain})",
+        **(http_settings or {}),
         lifespan=lifespan,
         instructions=(
             f"Configured API environment: {domain}. Read uthana://workflow before your first operation. "
@@ -150,6 +162,9 @@ def create_server(operations=None):
     def tool(**kwargs):
         def register(function):
             function.__doc__ = inspect.cleandoc(function.__doc__ or "")
+            if tool_transform is not None:
+                function, extra = tool_transform(function, kwargs.get("annotations"))
+                kwargs.update(extra)
             return server.tool(**kwargs)(function)
 
         return register
