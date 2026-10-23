@@ -8,6 +8,23 @@ from uthana_mcp.attribution import MCPTransport
 from uthana_mcp.validation import motion_metadata, normalize_job
 
 
+@pytest.mark.parametrize("token", ["delegated-token", " \tdelegated-token\r\n"])
+async def test_hosted_token_is_trimmed_by_sdk(token):
+    seen = []
+
+    def respond(request):
+        seen.append(request.headers["authorization"])
+        return httpx.Response(200, json={"data": {"org": {"payg_prices": []}}})
+
+    api = UthanaAPI(None, access_token=token, scope="verified-identity", transport=httpx.MockTransport(respond))
+    try:
+        await api.prices()
+        await api.catalog_client._graphql("{ org { payg_prices { id } } }")
+    finally:
+        await api.close()
+    assert seen == ["Bearer delegated-token", "Bearer delegated-token"]
+
+
 @pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_uses_configured_host(domain):
     api = UthanaAPI("fake", domain)
