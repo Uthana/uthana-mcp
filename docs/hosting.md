@@ -35,9 +35,8 @@ restart; a different user or organization receives a different state namespace.
 
 Keep one service instance with durable storage. Preserve that storage during
 upgrades, restore it before host replacement, and never replay pending or unknown
-mutations automatically. Use the operator's enrollment and support process.
+mutations automatically. Use the operator's support process.
 
-Uthana's hosted preview is invitation-only. The public source and PyPI package do not
-grant preview access. Hosted onboarding becomes the recommended route after preview
-acceptance; local stdio remains available. A ChatGPT viewer and public listing are
-separate work.
+Uthana's hosted MCP is a **technical preview** and is **not recommended for
+production use**. Local stdio remains available. A ChatGPT viewer and public
+listing are separate work.
