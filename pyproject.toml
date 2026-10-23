@@ -89,8 +89,3 @@ profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
 known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "platform_support", "dotenv"]
-
-
-# Temporary review pin until the coordinated 0.6.0 client release.
-[tool.uv.sources]
-uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "0f9bd712c8f736a3d65536ecb2884fa11bc8d0f4" }
