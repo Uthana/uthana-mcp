@@ -3,6 +3,12 @@
 [![PyPI version](https://badge.fury.io/py/uthana-mcp.svg)](https://badge.fury.io/py/uthana-mcp)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
+The MCP connector code is licensed under [Apache-2.0](LICENSE). The bundled Tar
+character is separately licensed under the [Tar Demo Asset License](examples/tar/LICENSE.md)
+for testing, evaluation, tutorials, and demos, including commercial evaluation.
+Tar is not licensed for production games, asset-pack redistribution, AI training,
+or publication of appearance changes. [Tar usage guide](examples/tar/README.md).
+
 Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
 
 The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 24 tools and the `uthana://workflow` resource.
