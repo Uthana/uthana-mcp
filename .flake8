@@ -1,0 +1,5 @@
+[flake8]
+# Match Uthana's existing lint policy without depending on a parent checkout.
+ignore = E203,E302,E402,W503,E731,F722,E704
+exclude = .git,.venv,__pycache__,build,dist
+max-line-length = 250

@@ -1,0 +1,14 @@
+.venv/
+.env
+.env.local
+run-data/
+inputs/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
