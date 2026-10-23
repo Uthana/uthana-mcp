@@ -24,6 +24,9 @@ from .operations import MAX_UPLOAD_BYTES, Operations
 MAX_ATTACHMENT_URL_LENGTH = 4096
 MAX_STORED_INPUT_BYTES = 1024 * 1024 * 1024
 MIN_FREE_DISK_BYTES = 2 * 1024 * 1024 * 1024
+ATTACHMENT_TIMEOUT_SECONDS = 30
+ATTACHMENT_TOTAL_TIMEOUT_SECONDS = 60
+ATTACHMENT_CHUNK_BYTES = 64 * 1024
 UPLOAD_EXTENSIONS = frozenset({".mp4", ".mov", ".webm", ".fbx", ".glb", ".gltf", ".png", ".jpg", ".jpeg", ".webp"})
 ATTACHMENT_HOSTS = ("oaiusercontent.com", "usercontent.openai.com")
 FILE_ID = re.compile(r"^[a-f0-9]{32}$")
@@ -43,6 +46,33 @@ class UploadedFile(TypedDict):
     file_id: str
     download_url: str
     file_name: str
+
+
+async def _download_attachment(url: httpx.URL, *, hostname: str) -> bytes:
+    data = bytearray()
+    try:
+        async with asyncio.timeout(ATTACHMENT_TOTAL_TIMEOUT_SECONDS):
+            addresses = await asyncio.to_thread(socket.getaddrinfo, hostname, 443, type=socket.SOCK_STREAM)
+            if not addresses or any(not ipaddress.ip_address(address[4][0]).is_global for address in addresses):
+                raise ValueError("Attachment host must resolve to public addresses")
+            # Connect to the checked address. Preserve the provider's Host and TLS
+            # certificate identity without a second hostname lookup (DNS rebinding).
+            pinned_url = url.copy_with(host=addresses[0][4][0])
+            async with httpx.AsyncClient(
+                trust_env=False, follow_redirects=False, timeout=ATTACHMENT_TIMEOUT_SECONDS
+            ) as client:
+                async with client.stream(
+                    "GET", pinned_url, headers={"Host": hostname}, extensions={"sni_hostname": hostname}
+                ) as response:
+                    if response.status_code != 200:
+                        raise ValueError("Attachment download failed; upload the file again")
+                    async for chunk in response.aiter_bytes(chunk_size=ATTACHMENT_CHUNK_BYTES):
+                        if len(data) + len(chunk) > MAX_UPLOAD_BYTES:
+                            raise ValueError("Attachment exceeds the upload size limit")
+                        data.extend(chunk)
+    except (httpx.HTTPError, socket.gaierror, TimeoutError):
+        raise ValueError("Attachment download could not be completed; upload the file again") from None
+    return bytes(data)
 
 
 class Files:
@@ -123,18 +153,24 @@ class Files:
         return paths[0]
 
     async def resolve(self, descriptor: InputFile) -> str:
-        parsed = urlsplit(descriptor.download_url)
         if descriptor.download_url == f"{self.origin}/files/inputs/{descriptor.file_id}":
             return str(self.input_path(descriptor.file_id))
+        try:
+            parsed = urlsplit(descriptor.download_url)
+            attachment_url = httpx.URL(descriptor.download_url)
+            port = parsed.port
+        except (ValueError, httpx.InvalidURL):
+            raise ValueError("Use an owned upload handle or a supported HTTPS attachment") from None
         hostname = parsed.hostname or ""
         is_provider_host = any(hostname == host or hostname.endswith("." + host) for host in ATTACHMENT_HOSTS)
-        if (
-            parsed.scheme != "https"
-            or parsed.port not in (None, 443)
-            or parsed.username
-            or parsed.password
-            or not is_provider_host
-        ):
+        has_unsafe_characters = "\\" in descriptor.download_url or any(
+            character.isspace() or not character.isprintable() for character in descriptor.download_url
+        )
+        has_safe_authority = (
+            parsed.scheme == "https" and port in (None, 443) and parsed.username is None and parsed.password is None
+        )
+        has_valid_provider = is_provider_host and attachment_url.host == hostname
+        if not has_safe_authority or not has_valid_provider or has_unsafe_characters:
             raise ValueError("Use an owned upload handle or a supported HTTPS attachment")
         # Trusted attachment hosts only; no arbitrary URLs or redirect chains.
         # Validate all resolved addresses as an additional guard against private-network fetching.
@@ -142,21 +178,7 @@ class Files:
         cache = self.directory / (cache_key + ".attachment")
         if cache.is_file() and not cache.is_symlink():
             return str(self.input_path(cache.read_text()))
-        addresses = await asyncio.to_thread(socket.getaddrinfo, hostname, 443, type=socket.SOCK_STREAM)
-        if not addresses or any(not ipaddress.ip_address(address[4][0]).is_global for address in addresses):
-            raise ValueError("Attachment host must resolve to public addresses")
-        data = bytearray()
-        try:
-            async with httpx.AsyncClient(trust_env=False, follow_redirects=False, timeout=30) as client:
-                async with client.stream("GET", descriptor.download_url) as response:
-                    if response.status_code != 200:
-                        raise ValueError("Attachment download failed; upload the file again")
-                    async for chunk in response.aiter_bytes(chunk_size=65536):
-                        data.extend(chunk)
-                        if len(data) > MAX_UPLOAD_BYTES:
-                            raise ValueError("Attachment exceeds the upload size limit")
-        except httpx.HTTPError:
-            raise ValueError("Attachment download could not be completed; upload the file again") from None
+        data = await _download_attachment(attachment_url, hostname=hostname)
         filename = descriptor.file_name or Path(parsed.path).name
         if Path(filename).suffix.lower() not in UPLOAD_EXTENSIONS:
             suffix = mimetypes.guess_extension(descriptor.mime_type) or ""

@@ -16,12 +16,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
+import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent, Tool, ToolAnnotations
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
@@ -53,6 +55,29 @@ class Runtime:
     identity: Identity
     operations: Operations
     files: "Files"
+
+
+def _https_origin(value: str) -> str:
+    try:
+        parsed = urlsplit(value)
+        transport_url = httpx.URL(value)
+        has_unsafe_characters = "\\" in value or any(
+            character.isspace() or not character.isprintable() for character in value
+        )
+        has_extra_components = parsed.path not in ("", "/") or "?" in value or "#" in value
+        has_credentials = parsed.username is not None or parsed.password is not None
+        has_valid_authority = (
+            parsed.scheme == "https" and bool(parsed.hostname) and bool(transport_url.host) and parsed.port != 0
+        )
+        if not has_valid_authority or has_unsafe_characters or has_extra_components or has_credentials:
+            raise ValueError
+    except (ValueError, httpx.InvalidURL):
+        raise ValueError("Hosted configuration requires an HTTPS origin without credentials or a path") from None
+    return value.rstrip("/")
+
+
+def _requires_write_permission(annotations: ToolAnnotations | None) -> bool:
+    return annotations is None or annotations.readOnlyHint is not True
 
 
 def transform_tool(
@@ -87,7 +112,7 @@ class HostedMCP(FastMCP):
         declared = []
         for tool in tools:
             scopes = ["mcp:read"]
-            if tool.annotations and not tool.annotations.readOnlyHint:
+            if _requires_write_permission(tool.annotations):
                 scopes.append("mcp:write")
             schemes = [{"type": "oauth2", "scopes": scopes}]
             declared.append(
@@ -100,12 +125,7 @@ class HostedMCP(FastMCP):
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         runtime = _CURRENT.get()
         tool = self._tool_manager.get_tool(name)
-        if (
-            tool
-            and tool.annotations
-            and not tool.annotations.readOnlyHint
-            and "mcp:write" not in runtime.identity.scopes
-        ):
+        if tool and _requires_write_permission(tool.annotations) and "mcp:write" not in runtime.identity.scopes:
             return CallToolResult(
                 isError=True,
                 content=[TextContent(type="text", text="Reconnect Uthana with write permission for this operation")],
@@ -141,21 +161,17 @@ def create_app(
     login_url: str | None = None,
     readiness: Callable[[], Awaitable[bool]] | None = None,
 ) -> Starlette:
-    """Compose an authenticated HTTP service; never read a process-wide customer API key."""
+    """Compose an HTTP service around operator-provided authorization.
+
+    The authenticator must verify token audience, expiry, revocation, scopes and
+    stable account identity on every request. Cookie authentication also requires
+    CSRF protection for writes. The API factory must supply separate upstream
+    credentials bound to that verified identity, not forward the incoming token.
+    """
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, mode=0o700, exist_ok=True)
-    origin = origin.rstrip("/")
+    origin = _https_origin(origin)
     parsed = urlsplit(origin)
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or parsed.path
-        or parsed.query
-        or parsed.fragment
-        or parsed.username
-        or parsed.password
-    ):
-        raise ValueError("Hosted origin must be an HTTPS origin without a path")
 
     def current() -> Operations:
         return _CURRENT.get().operations
@@ -272,7 +288,17 @@ def create_app(
 
             async def correlated_send(message: Message) -> None:
                 if message["type"] == "http.response.start":
-                    message["headers"] = [*message.get("headers", []), (b"x-request-id", request_id.encode())]
+                    headers = [
+                        (key, value)
+                        for key, value in message.get("headers", [])
+                        if key.lower() not in {b"cache-control", b"referrer-policy"}
+                    ]
+                    message["headers"] = [
+                        *headers,
+                        (b"x-request-id", request_id.encode()),
+                        (b"cache-control", b"no-store"),
+                        (b"referrer-policy", b"no-referrer"),
+                    ]
                     logging.getLogger(__name__).info(
                         "hosted_mcp request_id=%s status=%s", request_id, message["status"]
                     )
@@ -304,7 +330,7 @@ def create_app(
                             )(scope, receive, send)
                     try:
                         payload = json.loads(body)
-                    except ValueError:
+                    except (ValueError, RecursionError):
                         payload = None
                     if isinstance(payload, dict) and payload.get("method") in {
                         "initialize",
@@ -390,4 +416,5 @@ def create_app(
         ],
         expose_headers=["WWW-Authenticate", "X-Request-ID", "Mcp-Session-Id"],
     )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[httpx.URL(origin).host], www_redirect=False)
     return app
