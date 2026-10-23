@@ -18,6 +18,7 @@ import httpx
 from mcp.types import TextContent
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
+from uthana import detect_file_format
 
 from .operations import MAX_UPLOAD_BYTES, Operations
 
@@ -183,23 +184,9 @@ class Files:
         if Path(filename).suffix.lower() not in UPLOAD_EXTENSIONS:
             suffix = mimetypes.guess_extension(descriptor.mime_type) or ""
             if suffix not in UPLOAD_EXTENSIONS:
-                if data.startswith(b"glTF"):
-                    suffix = ".glb"
-                elif data.startswith(b"\x89PNG"):
-                    suffix = ".png"
-                elif data.startswith(b"\xff\xd8"):
-                    suffix = ".jpg"
-                elif data.startswith(b"Kaydara FBX Binary") or data.lstrip().startswith(b"; FBX"):
-                    suffix = ".fbx"
-                elif data.startswith(b"\x1aE\xdf\xa3"):
-                    suffix = ".webm"
-                elif data.startswith(b"RIFF") and data[8:12] == b"WEBP":
-                    suffix = ".webp"
-                elif any(atom in data[:64] for atom in (b"ftyp", b"moov", b"mdat")):
-                    suffix = ".mp4"
-                elif data.lstrip().startswith(b"{"):
-                    suffix = ".gltf"
-            filename = "attachment" + suffix
+                detected = detect_file_format(data)
+                suffix = f".{detected}" if detected else ""
+            filename = f"attachment{suffix}"
         uploaded = self.save(bytes(data), filename)
         try:
             with os.fdopen(os.open(cache, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
