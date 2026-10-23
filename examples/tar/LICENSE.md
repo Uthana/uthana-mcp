@@ -61,7 +61,12 @@ You may not:
   derived from them to train or fine-tune machine-learning models, or supply
   them in datasets for those purposes. Using an already-trained model to process
   or animate Tar for a permitted purpose is allowed, provided that use does not
-  authorize training or fine-tuning on those materials.
+  authorize training or fine-tuning on those materials by third parties other
+  than Uthana. You may upload and process Tar through Uthana services under the
+  applicable service terms. Uthana retains the right to use its own Tar Assets
+  for training and fine-tuning; this restriction does not bind Uthana. This
+  reservation does not grant Uthana additional rights in your independently
+  created content.
 - Claim ownership of Tar or imply Uthana endorses your work. No trademark license
   is granted beyond identifying Tar and Uthana and displaying marks already
   present in the Assets as part of a permitted use.

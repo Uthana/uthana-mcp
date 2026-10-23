@@ -36,6 +36,8 @@ this summary explains the intended workflow.
 - Shipping Tar in a game or product beyond a tutorial or demo.
 - Selling Tar or distributing it standalone or in asset packs.
 - Training or fine-tuning models on Tar or representations derived from it.
-  Use processing services configured not to train on these materials.
+  Uthana retains the right to train on its own Tar assets, and processing Tar
+  through Uthana services is permitted under the applicable service terms.
+  Other processing services must not be authorized to train on these materials.
 
 Use your own appropriately licensed character when preparing a production game.

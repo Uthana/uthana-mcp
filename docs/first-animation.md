@@ -5,9 +5,11 @@ This walkthrough starts with [Tar's rigged GLB](../examples/tar/cXi2eAP19XwQ.glb
 Tar is provided under the [Tar Demo Asset License](../examples/tar/LICENSE.md)
 for testing, evaluation, tutorials, and demos. Commercial evaluation is allowed;
 shipping Tar in a production game is not. Public demos must preserve Tar's
-appearance. Include the license when sharing editable Tar files, and configure
-processing services not to train on Tar or derived materials. Use your own
-appropriately licensed character for a production game.
+appearance. Include the license when sharing editable Tar files. Processing Tar
+through Uthana is permitted under its service terms; Uthana retains the right to
+train on its own Tar assets. Do not authorize other processing services to train
+on Tar or derived materials. Use your own appropriately licensed character for a
+production game.
 
 ## Prepare
 
