@@ -78,9 +78,8 @@ created motion data or other independent work. When Tar is included in an export
 these terms continue to govern the Tar portion. Access to Uthana services and
 rights to their outputs are also subject to the applicable service terms.
 
-This license does not revoke rights validly granted under an earlier license or
-limit uses allowed by applicable law independently of this license. Rights not
-expressly granted here are reserved. Uses outside these permissions require
+This license does not limit uses allowed by applicable law independently of
+this license. Rights not expressly granted here are reserved. Uses outside these permissions require
 separate written permission from Uthana.
 
 The Assets are provided "AS IS", without warranties of any kind, express or
@@ -88,4 +87,4 @@ implied, including merchantability, fitness for a particular purpose, and
 noninfringement. To the extent permitted by law, Uthana is not liable for damages
 arising from use of the Assets. If you breach these terms, your permissions under
 this license terminate; this does not terminate any independent rights you may
-have under applicable law or an earlier license.
+have under applicable law.
