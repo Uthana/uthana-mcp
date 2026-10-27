@@ -15,29 +15,21 @@ Copyright Uthana, Inc.
 
 ## Usage permissions
 
-These character files use the [Uthana Tar Demo Asset License 1.0](LICENSE.md),
-separately from the connector's Apache-2.0 license. The license is authoritative;
-this summary explains the intended workflow.
+These character files use the [Uthana Tar Demo Asset License 1.0](LICENSE.md), separately from the connector's Apache-2.0 license. The license is authoritative; this summary explains the intended workflow.
 
 ### Things to try
 
 - Test and evaluate animation pipelines, including within a commercial team.
 - Animate and retarget Tar; share demos, tutorials, screenshots, and videos.
 - Make private appearance changes for testing.
-- Share technical changes that preserve Tar's appearance, such as rig changes,
-  mesh optimization, and format conversion.
-- Include editable Tar files in tutorial and demo projects with the license and
-  copyright notice. Public credit is optional.
+- Share technical changes that preserve Tar's appearance, such as rig changes, mesh optimization, and format conversion.
+- Include editable Tar files in tutorial and demo projects with the license and copyright notice. Public credit is optional.
 
 ### Things to avoid
 
-- Publishing appearance changes, including changed clothing or textures, whether
-  as editable assets or rendered images and videos.
+- Publishing appearance changes, including changed clothing or textures, whether as editable assets or rendered images and videos.
 - Shipping Tar in a game or product beyond a tutorial or demo.
 - Selling Tar or distributing it standalone or in asset packs.
-- Training or fine-tuning models on Tar or representations derived from it.
-  Uthana retains the right to train on its own Tar assets, and processing Tar
-  through Uthana services is permitted under the applicable service terms.
-  Other processing services must not be authorized to train on these materials.
+- Training or fine-tuning models on Tar or representations derived from it. Uthana retains the right to train on its own Tar assets, and processing Tar through Uthana services is permitted under the applicable service terms. Other processing services must not be authorized to train on these materials.
 
 Use your own appropriately licensed character when preparing a production game.

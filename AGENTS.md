@@ -38,7 +38,7 @@ uv sync --locked
 uv run --locked bash ./test.sh
 ```
 
-The verification script runs Ruff, Black, isort, Flake8, pytest with coverage, and package builds. Python formatting uses a 120-character line length. Coverage must stay at or above the configured 85% gate, including subprocess coverage. There is no separate mypy gate configured; do not claim type checking ran when it did not.
+The verification script runs Ruff, Black, isort, Flake8, pytest with coverage, and package builds. Python formatting uses a 120-character line length. Do not hard-wrap Markdown: write each paragraph or list item as one line. Coverage must stay at or above the configured 85% gate, including subprocess coverage. There is no separate mypy gate configured; do not claim type checking ran when it did not.
 
 - Add focused regression tests for fixed bugs and meaningful behavior changes. Cover invalid inputs, error paths, replay/recovery, and compatibility where relevant. Assert observable behavior rather than reproducing the implementation in the test.
 - Keep the normal suite offline and deterministic. Mock external services; live checks must be explicitly configured and must not silently use production credentials or spend credits.

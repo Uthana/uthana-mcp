@@ -2,14 +2,7 @@
 
 This walkthrough starts with [Tar's rigged GLB](../examples/tar/cXi2eAP19XwQ.glb), a Uthana-owned bipedal character supplied for the example. The [FBX version](../examples/tar/cXi2eAP19XwQ.fbx) is also available. Start with the GLB so the workflow covers uploading a character, generating motion, and exporting it. If your account already has Uthana's Tar character ID `cXi2eAP19XwQ`, you can skip upload and use that ID; check it explicitly because other characters may also be named Tar.
 
-Tar is provided under the [Tar Demo Asset License](../examples/tar/LICENSE.md)
-for testing, evaluation, tutorials, and demos. Commercial evaluation is allowed;
-shipping Tar in a production game is not. Public demos must preserve Tar's
-appearance. Include the license when sharing editable Tar files. Processing Tar
-through Uthana is permitted under its service terms; Uthana retains the right to
-train on its own Tar assets. Do not authorize other processing services to train
-on Tar or derived materials. Use your own appropriately licensed character for a
-production game.
+Tar is provided under the [Tar Demo Asset License](../examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos. Commercial evaluation is allowed; shipping Tar in a production game is not. Public demos must preserve Tar's appearance. Include the license when sharing editable Tar files. Processing Tar through Uthana is permitted under its service terms; Uthana retains the right to train on its own Tar assets. Do not authorize other processing services to train on Tar or derived materials. Use your own appropriately licensed character for a production game.
 
 ## Prepare
 
