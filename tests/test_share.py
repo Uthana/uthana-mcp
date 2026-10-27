@@ -145,7 +145,9 @@ async def test_api_share_link_must_point_at_the_configured_environment():
     assert result["preview_url"] == "https://staging.uthana.com/app/preview/c1/m1"
 
 
-async def test_api_share_rejection_is_reported_as_a_graphql_error():
+async def test_api_share_access_denial_without_a_typed_error_is_an_unknown_outcome():
+    # The share resolver raises a plain exception for an inaccessible asset, so the error carries no
+    # recognized type; the wrapper must not invent a rejection or a success from the message text.
     def respond(request):
         return httpx.Response(
             200, json={"errors": [{"message": "User does not have access to motion m1"}], "data": None}
@@ -157,4 +159,23 @@ async def test_api_share_rejection_is_reported_as_a_graphql_error():
             await api.share("m1", "c1", 0.0, 1.0)
     finally:
         await api.close()
-    assert error.value.outcome == "rejected"
+    assert error.value.outcome == "unknown" and error.value.category == "graphql_error"
+
+
+async def test_api_share_typed_access_denial_is_rejected():
+    def respond(request):
+        return httpx.Response(
+            200,
+            json={
+                "errors": [{"message": "Access denied", "type": "UserAccessRequired", "path": ["create_share_link"]}],
+                "data": {"create_share_link": None},
+            },
+        )
+
+    api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(APIError) as error:
+            await api.share("m1", "c1", 0.0, 1.0)
+    finally:
+        await api.close()
+    assert error.value.outcome == "rejected" and error.value.category == "permission"
