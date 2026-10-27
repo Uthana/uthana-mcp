@@ -5,7 +5,7 @@
 
 Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
 
-The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 24 tools and the `uthana://workflow` resource.
+The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 25 tools and the `uthana://workflow` resource.
 
 📖 [API documentation](https://uthana.com/docs/api) · [First animation](docs/first-animation.md)
 
@@ -94,6 +94,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
 | `check_download_allowed` | Current export eligibility |
+| `share_motion` | Public viewer link for people outside the organization |
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
 

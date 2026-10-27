@@ -96,6 +96,36 @@ class Operations:
         number(quantity, 0, 3600)
         return estimate_cost(await self.api.prices(), model, quantity)
 
+    async def share(self, motion_id, character_id=TAR, start_seconds=None, end_seconds=None):
+        """Create a public viewer link; an optional window in seconds becomes duration fractions."""
+        identifier(motion_id)
+        identifier(character_id)
+        has_window = start_seconds is not None or end_seconds is not None
+        start, end = 0.0, 1.0
+        window_seconds = None
+        if has_window:
+            start_seconds = 0 if start_seconds is None else number(start_seconds, 0, 1e9)
+            source = await self.api.motion(motion_id)
+            duration = source["duration_seconds"]
+            end_seconds = duration if end_seconds is None else number(end_seconds, 0, 1e9)
+            if not 0 <= start_seconds < end_seconds <= duration:
+                raise ValueError(
+                    f"start_seconds must be >= 0 and less than end_seconds; end_seconds must be at most {duration:.3f} seconds (received {start_seconds}, {end_seconds})"
+                )
+            start, end = start_seconds / duration, end_seconds / duration
+            window_seconds = [start_seconds, end_seconds]
+        result = await self.api.share(motion_id, character_id, start, end)
+        return {
+            **result,
+            "window_seconds": window_seconds,
+            "access": "public",
+            "note": (
+                "Anyone with preview_url can open the 3D viewer without an account, and the link stays public. "
+                "The owner already sees this motion while logged in; share the link only when the user asked to show "
+                "the result to someone else. Repeating this call is harmless."
+            ),
+        }
+
     async def trim(self, request_id, motion_id, start_seconds, end_seconds, name):
         identifier(motion_id)
         text(name)

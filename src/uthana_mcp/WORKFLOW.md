@@ -59,6 +59,10 @@ FBX/GLB can include mesh and skeleton animation; BVH requires `include_mesh=fals
 
 `check_download_allowed` reports current eligibility without reserving allowance. Previous downloads, pay-as-you-go (PAYG), or role exemptions may permit an export even with zero monthly allowance. `get_usage` reports balances and allowances in separate units; billing settings are information, not authorization to change them.
 
+## Share a result
+
+`share_motion` publishes one motion on one character as a viewer page at `https://<environment>/app/preview/<character_id>/<motion_id>`. Anyone with that URL can open the 3D viewer without an account, and the page stays public; there is no tool to unpublish it. The owner already sees the motion in the app while logged in, so the link exists for people outside the organization: a teammate without access, a client, a reviewer, or Uthana support when troubleshooting. Offer it after a review when the user wants to show the result to someone else; do not publish on your own initiative. An optional window in seconds narrows what the page plays and leaves the motion unchanged. The call is free, needs no `request_id`, and can be repeated safely.
+
 ## Upload and create characters
 
 For local stdio, selected inputs must be readable files inside `UTHANA_MCP_INPUT_DIR` on the server machine and are passed as `file_path`. Hosted tools instead take `input_file` descriptors from the authenticated upload page/API or a compatible attachment integration. Use the returned owned handle; never supply a server filesystem path. Hosted previews and exports return authenticated download URLs for the linked account. V2M accepts MP4/MOV/WebM up to 128 MiB and returns a job. `upload_character` accepts FBX/GLB up to 30 MiB; smaller files also rig faster. Use `auto_rig=false` for already-rigged characters. Upload two characters as separate intentional requests and preview/export the chosen motions on each character.
