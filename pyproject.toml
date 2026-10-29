@@ -7,8 +7,8 @@ name = "uthana-mcp"
 version = "0.2.0"
 readme = "README.md"
 description = "Local MCP adapter for Uthana motion operations"
-license = "Apache-2.0"
-license-files = ["LICENSE"]
+license = "Apache-2.0 AND LicenseRef-Uthana-Tar-Demo-1.0"
+license-files = ["LICENSE", "examples/tar/LICENSE.md"]
 authors = [{name = "Uthana, Inc."}]
 keywords = ["mcp", "uthana", "animation", "motion", "character"]
 classifiers = [

@@ -2,6 +2,8 @@
 
 This walkthrough starts with [Tar's rigged GLB](../examples/tar/cXi2eAP19XwQ.glb), a Uthana-owned bipedal character supplied for the example. The [FBX version](../examples/tar/cXi2eAP19XwQ.fbx) is also available. Start with the GLB so the workflow covers uploading a character, generating motion, and exporting it. If your account already has Uthana's Tar character ID `cXi2eAP19XwQ`, you can skip upload and use that ID; check it explicitly because other characters may also be named Tar.
 
+Tar is provided under the [Tar Demo Asset License](../examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos. Commercial evaluation is allowed; shipping Tar in a production game is not. Public demos must preserve Tar's appearance. Include the license when sharing editable Tar files. Processing Tar through Uthana is permitted under its service terms; Uthana retains the right to train on its own Tar assets. Do not authorize other processing services to train on Tar or derived materials. Use your own appropriately licensed character for a production game.
+
 ## Prepare
 
 1. [Install and connect the MCP](installation.md), then run `uthana-mcp-smoke`. A passing protocol check does not verify your API key; `--api-read` does one read-only account check after you configure a key.
@@ -12,7 +14,7 @@ To use **your own character**, replace the downloaded Tar file with a bipedal FB
 
 ## First prompt
 
-> Read Uthana's workflow. Upload the selected `cXi2eAP19XwQ.glb` as my already-rigged Tar character with `auto_rig=false`; use the returned character ID. Check export eligibility and estimate the cost of a four-second V3 motion. Create a walk forward that ends in a wave on Tar. Keep each request ID for recovery, wait for the job, show preview frames, and export the chosen motion as FBX with mesh at 30 FPS for my game. Report the character ID, motion ID, exported file path, and anything that needs visual review.
+> Read Uthana's workflow. Upload the selected `cXi2eAP19XwQ.glb` as my already-rigged Tar character with `auto_rig=false`; use the returned character ID. Check export eligibility and estimate the cost of a four-second V3 motion. Create a walk forward that ends in a wave on Tar. Keep each request ID for recovery, wait for the job, show preview frames, and export the chosen motion as FBX with mesh at 30 FPS for my game-engine demo. Report the character ID, motion ID, exported file path, and anything that needs visual review.
 
 The agent should choose a durable request ID for each mutation. `generate_motion` returns a job ID; `get_job` later returns a motion ID when complete. `get_preview` and `get_preview_frame` help review timing and action. `download_motion` saves the retargeted file on the machine running the MCP. A completed export receipt should include a verified local artifact path. Keep the state directory across restarts and inspect `get_request_status` before retrying an uncertain operation.
 
