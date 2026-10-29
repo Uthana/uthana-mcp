@@ -66,6 +66,12 @@ UTHANA_API_KEY = "your-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
+Claude Code (one command; `-s user` stores it for every project, or put the same `mcpServers` object as above in a project `.mcp.json`):
+
+```bash
+claude mcp add uthana -s user -e UTHANA_API_KEY=your-api-key -e UTHANA_MCP_INPUT_DIR=/absolute/path/to/selected-inputs -- /absolute/path/to/uthana-mcp
+```
+
 [Install and connect](docs/installation.md) has Windows path examples and host timeout settings.
 
 Restart your host, then ask it to read Uthana’s workflow, check account access, and estimate a motion before generating it. Production generation spends your account’s credits. Continue with the [first-animation walkthrough](docs/first-animation.md) for upload, generation, and export.
@@ -191,3 +197,5 @@ uv run --locked bash ./test.sh
 ```
 
 Licensed under [Apache-2.0](LICENSE).
+
+The hosted MCP is a technical preview and is not recommended for production use. Operator integration is described in [Hosted transport](docs/hosting.md). Local stdio installation remains supported.

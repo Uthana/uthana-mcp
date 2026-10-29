@@ -95,6 +95,12 @@ UTHANA_API_KEY = "your-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
+Claude Code (one command; `-s user` stores it for every project, or put the same `mcpServers` object as above in a project `.mcp.json`):
+
+```bash
+claude mcp add uthana -s user -e UTHANA_API_KEY=your-api-key -e UTHANA_MCP_INPUT_DIR=/absolute/path/to/selected-inputs -- /absolute/path/to/uthana-mcp
+```
+
 Use the absolute server command printed by the installer. Replace `your-api-key` with your API key and the input path with your own absolute path, then restart the host. The input directory is optional; omit `UTHANA_MCP_INPUT_DIR` if you do not need uploads.
 
 For a checkout installation, use the absolute path to `.venv/bin/uthana-mcp` (Windows: `.venv\Scripts\uthana-mcp.exe`) as the command with no arguments.
@@ -129,7 +135,7 @@ To verify the protocol independently, run `uvx --from uthana-mcp uthana-mcp-smok
 
 Keep the private data directory across restarts: it contains request receipts and exports. Different credentials or environments use different scopes. Changing a key or deleting state does not establish that earlier work never happened. Follow the workflow's request recovery rules before resubmitting.
 
-For uploads, add `UTHANA_MCP_INPUT_DIR` pointing to a dedicated local input folder. Uploads are disabled without it. Export and preview paths are on the machine running the connector. If a character upload is interrupted, inspect the account catalog before submitting it again. Stitching with sampled poses requires accurate host-sampled poses; this connector does not supply a sampler.
+For uploads, add `UTHANA_MCP_INPUT_DIR` pointing to a dedicated local input folder. Uploads are disabled without it. Export and preview paths are on the machine running the connector. If a character upload is interrupted, inspect the account catalog before submitting it again.
 
 Production model usage consumes your Uthana account credits at the published prices. The connector adds no separate MCP fee; your coding host may bill separately. Tell the agent your spending limit. Use your own account; do not share another customer's key or state directory.
 
