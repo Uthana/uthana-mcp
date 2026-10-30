@@ -14,9 +14,8 @@ def options():
     return {
         "character_id": TAR,
         "steps": [
-            {"type": "motion", "motion_id": "motion1"},
-            {"type": "transition"},
-            {"type": "motion", "motion_id": "motion2"},
+            {"motion_id": "motion1"},
+            {"motion_id": "motion2"},
         ],
     }
 

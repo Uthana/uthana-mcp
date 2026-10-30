@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 MAX_OFFSET_METERS = 100
 MAX_FRAME_INDEX = 2**53 - 1
@@ -72,16 +72,29 @@ class RelativePlacement(BaseModel):
         return value
 
 
+class StitchTransition(BaseModel):
+    """Transport shape; duration bounds apply only to the outgoing transition."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    duration_seconds: Number = Field(
+        default=DEFAULT_TRANSITION_SECONDS,
+        description="Outgoing duration in seconds, 0.1-3, rounded to 20 Hz frames. Ignored on the final motion.",
+    )
+
+
 class MotionStep(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    type: Literal["motion"] = Field(description="Motion source step.")
     motion_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$", description="Existing source motion ID.")]
     range: MotionRange = Field(
-        default_factory=MotionRange, description="Optional source interval in native frames or seconds, never both."
+        default_factory=MotionRange, description="Optional native frame or second interval; never mix units."
     )
     placement: RelativePlacement | None = Field(
         default=None,
-        description="Arriving-motion placement; omit for automatic continuation, supply an object for explicit offsets.",
+        description="Arriving motion only. Omit for automatic continuation; an object supplies explicit relative offsets.",
+    )
+    transition: StitchTransition | None = Field(
+        default=None,
+        description="Outgoing transition to the next motion. Omit or use {} for one second. Null is invalid on the first motion. Ignored on the final motion after shape checks.",
     )
 
     @model_validator(mode="before")
@@ -92,36 +105,24 @@ class MotionStep(BaseModel):
         return value
 
 
-class TransitionStep(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    type: Literal["transition"] = Field(description="Generated transition between adjacent motions.")
-    duration_seconds: Annotated[Number, Field(ge=MIN_TRANSITION_SECONDS, le=MAX_TRANSITION_SECONDS)] = Field(
-        default=DEFAULT_TRANSITION_SECONDS, description="Transition seconds, 0.1-3; quantized to model frames."
-    )
-
-
-Step = Annotated[MotionStep | TransitionStep, Field(discriminator="type")]
-
-
 class StitchInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    character_id: Annotated[
-        str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$", description="Character used for all motion steps.")
-    ]
-    steps: Annotated[
-        list[Step],
-        Field(min_length=3, max_length=3, description="Exactly motion, transition, motion in playback order."),
-    ]
+    character_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
+    steps: Annotated[list[MotionStep], Field(min_length=2, max_length=2)]
 
-    @model_validator(mode="after")
-    def sequence(self) -> Self:
-        first, transition, last = self.steps
-        if (
-            not isinstance(first, MotionStep)
-            or not isinstance(transition, TransitionStep)
-            or not isinstance(last, MotionStep)
-        ):
-            raise ValueError("Supported sequence is motion, transition, motion")
+    @field_validator("steps")
+    @classmethod
+    def normalize(cls, steps: list[MotionStep]) -> list[MotionStep]:
+        first, last = steps
         if first.placement is not None:
             raise ValueError("Placement is supported only on the arriving motion")
-        return self
+        if first.transition is None and "transition" in first.model_fields_set:
+            raise ValueError("Omit transition to use the default duration")
+        transition = first.transition or StitchTransition()
+        if not MIN_TRANSITION_SECONDS <= transition.duration_seconds <= MAX_TRANSITION_SECONDS:
+            raise ValueError("Transition duration must be 0.1-3 seconds")
+        # Copy nested models: normalization must never mutate caller-owned objects.
+        return [
+            first.model_copy(update={"transition": transition}),
+            last.model_copy(update={"transition": None}),
+        ]

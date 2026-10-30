@@ -97,7 +97,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `preview_character_from_prompt` | Preview images for a character description |
 | `create_character_from_prompt` | Rig the preview you chose |
 | `create_looped_motion` | Closed or open loop of an existing motion |
-| `stitch` | Join typed motion/transition/motion steps with server preparation |
+| `stitch` | Join two motion objects with server preparation |
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
@@ -121,15 +121,9 @@ Join two motions with automatic positioning. The server handles sampling and ali
   "character_id": "CHARACTER_ID",
   "steps": [
     {
-      "type": "motion",
       "motion_id": "FIRST_MOTION_ID"
     },
     {
-      "type": "transition",
-      "duration_seconds": 1.0
-    },
-    {
-      "type": "motion",
       "motion_id": "SECOND_MOTION_ID"
     }
   ]
@@ -146,19 +140,16 @@ Select source intervals and place the second motion one meter forward and half a
   "character_id": "CHARACTER_ID",
   "steps": [
     {
-      "type": "motion",
       "motion_id": "FIRST_MOTION_ID",
       "range": {
         "start_frame": 12,
         "end_frame": 60
+      },
+      "transition": {
+        "duration_seconds": 1.5
       }
     },
     {
-      "type": "transition",
-      "duration_seconds": 1.5
-    },
-    {
-      "type": "motion",
       "motion_id": "SECOND_MOTION_ID",
       "range": {
         "start_seconds": 0.5,
