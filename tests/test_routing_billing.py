@@ -177,3 +177,11 @@ def test_invalid_rates_cannot_be_reported_as_a_price(price):
             "text-to-motion-2.0",
             4,
         )
+
+
+def test_vtm3_estimate_uses_input_seconds_and_configured_rate():
+    rates = [{"model_key": "video-to-motion-3.0", "billing_unit": "second", "unit_price": "0.06"}]
+    estimate = estimate_cost(rates, "video-to-motion-3.0", 7.25)
+    assert estimate["estimated_cost_usd"] == "0.4350"
+    assert "input video seconds" in estimate["note"]
+    assert estimate["actual_cost_usd"] is None

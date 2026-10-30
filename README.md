@@ -178,6 +178,23 @@ Choose ranges that fit your source motions and leave the required transition con
 
 Each example makes a separate mutation. Use a distinct request ID for different arguments; recover an uncertain request before retrying. See [stitching](docs/stitching.md) for the full contract.
 
+
+## Video-to-motion model selection
+
+`generate_motion_from_video` accepts `video-to-motion-3.0` explicitly for foot IK and high-quality hands. The default remains `video-to-motion-2.0`, and `video-to-motion-2.1` remains available. On pay-as-you-go, 3.0 costs $0.06 per input video second; 2.0 and 2.1 remain $0.05 per input second. Use `estimate_model_cost` with the input video duration to fetch the configured environment's current rate.
+
+```json
+{
+  "request_id": "video-hands-1",
+  "file_path": "/inputs/dance.mp4",
+  "name": "Dance with hands",
+  "model": "video-to-motion-3.0"
+}
+```
+
+Poll the returned job before downloading. Reuse a request ID only for the same arguments; choosing a different model requires a new request ID.
+
+
 ## Documentation
 
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)

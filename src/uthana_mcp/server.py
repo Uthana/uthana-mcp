@@ -275,6 +275,7 @@ def create_server(
                 "text-to-motion-3.0",
                 "video-to-motion-2.0",
                 "video-to-motion-2.1",
+                "video-to-motion-3.0",
                 "locomotion-1.0",
                 "stitch-loop-2.0",
                 "autorig",
@@ -285,7 +286,7 @@ def create_server(
         quantity: Annotated[
             Annotated[float, Field(gt=0, le=3600, strict=True)],
             Field(
-                description="Generated output seconds (up to 3600), or a positive whole count of rigs/characters for those capabilities."
+                description="Input video seconds for video-to-motion, generated output seconds for other motion models (up to 3600), or a positive whole count of rigs/characters."
             ),
         ],
     ) -> dict[str, Any]:
@@ -379,7 +380,7 @@ def create_server(
         ],
         name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
         model: Annotated[
-            Literal["video-to-motion-2.0", "video-to-motion-2.1"],
+            Literal["video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"],
             Field(description="Model identifier from the listed enum."),
         ] = "video-to-motion-2.0",
     ) -> dict[str, Any]:
