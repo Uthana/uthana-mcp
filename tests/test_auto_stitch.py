@@ -104,11 +104,23 @@ async def test_actual_stdio_simple_tool_schema_and_recovery(tmp_path):
             tools = {tool.name: tool for tool in (await client.list_tools()).tools}
             assert "stitch_motions" not in tools and "create_stitched_motion" not in tools
             assert set(tools["stitch"].inputSchema["required"]) == {"request_id", "character_id", "steps"}
+            schema = tools["stitch"].inputSchema
+            assert schema["properties"]["steps"]["minItems"] == 2
+            assert schema["properties"]["steps"]["maxItems"] == 2
+            assert "type" not in schema["$defs"]["MotionStep"]["properties"]
+            assert "transition" in schema["$defs"]["MotionStep"]["properties"]
             args = {"request_id": "stdio-join", **options()}
             result = await client.call_tool("stitch", args)
             assert not result.isError
             replay = await client.call_tool("stitch", args)
             assert replay.structuredContent["replayed"]
+            ignored = copy.deepcopy(args)
+            ignored["steps"][1]["transition"] = {"duration_seconds": -999}
+            assert (await client.call_tool("stitch", ignored)).structuredContent["replayed"]
+            invalid = copy.deepcopy(args)
+            invalid["request_id"] = "null-first"
+            invalid["steps"][0]["transition"] = None
+            assert (await client.call_tool("stitch", invalid)).isError
 
 
 async def test_default_and_final_transition_replay_identity(tmp_path):
