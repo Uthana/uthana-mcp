@@ -66,7 +66,7 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
         assert denied.status_code == 403
         result = rpc(client, "tools/list").json()
         tools = {row["name"]: row for row in result["result"]["tools"]}
-        assert len(tools) == 24
+        assert len(tools) == 25
         for name in ["generate_motion_from_video", "upload_character", "create_character_from_image", "save_motion"]:
             assert "input_file" in tools[name]["inputSchema"]["properties"]
             assert "file_path" not in tools[name]["inputSchema"]["properties"]
@@ -217,7 +217,7 @@ async def test_native_mcp_http_client_discovery_and_replay(tmp_path):
             async with streamable_http_client(ORIGIN + "/mcp", http_client=http) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    assert len((await session.list_tools()).tools) == 24
+                    assert len((await session.list_tools()).tools) == 25
                     args = {"request_id": "native-http-once", "prompt": "walk", "duration_seconds": 4}
                     first = await session.call_tool("generate_motion", args)
                     second = await session.call_tool("generate_motion", args)
@@ -302,6 +302,7 @@ def test_http_upload_generation_preview_edit_and_export_workflows(tmp_path):
             ("list_locomotion_styles", {}),
             ("estimate_model_cost", {"model": "text-to-motion-3.0", "quantity": 4}),
             ("check_download_allowed", {"motion_id": "motion1"}),
+            ("share_motion", {"motion_id": "motion1"}),
             ("get_request_status", {"request_id": "v3"}),
         ]:
             call(name, arguments)

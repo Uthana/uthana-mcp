@@ -26,6 +26,8 @@ Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+# Publishing a share link is a free, repeatable mutation that creates no new asset.
+PUBLISH = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 
 
 class ZoneEndPosition(BaseModel):
@@ -673,6 +675,35 @@ def create_server(
     ) -> dict[str, Any]:
         "Check current export eligibility for one motion and character without downloading or reserving allowance. Eligibility may change before export."
         return await ops().download_allowed(motion_id, character_id)
+
+    @tool(annotations=PUBLISH)
+    async def share_motion(
+        motion_id: Annotated[Id, Field(description="Existing Uthana motion ID to publish.")],
+        character_id: Annotated[
+            Id, Field(description="Character the viewer page shows the motion on; defaults to Tar when omitted.")
+        ] = TAR,
+        start_seconds: Annotated[
+            float | None,
+            Field(
+                description="Optional playback window start in seconds; narrows what the page plays without changing the motion.",
+                ge=0,
+            ),
+        ] = None,
+        end_seconds: Annotated[
+            float | None,
+            Field(
+                description="Optional playback window end in seconds, greater than start_seconds and at most the motion duration.",
+                gt=0,
+            ),
+        ] = None,
+    ) -> dict[str, Any]:
+        (
+            "Create a PUBLIC viewer link for one motion on one character: anyone with the URL can open the 3D viewer "
+            "without an account, and it stays public. The owner already sees the motion while logged in; call this only "
+            "when the user asks to show the result to someone outside their organization or to Uthana support. "
+            "Free; repeating it is harmless."
+        )
+        return await ops().share(motion_id, character_id, start_seconds, end_seconds)
 
     @tool(annotations=WRITE)
     async def save_motion(
