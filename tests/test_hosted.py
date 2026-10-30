@@ -319,9 +319,8 @@ def test_http_upload_generation_preview_edit_and_export_workflows(tmp_path):
                 "request_id": "stitch",
                 "character_id": "mixamo1",
                 "steps": [
-                    {"type": "motion", "motion_id": "motion1"},
-                    {"type": "transition"},
-                    {"type": "motion", "motion_id": "motion2", "placement": {"forward_m": 2, "turn_degrees": 45}},
+                    {"motion_id": "motion1"},
+                    {"motion_id": "motion2", "placement": {"forward_m": 2, "turn_degrees": 45}},
                 ],
             },
         )

@@ -83,9 +83,9 @@ Avoid submitting another candidate from the same preview request, or using a fre
 
 ## Loop and stitch
 
-Use `stitch` with character_id and exactly three typed steps: motion, transition, motion.
+Use `stitch` with character_id and exactly two motion objects identified by motion_id. Nest the optional outgoing transition on the first motion.
 Motion steps identify existing motions and optionally select native frame or second ranges (never mixed).
-The transition defaults to one second. The service samples and aligns both clips; no local pose sampler is needed.
+Omitting `transition`, supplying `{}`, or omitting `duration_seconds` defaults to one second. A transition on the final motion is ignored after transport shape checks; it does not affect execution, billing, or request identity. `transition: null` on the first motion is invalid. The service samples and aligns both clips; no local pose sampler is needed.
 Omit arriving-motion placement for automatic continuation. An explicit placement uses forward_m/right_m
 relative meters and turn_degrees positive right, with unspecified values zero. Absolute placement is unsupported.
 Inspect resolved_steps for effective ranges and transition duration, then review playback. Keep request_id;

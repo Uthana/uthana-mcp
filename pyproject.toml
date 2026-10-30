@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uthana-mcp"
-version = "0.2.0"
+version = "0.3.0"
 readme = "README.md"
 description = "Local MCP adapter for Uthana motion operations"
 license = "Apache-2.0 AND LicenseRef-Uthana-Tar-Demo-1.0"
@@ -19,7 +19,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "uthana>=0.7.1",
+    "uthana>=0.8.0",
     "mcp==1.30.0",
     "httpx==0.28.1",
     "starlette==1.9.0",
@@ -90,3 +90,7 @@ profile = "black"
 line_length = 120
 known_first_party = ["uthana_mcp"]
 known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fakes", "platform_support", "dotenv"]
+
+# Keep source verification reproducible before the coordinated SDK release.
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "b2e99897cd44cde3b5b3ae631023b076d2a83d72" }

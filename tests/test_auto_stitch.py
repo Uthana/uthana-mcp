@@ -25,7 +25,10 @@ FIXTURES = json.loads((Path(__file__).parent / "fixtures/stitch_contract.json").
 def test_shared_valid_contract(case):
     result = StitchInput.model_validate(case["input"]).model_dump(exclude_none=True)
     assert result == case["normalized"]
-    assert result["steps"][1]["duration_seconds"] == case["input"]["steps"][1].get("duration_seconds", 1)
+    assert (
+        result["steps"][0]["transition"]["duration_seconds"]
+        == case["normalized"]["steps"][0]["transition"]["duration_seconds"]
+    )
 
 
 @pytest.mark.parametrize("case", FIXTURES["invalid"], ids=lambda c: c["name"])
@@ -46,7 +49,7 @@ async def test_recovery_placement_identity_and_legacy_receipt(tmp_path):
     replay = await Operations(api, tmp_path).stitch("join1", options())
     assert replay["replayed"] and len(api.calls) == 1
     changed = copy.deepcopy(options())
-    changed["steps"][2]["placement"] = {}
+    changed["steps"][1]["placement"] = {}
     with pytest.raises(ValueError, match="different arguments"):
         await ops.stitch("join1", changed)
     # Historical fingerprints are recoverable, but cannot be resubmitted under the new contract.
@@ -106,3 +109,34 @@ async def test_actual_stdio_simple_tool_schema_and_recovery(tmp_path):
             assert not result.isError
             replay = await client.call_tool("stitch", args)
             assert replay.structuredContent["replayed"]
+
+
+async def test_default_and_final_transition_replay_identity(tmp_path):
+    api = FakeAPI()
+    ops = Operations(api, tmp_path)
+    await ops.stitch("same", options())
+    for first in ({}, {"duration_seconds": 1}, {"duration_seconds": 1.0}):
+        request = options()
+        request["steps"][0]["transition"] = first
+        request["steps"][1]["transition"] = {"duration_seconds": -999}
+        original = copy.deepcopy(request)
+        assert (await ops.stitch("same", request))["replayed"]
+        assert request == original
+    changed = options()
+    changed["steps"][0]["transition"] = {"duration_seconds": 2}
+    with pytest.raises(ValueError, match="different arguments"):
+        await ops.stitch("same", changed)
+    assert len(api.calls) == 1
+
+
+async def test_old_typed_receipt_recovers_but_cannot_replay(tmp_path):
+    ops = Operations(FakeAPI(), tmp_path)
+
+    async def historical():
+        return {"motion_id": "old", "source_motion_ids": ["motion1", "motion2"]}
+
+    args = {"contract": "typed_steps", **StitchInput.model_validate(options()).model_dump(exclude_none=True)}
+    await ops.store.mutation("old", "stitch", args, historical)
+    assert ops.recover_request("old")["result"]["motion_id"] == "old"
+    with pytest.raises(ValueError, match="different arguments"):
+        await ops.stitch("old", options())

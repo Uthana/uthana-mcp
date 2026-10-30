@@ -523,10 +523,10 @@ class Operations:
 
     async def stitch(self, request_id: str, options: object) -> dict:
         options = StitchInput.model_validate(options).model_dump(exclude_none=True)
-        args = {"contract": "typed_steps", **options}
+        args = {"contract": "motion_steps_v2", **options}
         if self.store.completed(request_id, "stitch"):
             return self.recovered_saved(self.store.replay(request_id, "stitch", args))
-        motion_steps = [options["steps"][0], options["steps"][2]]
+        motion_steps = [options["steps"][0], options["steps"][1]]
         sources = [await self.api.motion(step["motion_id"]) for step in motion_steps]
         for step, source in zip(motion_steps, sources):
             selected = step["range"]
