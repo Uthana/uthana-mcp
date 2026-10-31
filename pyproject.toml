@@ -28,6 +28,10 @@ dependencies = [
     "python-dotenv==1.2.3",
 ]
 
+# Temporary until the Python client release that includes motions.download_robot is published; remove before release and raise the uthana floor to that release.
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client", rev = "7b9169c90ca26b37530d9371b286932cec95a4b6" }
+
 [dependency-groups]
 dev = [
     "pytest==9.1.1",

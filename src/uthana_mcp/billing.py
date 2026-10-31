@@ -75,7 +75,7 @@ def receipt_billing(operation, args):
     # converting an already-rigged character (rerig_target without auto_rig) uses the same price.
     if operation == "upload_character" and (args.get("auto_rig") is True or args.get("rerig_target")):
         model = "autorig"
-    free = operation in {"trim", "save", "download", "preview"} or (
+    free = operation in {"trim", "save", "download", "robot_download", "preview"} or (
         operation == "upload_character" and args.get("auto_rig") is False and not args.get("rerig_target")
     )
     return {

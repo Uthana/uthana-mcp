@@ -744,6 +744,34 @@ def create_server(
             torso_only,
         )
 
+    @tool(annotations=WRITE)
+    async def download_robot_motion(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        motion_id: Annotated[Id, Field(description="Existing Uthana motion ID.")],
+        character_id: Annotated[
+            Id,
+            Field(
+                description="Character used for access and download billing only; the output is always robot joints. Defaults to Tar; reuse a character this motion was already downloaded on to avoid a second download charge."
+            ),
+        ] = TAR,
+        robot: Annotated[
+            Literal["unitree_g1"], Field(description="Target robot; unitree_g1 is the only supported robot.")
+        ] = "unitree_g1",
+        fps: Annotated[
+            Literal[24, 30, 60], Field(description="Trajectory sample rate in frames/second: 24, 30, or 60.")
+        ] = 30,
+    ) -> dict[str, Any]:
+        """Download a motion retargeted to a humanoid robot as a CSV joint trajectory: a Frame column, root translation
+        and rotation, then one column per robot joint, one row per frame. The GPU retarget can take minutes. Billed
+        like download_motion for the same motion and character. See workflow export guidance.
+        """
+        return await ops().download_robot(request_id, motion_id, character_id=character_id, robot=robot, fps=fps)
+
     @server.prompt()
     def review_motion(original_prompt: str, motion_id: str, character_id: str = TAR) -> str:
         """Review a motion and suggest improvements without executing them."""

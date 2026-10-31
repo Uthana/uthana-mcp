@@ -66,7 +66,7 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
         assert denied.status_code == 403
         result = rpc(client, "tools/list").json()
         tools = {row["name"]: row for row in result["result"]["tools"]}
-        assert len(tools) == 24
+        assert len(tools) == 25
         for name in ["generate_motion_from_video", "upload_character", "create_character_from_image", "save_motion"]:
             assert "input_file" in tools[name]["inputSchema"]["properties"]
             assert "file_path" not in tools[name]["inputSchema"]["properties"]
@@ -160,6 +160,23 @@ def test_owned_export_link_and_replay_does_not_regenerate(tmp_path):
         assert sum(call[0] == "download" for call in apis["user1"].calls) == 1
 
 
+def test_robot_export_link_serves_csv_once(tmp_path):
+    apis = {}
+    args = {"request_id": "robot-once", "motion_id": "motion1", "fps": 24}
+    with TestClient(app_for(tmp_path, apis), base_url=ORIGIN) as client:
+        exported = tool(client, "download_robot_motion", args)
+        assert not exported.get("isError"), exported
+        result = exported["structuredContent"]
+        assert "local_path" not in result
+        assert result["robot"] == "unitree_g1" and result["frame_count"] == 3
+        file_response = client.get(result["download_url"], headers=HEADERS)
+        assert file_response.status_code == 200
+        assert file_response.headers["content-type"].startswith("text/csv")
+        assert file_response.content == apis["user1"].robot_csv
+        assert tool(client, "download_robot_motion", args)["structuredContent"]["replayed"]
+        assert sum(call[0] == "robot_download" for call in apis["user1"].calls) == 1
+
+
 async def test_attachment_import_is_cached_for_recovery_after_url_expiry(tmp_path, monkeypatch):
     calls = []
     original = httpx.AsyncClient
@@ -217,7 +234,7 @@ async def test_native_mcp_http_client_discovery_and_replay(tmp_path):
             async with streamable_http_client(ORIGIN + "/mcp", http_client=http) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    assert len((await session.list_tools()).tools) == 24
+                    assert len((await session.list_tools()).tools) == 25
                     args = {"request_id": "native-http-once", "prompt": "walk", "duration_seconds": 4}
                     first = await session.call_tool("generate_motion", args)
                     second = await session.call_tool("generate_motion", args)

@@ -294,3 +294,21 @@ async def test_eligibility_null_is_unknown_and_strings_are_not_booleans(allowed)
                 await api.download_allowed("m1", "c1")
     finally:
         await api.close()
+
+
+async def test_robot_download_uses_client_csv_route():
+    seen = []
+    body = b"Frame,root_x\n0,0.0\n"
+
+    def respond(request):
+        seen.append(request)
+        return httpx.Response(200, content=body)
+
+    api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
+    try:
+        assert await api.download_robot(motion_id="m1", character_id="c1", robot="unitree_g1", fps=24) == body
+        assert seen[0].url.path == "/motion/file/motion_viewer/c1/m1/csv/unitree_g1_c1-m1.csv"
+        assert dict(seen[0].url.params) == {"fps": "24"}
+        assert seen[0].extensions["timeout"]["read"] == 660.0
+    finally:
+        await api.close()
