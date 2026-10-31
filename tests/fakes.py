@@ -61,6 +61,12 @@ class FakeAPI:
         self.calls.append(("download", args))
         return b"offline-export-fixture"
 
+    async def download_robot(self, **args):
+        self.calls.append(("robot_download", args))
+        return self.robot_csv
+
+    robot_csv = b"Frame,root_translateX,left_knee_joint_dof\n0,0.0,1.5\n1,0.1,2.5\n2,0.2,3.5\n"
+
     async def character_metadata(self, character_id):
         return {"engine": "roblox" if character_id == "roblox1" else "generic"}
 

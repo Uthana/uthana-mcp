@@ -20,6 +20,9 @@ class StitchAPIResult(StitchResult):
     character_id: str
 
 
+MAX_ROBOT_EXPORT_BYTES = 64 * 1024 * 1024
+
+
 class UthanaAPI:
     def __init__(
         self,
@@ -442,6 +445,17 @@ class UthanaAPI:
             speed_multiplier=speed_multiplier if speed_multiplier != 1 else None,
             torso_only=torso_only or None,
             max_bytes=128 * 1024 * 1024,
+        )
+
+    async def download_robot(self, *, motion_id: str, character_id: str, robot: str, fps: int) -> bytes:
+        # The client's robot download default allows the backend's GPU retarget wait.
+        return await self._call(
+            self.client.motions.download_robot,
+            character_id,
+            motion_id,
+            robot=robot,
+            fps=fps,
+            max_bytes=MAX_ROBOT_EXPORT_BYTES,
         )
 
     async def save(self, gltf, name, source_motion_id, character_id):

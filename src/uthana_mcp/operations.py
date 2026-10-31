@@ -21,6 +21,24 @@ from .store import Store
 from .validation import TAR, identifier, number, text
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
+ROBOTS = frozenset({"unitree_g1"})
+ROBOT_EXPORT_FPS = frozenset({24, 30, 60})
+
+
+def robot_trajectory_summary(data: bytes) -> dict:
+    """Summarize a robot CSV export: one header row, then one row per frame. The download already happened."""
+    try:
+        lines = data.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        raise APIError("Robot export was not UTF-8 CSV and was not saved", category="invalid_response") from None
+    rows = [line for line in lines[1:] if line.strip()]
+    columns = lines[0].split(",") if lines else []
+    has_frame_column = bool(columns) and columns[0] == "Frame"
+    if not has_frame_column or not rows:
+        raise APIError(
+            "Robot export had no Frame header or trajectory rows and was not saved", category="invalid_response"
+        )
+    return {"frame_count": len(rows), "columns": columns}
 
 
 class Operations:
@@ -748,6 +766,42 @@ class Operations:
             )
 
         result = await self.store.mutation(request_id, "download", args, invoke)
+        # Never silently charge for a replacement if the caller lost or modified their cached file.
+        self.store.read_artifact(result["artifact_id"])
+        return result
+
+    async def download_robot(
+        self, request_id: str, motion_id: str, *, character_id: str = TAR, robot: str = "unitree_g1", fps: int = 30
+    ) -> dict:
+        identifier(motion_id)
+        identifier(character_id)
+        has_supported_robot = robot in ROBOTS
+        has_supported_fps = type(fps) is int and fps in ROBOT_EXPORT_FPS
+        if not has_supported_robot or not has_supported_fps:
+            raise ValueError("Choose robot unitree_g1 and 24/30/60 FPS")
+        args = {"motion_id": motion_id, "character_id": character_id, "robot": robot, "fps": fps}
+        if self.store.completed(request_id, "robot_download"):
+            result = self.store.replay(request_id, "robot_download", args)
+            self.store.read_artifact(result["artifact_id"])
+            return result
+
+        async def invoke():
+            data = await self.api.download_robot(**args)
+            summary = robot_trajectory_summary(data)
+            return self.store.artifact(
+                data,
+                ".csv",
+                {
+                    **args,
+                    **summary,
+                    "duration_seconds": summary["frame_count"] / fps,
+                    "review_status": "unreviewed",
+                    "asset_kind": "robot_trajectory_export",
+                    "creates_new_motion": False,
+                },
+            )
+
+        result = await self.store.mutation(request_id, "robot_download", args, invoke)
         # Never silently charge for a replacement if the caller lost or modified their cached file.
         self.store.read_artifact(result["artifact_id"])
         return result

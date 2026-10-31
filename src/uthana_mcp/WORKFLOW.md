@@ -57,6 +57,8 @@ A major change, such as switching sword hands, adding a 270-degree backswing, an
 
 FBX/GLB can include mesh and skeleton animation; BVH requires `include_mesh=false`. Roblox export requires FBX and a supported Roblox character. A typical requested Roblox export uses 30 FPS, mesh enabled, and `roblox_compatible=true`; Tar and arbitrary Mixamo characters are not automatically compatible. Verify destination import separately.
 
+`download_robot_motion` exports any motion as a robot joint trajectory CSV; `unitree_g1` is the supported robot. The file has a `Frame` column, root translation and rotation, then one column per robot joint, with one row per frame, so the row count is about duration times FPS. The character ID controls access and download billing only and does not change the output; reuse a character the motion was already downloaded on to avoid a second download charge. Mesh, `in_place`, speed, torso, and Roblox options do not apply. The GPU retarget can take minutes; treat a timeout as an unknown outcome and follow request recovery. Robot playback, safety, and balance need separate verification, for example in simulation, before running on hardware.
+
 `check_download_allowed` reports current eligibility without reserving allowance. Previous downloads, pay-as-you-go (PAYG), or role exemptions may permit an export even with zero monthly allowance. `get_usage` reports balances and allowances in separate units; billing settings are information, not authorization to change them.
 
 ## Upload and create characters

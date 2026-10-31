@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 24 tools for the configured environment.
+The MCP uses the shared Uthana Python client and exposes 25 tools for the configured environment.
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
@@ -17,6 +17,7 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |
 | Inspection | Metadata, APNG/WebM, decoded APNG frames | Visual review belongs to the host |
 | Export | Retargeted FBX/GLB/BVH, mesh, FPS, speed, torso, in-place, Roblox | Destination import requires separate verification |
+| Robot export | Unitree G1 joint trajectory CSV at 24/30/60 FPS | One robot; playback and balance require separate verification |
 | Billing reads | Model estimate, balance/rates, allowances, export eligibility | No recharge, billing mutation, or ledger tool |
 | Recovery | Durable local receipts and cached export verification | No upstream cancel or automatic ambiguous-request resubmission |
 
