@@ -53,8 +53,8 @@ def estimate_cost(rates, model, quantity):
         "agent_token_fee_usd": "0",
         "pricing_url": PRICING_URL,
         "rate_source": "configured Uthana environment: GraphQL payg_prices",
-        "note": "Estimate for the supplied quantity (input video seconds for video-to-motion, "
-        "output seconds for motion generation), not a measured debit. Public capability mapping was "
+        "note": "Estimate for the supplied quantity (output motion seconds for motion generation), "
+        "not a measured debit. Public capability mapping was "
         "checked against the pricing page on 2026-09-14. Reconcile any rate mismatch with that page; "
         "never invent a credits-to-USD conversion. Actual generated duration and account terms may differ.",
     }

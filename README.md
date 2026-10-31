@@ -181,7 +181,7 @@ Each example makes a separate mutation. Use a distinct request ID for different 
 
 ## Video-to-motion model selection
 
-`generate_motion_from_video` accepts `video-to-motion-3.0` explicitly for foot IK and high-quality hands. The default remains `video-to-motion-2.0`, and `video-to-motion-2.1` remains available. On pay-as-you-go, 3.0 costs $0.06 per input video second; 2.0 and 2.1 remain $0.05 per input second. Use `estimate_model_cost` with the input video duration to fetch the configured environment's current rate.
+`generate_motion_from_video` accepts `video-to-motion-3.0` explicitly for foot IK and high-quality hands. The default remains `video-to-motion-2.0`, and `video-to-motion-2.1` remains available. On pay-as-you-go, 3.0 costs $0.06 per second of output motion; 2.0 and 2.1 remain $0.05 per second of output motion. Use `estimate_model_cost` with the expected output motion duration to fetch the configured environment's current rate.
 
 ```json
 {
