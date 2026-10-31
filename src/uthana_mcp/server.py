@@ -764,7 +764,10 @@ def create_server(
             Literal[24, 30, 60], Field(description="Trajectory sample rate in frames/second: 24, 30, or 60.")
         ] = 30,
     ) -> dict[str, Any]:
-        """Download a motion retargeted to a humanoid robot as a CSV joint trajectory: a Frame column, root translation and rotation, then one column per robot joint, one row per frame. The GPU retarget can take minutes. Billed like download_motion for the same motion and character. See workflow export guidance."""
+        """Download a motion retargeted to a humanoid robot as a CSV joint trajectory: a Frame column, root translation
+        and rotation, then one column per robot joint, one row per frame. The GPU retarget can take minutes. Billed
+        like download_motion for the same motion and character. See workflow export guidance.
+        """
         return await ops().download_robot(request_id, motion_id, character_id=character_id, robot=robot, fps=fps)
 
     @server.prompt()
