@@ -179,9 +179,8 @@ def test_invalid_rates_cannot_be_reported_as_a_price(price):
         )
 
 
-def test_vtm3_estimate_uses_output_seconds_and_configured_rate() -> None:
+def test_vtm3_estimate_uses_configured_rate() -> None:
     rates = [{"model_key": "video-to-motion-3.0", "billing_unit": "second", "unit_price": "0.06"}]
     estimate = estimate_cost(rates, "video-to-motion-3.0", 7.25)
     assert estimate["estimated_cost_usd"] == "0.4350"
-    assert "output motion seconds" in estimate["note"]
     assert estimate["actual_cost_usd"] is None

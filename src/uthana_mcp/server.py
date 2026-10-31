@@ -286,7 +286,7 @@ def create_server(
         quantity: Annotated[
             Annotated[float, Field(gt=0, le=3600, strict=True)],
             Field(
-                description="Input video seconds for video-to-motion, generated output seconds for other motion models (up to 3600), or a positive whole count of rigs/characters."
+                description="Generated output seconds (up to 3600), or a positive whole count of rigs/characters for those capabilities."
             ),
         ],
     ) -> dict[str, Any]:
