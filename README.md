@@ -91,7 +91,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `trim_motion` | Save an interval as a new motion |
 | `get_preview` | APNG or WebM preview |
 | `get_preview_frame` | One APNG frame with index and available timing |
-| `generate_motion_from_video` | Video-to-motion (V2M) 2.0 or 2.1 job |
+| `generate_motion_from_video` | Video-to-motion (V2M) 2.0, 2.1, or opt-in 3.0 job |
 | `upload_character` | FBX/GLB upload, with optional auto-rig and rerig options |
 | `create_character_from_image` | PNG/JPEG to a rigged character |
 | `preview_character_from_prompt` | Preview images for a character description |
@@ -177,6 +177,23 @@ Select source intervals and place the second motion one meter forward and half a
 Choose ranges that fit your source motions and leave the required transition context. Frame indices use each source’s native FPS; do not mix frames and seconds within one range. Inspect `resolved_steps` and review playback before accepting the result.
 
 Each example makes a separate mutation. Use a distinct request ID for different arguments; recover an uncertain request before retrying. See [stitching](docs/stitching.md) for the full contract.
+
+
+## Video-to-motion model selection
+
+`generate_motion_from_video` accepts `video-to-motion-3.0` explicitly for foot IK and high-quality hands. The default remains `video-to-motion-2.0`, and `video-to-motion-2.1` remains available. On pay-as-you-go, 3.0 costs $0.06 per second of output motion; 2.0 and 2.1 remain $0.05 per second of output motion. Use `estimate_model_cost` with the expected output motion duration to fetch the configured environment's current rate.
+
+```json
+{
+  "request_id": "video-hands-1",
+  "file_path": "/inputs/dance.mp4",
+  "name": "Dance with hands",
+  "model": "video-to-motion-3.0"
+}
+```
+
+Poll the returned job before downloading. Reuse a request ID only for the same arguments; choosing a different model requires a new request ID.
+
 
 ## Documentation
 

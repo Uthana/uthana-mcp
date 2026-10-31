@@ -14,6 +14,7 @@ PUBLISHED_MODELS = {
     "text-to-motion-3.0": "text-to-motion-3.0",
     "video-to-motion-2.0": "video-to-motion-2.0",
     "video-to-motion-2.1": "video-to-motion-2.1",
+    "video-to-motion-3.0": "video-to-motion-3.0",
     "locomotion-1.0": "locomotion",
     "stitch-loop-2.0": "stitch-loop",
     "autorig": "autorig",

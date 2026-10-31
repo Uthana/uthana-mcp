@@ -173,13 +173,14 @@ async def test_unsupported_exports_do_not_download(setup, kwargs):
     assert not api.calls
 
 
-async def test_video_upload_and_two_mixamo_retargets(setup):
+@pytest.mark.parametrize("model", ["video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"])
+async def test_video_upload_and_two_mixamo_retargets(setup, model):
     api, ops, inputs = setup
     video = inputs / "walk.mp4"
     video.write_bytes(b"fixture-video")
-    result = await ops.video("video1", str(video), "Walk", "video-to-motion-2.1")
+    result = await ops.video("video1", str(video), "Walk", model)
     assert result["job_id"] == "videojob1"
-    await ops.video("video1", str(video), "Walk", "video-to-motion-2.1")
+    await ops.video("video1", str(video), "Walk", model)
     for index in (1, 2):
         character = inputs / f"character{index}.fbx"
         character.write_bytes(f"rigged-fixture-{index}".encode())
