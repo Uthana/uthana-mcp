@@ -57,7 +57,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             assert tools["download_motion"].annotations.readOnlyHint is False
             robot = tools["download_robot_motion"]
             assert robot.annotations.readOnlyHint is False
-            assert robot.inputSchema["properties"]["robot"]["enum"] == ["unitree_g1"]
+            assert robot.inputSchema["properties"]["robot"]["const"] == "unitree_g1"
             assert robot.inputSchema["properties"]["fps"]["enum"] == [24, 30, 60]
             assert "include_mesh" not in robot.inputSchema["properties"]
             for tool in ("list_motions", "get_usage", "check_download_allowed"):
