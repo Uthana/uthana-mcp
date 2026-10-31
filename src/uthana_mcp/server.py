@@ -759,7 +759,9 @@ def create_server(
                 description="Character used for access and download billing only; the output is always robot joints. Defaults to Tar; reuse a character this motion was already downloaded on to avoid a second download charge."
             ),
         ] = TAR,
-        robot: Annotated[Literal["unitree_g1"], Field(description="Target robot; unitree_g1 is the only supported robot.")] = "unitree_g1",
+        robot: Annotated[
+            Literal["unitree_g1"], Field(description="Target robot; unitree_g1 is the only supported robot.")
+        ] = "unitree_g1",
         fps: Annotated[
             Literal[24, 30, 60], Field(description="Trajectory sample rate in frames/second: 24, 30, or 60.")
         ] = 30,
