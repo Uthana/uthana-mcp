@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uthana-mcp"
-version = "0.2.0"
+version = "0.2.1"
 readme = "README.md"
 description = "Local MCP adapter for Uthana motion operations"
 license = "Apache-2.0 AND LicenseRef-Uthana-Tar-Demo-1.0"

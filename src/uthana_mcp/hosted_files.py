@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import socket
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TypedDict
 from urllib.parse import urlsplit
@@ -77,9 +78,10 @@ async def _download_attachment(url: httpx.URL, *, hostname: str) -> bytes:
 
 
 class Files:
-    def __init__(self, operations: Operations, origin: str) -> None:
+    def __init__(self, operations: Operations, origin: str, *, viewer_origin: str | None = None) -> None:
         self.operations = operations
         self.origin = origin
+        self.viewer_origin = viewer_origin
         self.directory = operations.store.directory / "inputs"
         self.directory.mkdir(mode=0o700, exist_ok=True)
         operations.input_directory = self.directory
@@ -211,7 +213,47 @@ class Files:
             }
             if isinstance(artifact_id := value.get("artifact_id"), str):
                 result["download_url"] = f"{self.origin}/files/artifacts/{artifact_id}"
+                if isinstance(local_path := value.get("local_path"), str):
+                    result["file_name"] = Path(local_path).name
+                    result["mime_type"] = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
+            if self.viewer_origin and all(
+                isinstance(result.get(key), str) and re.fullmatch(r"[A-Za-z0-9_-]+", result[key])
+                for key in ("character_id", "motion_id")
+            ):
+                result["viewer_url"] = f"{self.viewer_origin}/app/play/{result['character_id']}/{result['motion_id']}"
             return result
         if isinstance(value, list):
             return [self.project(item) for item in value]
+        return value
+
+    def artifact_metadata(self, artifact_id: str) -> dict:
+        try:
+            _, metadata = self.operations.store.read_artifact(artifact_id)
+        except (ValueError, OSError):
+            raise ValueError(
+                "Cached artifact is unavailable for this account or has changed. Inspect get_request_status; do not export again automatically."
+            ) from None
+        return metadata
+
+    async def present(self, value: object, *, download_link: Callable[[str], Awaitable[dict]] | None = None) -> object:
+        """Project fresh capabilities at delivery time, outside durable operation receipts."""
+        value = self.project(value)
+        if download_link is None:
+            return value
+        if isinstance(value, TextContent):
+            try:
+                document = json.loads(value.text)
+            except ValueError:
+                return value
+            return value.model_copy(
+                update={"text": json.dumps(await self.present(document, download_link=download_link))}
+            )
+        if isinstance(value, dict):
+            result = {key: await self.present(item, download_link=download_link) for key, item in value.items()}
+            if isinstance(artifact_id := value.get("artifact_id"), str):
+                self.artifact_metadata(artifact_id)
+                result.update(await download_link(artifact_id))
+            return result
+        if isinstance(value, list):
+            return [await self.present(item, download_link=download_link) for item in value]
         return value
