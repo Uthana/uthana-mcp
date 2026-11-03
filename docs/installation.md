@@ -1,6 +1,8 @@
-# Install and connect
+# Local installation and connection
 
-This guide targets Linux, macOS, and Windows with Claude Desktop, Cursor, or Codex. [Windows](#windows) lists the path and command differences. The MCP runs locally and calls Uthana using your account. Choose your preferred model in your coding host; no Uthana-specific model subscription is bundled.
+For hosted access, add `https://mcp.uthana.com/mcp` in your client and sign in with your Uthana account. No installation or API key is needed; see the [hosted connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp).
+
+The local setup below targets Linux, macOS, and Windows with Claude Desktop, Cursor, or Codex. [Windows](#windows) lists the path and command differences. The MCP runs locally and calls Uthana using your account. Choose your preferred model in your coding host; no Uthana-specific model subscription is bundled.
 
 ## Install
 
