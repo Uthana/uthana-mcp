@@ -443,3 +443,35 @@ def test_artifact_link_never_reexports_or_exposes_paths_for_lost_bytes(tmp_path,
         assert response["isError"]
         assert str(tmp_path) not in json.dumps(response)
         assert sum(call[0] == "download" for call in apis["user1"].calls) == 1
+
+
+@pytest.mark.parametrize("change", ["missing", "corrupt"])
+def test_lost_cached_bytes_preserve_receipt_recovery_with_download_grants(tmp_path, change):
+    apis, minted = {}, []
+
+    async def mint(request, artifact_id):
+        minted.append(artifact_id)
+        return {"download_url": f"{ORIGIN}/downloads/private", "download_expires_at": 1234567890}
+
+    async def resolve(grant):
+        return None
+
+    with TestClient(app_for(tmp_path, apis, mint_download=mint, resolve_download=resolve), base_url=ORIGIN) as client:
+        result = tool(client, "download_motion", {"request_id": "recover-lost", "motion_id": "m1"})["structuredContent"]
+        path = next(tmp_path.rglob(result["artifact_id"] + ".glb"))
+        if change == "missing":
+            path.unlink()
+        else:
+            path.write_bytes(b"changed")
+        response = tool(client, "get_request_status", {"request_id": "recover-lost"})
+        assert not response.get("isError"), response
+        recovered = response["structuredContent"]
+        assert recovered["state"] == "complete"
+        assert recovered["artifact_status"] == "unavailable_or_changed"
+        assert recovered["result"]["motion_id"] == "m1"
+        assert recovered["result"]["artifact_id"] == result["artifact_id"]
+        assert "download_url" not in recovered["result"]
+        assert "next_action" in recovered
+        assert str(tmp_path) not in json.dumps(response)
+        assert minted == [result["artifact_id"]]
+        assert sum(call[0] == "download" for call in apis["user1"].calls) == 1

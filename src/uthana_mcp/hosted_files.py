@@ -249,6 +249,11 @@ class Files:
                 update={"text": json.dumps(await self.present(document, download_link=download_link))}
             )
         if isinstance(value, dict):
+            if value.get("artifact_status") == "unavailable_or_changed" and isinstance(value.get("result"), dict):
+                # Recovery must retain confirmed IDs even when cached bytes are lost.
+                # Do not issue a capability (or advertise the authenticated file URL).
+                value["result"].pop("download_url", None)
+                return value
             result = {key: await self.present(item, download_link=download_link) for key, item in value.items()}
             if isinstance(artifact_id := value.get("artifact_id"), str):
                 self.artifact_metadata(artifact_id)
