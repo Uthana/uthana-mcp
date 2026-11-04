@@ -21,6 +21,8 @@ Sign in with your Uthana account and approve the requested permissions. Hosted s
 
 See the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. Normal client approval prompts and Uthana pricing apply.
 
+Tar, Ada, and Manny (also called Manny Fingers) are available to every user, so you can start animating without uploading a character. See the [first-animation walkthrough](docs/first-animation.md).
+
 ## Local installation
 
 Download and run the installer for your platform:
