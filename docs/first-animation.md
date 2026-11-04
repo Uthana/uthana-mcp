@@ -1,6 +1,6 @@
 # First animation and export
 
-Tar, Ada, and Manny (also called Manny Fingers) are available to every Uthana user. You can animate one of these characters without uploading your own. This walkthrough uses Tar, character ID `cXi2eAP19XwQ`.
+Tar, Ava, and Manny (also called Manny Fingers) are available to every Uthana user. You can animate one of these characters without uploading your own. This walkthrough uses Tar, character ID `cXi2eAP19XwQ`.
 
 [Tar's rigged GLB](../examples/tar/cXi2eAP19XwQ.glb) and [FBX](../examples/tar/cXi2eAP19XwQ.fbx) are also included if you want to try the upload workflow.
 
