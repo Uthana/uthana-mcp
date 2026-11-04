@@ -709,7 +709,10 @@ def create_server(
             Literal[24, 30, 60], Field(description="Export sample rate in frames/second: 24, 30, or 60.")
         ] = 30,
         include_mesh: Annotated[
-            bool, Field(description="Include character mesh with skeleton animation in FBX/GLB; must be false for BVH.")
+            bool,
+            Field(
+                description="Include character mesh with skeleton animation in FBX/GLB; must be false for BVH. Keep true to import and play directly; false gives a bare skeleton for an identical rig."
+            ),
         ] = True,
         in_place: Annotated[bool, Field(description="Remove horizontal root travel in the exported file.")] = False,
         roblox_compatible: Annotated[
@@ -726,10 +729,11 @@ def create_server(
             Field(description="Freeze pelvis/leg rotations to the skeleton T-pose; overrides in_place."),
         ] = False,
     ) -> dict[str, Any]:
-        """Download a retargeted asset. torso_only freezes pelvis/leg rotations to the skeleton T-pose and overrides
-        in_place; root translation resets only when pelvis is the skeleton root. FBX/GLB can include mesh and
-        skeleton animation; BVH requires include_mesh=false. Roblox requires FBX and a supported Roblox
-        character. See workflow export guidance.
+        """Download an asset already retargeted to character_id. For Blender or an engine, keep include_mesh=true
+        and import the file unchanged; no animation transfer is needed. torso_only freezes pelvis/leg rotations to
+        the skeleton T-pose and overrides in_place; root translation resets only when pelvis is the skeleton root.
+        FBX/GLB can include mesh and skeleton animation; BVH requires include_mesh=false. Roblox requires FBX and a
+        supported Roblox character. See workflow export guidance.
         """
         return await ops().download(
             request_id,
