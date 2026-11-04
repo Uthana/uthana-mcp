@@ -86,6 +86,13 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             assert "Do not execute" in prompt.messages[0].content.text
             generated = structured(await client.call_tool("generate_motion", {"request_id": "gen1", "prompt": "Jump"}))
             assert generated["job_id"] == "job1"
+            mini = structured(
+                await client.call_tool(
+                    "generate_motion",
+                    {"request_id": "mini", "prompt": "Jump", "model": "text-to-motion-3.0-mini", "fast": True},
+                )
+            )
+            assert mini["billing"]["model"] == "text-to-motion-3.0-mini"
             status = structured(await client.call_tool("get_job", {"job_id": generated["job_id"]}))
             assert status["motion_id"] == "motion1"
             trimmed = structured(

@@ -6,7 +6,7 @@ from .api import APIError
 from .validation import number
 
 PRICING_URL = "https://uthana.com/pricing"
-# Public names -> backend rate keys. Reviewed against the pricing page 2026-09-14.
+# Public names -> backend rate keys.
 # Rates themselves are fetched, never hardcoded here. Hidden backend SKUs are not public prices.
 PUBLISHED_MODELS = {
     "text-to-motion-1.0": "text-to-motion",
@@ -54,8 +54,8 @@ def estimate_cost(rates, model, quantity):
         "agent_token_fee_usd": "0",
         "pricing_url": PRICING_URL,
         "rate_source": "configured Uthana environment: GraphQL payg_prices",
-        "note": "Estimate for the supplied output quantity, not a measured debit. Public capability mapping was "
-        "checked against the pricing page on 2026-09-14. Reconcile any rate mismatch with that page; "
+        "note": "Estimate for the supplied output quantity, not a measured debit. "
+        "Reconcile any rate mismatch with the public pricing page; "
         "never invent a credits-to-USD conversion. Actual generated duration and account terms may differ.",
     }
 

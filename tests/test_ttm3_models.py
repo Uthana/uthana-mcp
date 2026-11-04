@@ -34,14 +34,18 @@ async def test_sdk_forwards_models_duration_and_fast_independently(model, is_fas
 
 
 @pytest.mark.parametrize("model", TTM3_MODELS)
-async def test_tool_defaults_receipts_and_replays_follow_model(tmp_path, model):
+@pytest.mark.parametrize("duration", [None, 6])
+async def test_tool_defaults_receipts_and_replays_follow_model(tmp_path, model, duration):
     api = FakeAPI()
     ops = Operations(api, tmp_path)
     server = create_server(ops)
     arguments = {"request_id": "selected", "prompt": "Wave", "model": model, "fast": True}
+    if duration is not None:
+        arguments["duration_seconds"] = duration
     await server.call_tool("generate_motion", arguments)
     result = ops.recover_request("selected")["result"]
-    expected_duration = 4 if model == "text-to-motion-3.0" else 5
+    default_duration = 4 if model == "text-to-motion-3.0" else 5
+    expected_duration = default_duration if duration is None else duration
     assert api.calls[0][1]["duration_seconds"] == expected_duration
     assert api.calls[0][1]["fast"] is True
     assert api.calls[0][1].get("model", "text-to-motion-3.0") == model
