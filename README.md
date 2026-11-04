@@ -17,7 +17,7 @@ Add this URL in your AI client's MCP settings:
 https://mcp.uthana.com/mcp
 ```
 
-Sign in with your Uthana account and approve the requested permissions. Hosted setup needs no installation or API key. Start by asking your agent to list your existing characters.
+Sign in with your Uthana account and approve the requested permissions. Hosted setup needs no installation or API key. Start by asking: “Show my Uthana account’s available balance and allowances. Don’t create or change anything.”
 
 See the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. Normal client approval prompts and Uthana pricing apply.
 

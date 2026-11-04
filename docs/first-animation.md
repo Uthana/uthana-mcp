@@ -8,8 +8,8 @@ Tar is provided under the [Tar Demo Asset License](../examples/tar/LICENSE.md) f
 
 Choose how you connected:
 
-- **Hosted:** follow the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp), then ask your agent to list your characters. No local install or API key is needed.
-- **Local:** [install and connect](installation.md), then ask your agent to list your characters. You can also run `uthana-mcp-smoke --api-read` with your API key configured in the terminal for a read-only account check.
+- **Hosted:** follow the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp), then ask your agent to show your account’s available balance and allowances without creating or changing anything. No local install or API key is needed.
+- **Local:** [install and connect](installation.md), then ask your agent to show your account’s available balance and allowances without creating or changing anything. You can also run `uthana-mcp-smoke --api-read` with your API key configured in the terminal for a read-only account check.
 
 If your account has access to Tar ID `cXi2eAP19XwQ`, use it and skip uploading. Otherwise download [Tar GLB](../examples/tar/cXi2eAP19XwQ.glb). The 5.4 MB file is self-contained, has a 79-joint skin, and contains no animation. [Hashes and the alternate FBX](../examples/tar/README.md) let you verify it.
 
