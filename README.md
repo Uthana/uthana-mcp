@@ -92,7 +92,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 
 | Tool | What it does |
 | --- | --- |
-| `generate_motion` | Text-to-motion V3. Returns a job ID |
+| `generate_motion` | Text-to-motion V3: Regular, Lite or Mini via `model`, plus optional `fast`. Returns a job ID |
 | `generate_motion_v2` | Text-to-motion V2. Returns a motion ID |
 | `generate_locomotion` | Walk or run cycles from style, strides, speed, and direction |
 | `list_locomotion_styles` | Available locomotion styles |

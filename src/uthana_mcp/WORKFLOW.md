@@ -27,7 +27,9 @@ Preserve the requested action and respect a chosen model. Otherwise, start with 
 | A quick placeholder, previsualization (previz), or a basic walk, turn, run, or jump where speed matters more than detail | Text-to-motion V2 (TTM V2), `generate_motion_v2` | Around 5 seconds |
 | A straightforward loopable walk/run cycle using an available locomotion style | `generate_locomotion`; select a style from `list_locomotion_styles` | Depends on the request; no fixed estimate here |
 
-V1 and V2 do not generate finger animation; V3 does. Choose V3 when finger motion matters, including for a placeholder or previz that needs animated fingers.
+`generate_motion` defaults to Regular (`text-to-motion-3.0`); `model` also accepts `text-to-motion-3.0-lite` and `text-to-motion-3.0-mini`. `fast` is an independent optional hint. Omitted duration defaults to 4 seconds for Regular or 5 for Lite/Mini; explicit durations must be whole seconds from 4-10 for Regular or 5-10 for Lite/Mini.
+
+V1 and V2 do not generate finger animation; Regular V3 does. Choose Regular V3 when finger motion matters, including for a placeholder or previz that needs animated fingers.
 
 V1 and V2 are the fast options for basic motions and placeholders; V1 has no generation tool in this MCP. A V1 pricing entry does not make it callable. A successful response can still miss the requested action, so inspect the result before calling it suitable.
 

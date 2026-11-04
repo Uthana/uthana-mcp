@@ -12,6 +12,8 @@ PUBLISHED_MODELS = {
     "text-to-motion-1.0": "text-to-motion",
     "text-to-motion-2.0": "text-to-motion-bucmd",
     "text-to-motion-3.0": "text-to-motion-3.0",
+    "text-to-motion-3.0-lite": "text-to-motion-3.0-lite",
+    "text-to-motion-3.0-mini": "text-to-motion-3.0-mini",
     "video-to-motion-2.0": "video-to-motion-2.0",
     "video-to-motion-2.1": "video-to-motion-2.1",
     "locomotion-1.0": "locomotion",
@@ -60,7 +62,7 @@ def estimate_cost(rates, model, quantity):
 
 def receipt_billing(operation, args):
     model = {
-        "generate": "text-to-motion-3.0",
+        "generate": args.get("model", "text-to-motion-3.0"),
         "generate_v2": "text-to-motion-2.0",
         "locomotion": "locomotion-1.0",
         "video": args.get("model"),

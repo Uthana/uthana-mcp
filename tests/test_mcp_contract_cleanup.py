@@ -87,9 +87,9 @@ async def test_discovered_v3_schema_and_local_execution_match_backend_contract(t
     tools = {tool.name: tool for tool in await server.list_tools()}
     schema = tools["generate_motion"].inputSchema["properties"]
     assert schema["prompt"]["maxLength"] == 1000
-    assert schema["duration_seconds"]["minimum"] == 4
-    assert schema["duration_seconds"]["maximum"] == 10
-    assert schema["duration_seconds"]["multipleOf"] == 1
+    assert schema["duration_seconds"]["anyOf"][0]["minimum"] == 4
+    assert schema["duration_seconds"]["anyOf"][0]["maximum"] == 10
+    assert schema["duration_seconds"]["anyOf"][0]["multipleOf"] == 1
     for changes in ({"prompt": "x" * 1001}, {"duration_seconds": 5.5}, {"duration_seconds": True}):
         with pytest.raises(ToolError):
             await server.call_tool("generate_motion", {"request_id": "bad", "prompt": "Jump", **changes})
