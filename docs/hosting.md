@@ -1,8 +1,8 @@
-# Hosted transport integration
+# Hosted integration for operators
 
-The local stdio connector remains the supported installation. The HTTP adapter is
-for operators implementing an authenticated hosted service; it does not start an
-anonymous server or use a shared customer API key.
+To connect an AI client to Uthana, use the [hosted connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp). The local [stdio connector](installation.md) is also available with an API key.
+
+This guide is for operators integrating the HTTP adapter with their own authorization and storage. The adapter does not start an anonymous server or use a shared customer API key.
 
 Use `uthana_mcp.hosted.create_app` with an HTTPS origin, issuer, durable state
 directory, asynchronous request authenticator and per-request API factory. The
@@ -36,11 +36,6 @@ Keep one service instance with durable storage. Preserve that storage during
 upgrades, restore it before host replacement, and never replay pending or unknown
 mutations automatically. Use the operator's support process.
 
-Uthana's hosted MCP is a **technical preview** and is **not recommended for
-production use**. Local stdio remains available. A ChatGPT viewer and public
-listing are separate work.
-
-
 ## Discoverable sign-in
 
 Hosted MCP requires OAuth before initialization and tool discovery. A client adds
@@ -60,6 +55,4 @@ Existing authenticated file routes remain available.
 when both IDs are known. A viewer URL is separate from an exported file's download
 URL. A client should use the returned URLs instead of constructing its own.
 
-Compatibility must be verified against actual client versions. URL-only setup,
-read-only calls, refresh/reconnect, and retrieval of an existing GLB must each be
-verified in Claude web/Desktop/Code and Codex desktop/CLI before claiming support.
+Clients need Streamable HTTP and OAuth discovery support. Local stdio configuration does not connect to the hosted service.
