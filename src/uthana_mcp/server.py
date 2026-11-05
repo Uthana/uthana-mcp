@@ -26,6 +26,9 @@ Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+# Lifecycle changes set a state, so repeating one reports the current state instead of changing more.
+CHANGE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True)
+RESTORE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 
 
 class ZoneEndPosition(BaseModel):
@@ -660,6 +663,80 @@ def create_server(
     ) -> dict[str, Any]:
         "Find recent motions by name. Searches up to 1000 organization motions plus API-provided examples, labeled by source. Offsets page this filtered window; a motion may still exist outside it."
         return await ops().motions(query, source, method, offset, limit)
+
+    @tool(annotations=READ)
+    async def download_character(
+        character_id: Annotated[Id, Field(description="Existing character ID, including built-in characters.")],
+        format: Annotated[Literal["glb", "fbx"], Field(description="Model file format: glb or fbx.")] = "glb",
+    ) -> dict[str, Any]:
+        """Save the character's own rigged model file (mesh and skeleton, no animation). Free; does not use
+        download allowance. To get a motion on this character, use download_motion instead.
+        """
+        return await read_result(ops().download_character(character_id, format))
+
+    @tool(annotations=CHANGE)
+    async def rename_character(
+        character_id: Annotated[Id, Field(description="ID of a character your organization owns.")],
+        name: Annotated[Name, Field(description="New name, 1-200 characters.")],
+    ) -> dict[str, Any]:
+        """Rename one character your organization owns. Built-in and other organizations' characters are refused.
+        Reports the previous name. Safe to retry: a repeat reports unchanged.
+        """
+        return await read_result(ops().assets.rename("character", character_id, name))
+
+    @tool(annotations=CHANGE)
+    async def rename_motion(
+        motion_id: Annotated[Id, Field(description="ID of a motion your organization owns.")],
+        name: Annotated[Name, Field(description="New name, 1-200 characters.")],
+    ) -> dict[str, Any]:
+        """Rename one motion your organization owns. Uthana example motions are refused. Reports the previous name.
+        Safe to retry: a repeat reports unchanged.
+        """
+        return await read_result(ops().assets.rename("motion", motion_id, name))
+
+    @tool(annotations=CHANGE)
+    async def delete_character(
+        character_id: Annotated[Id, Field(description="ID of a character your organization owns.")],
+        expected_name: Annotated[
+            Name,
+            Field(
+                description="The character's current exact name as shown to the user; a mismatch refuses the delete."
+            ),
+        ],
+    ) -> dict[str, Any]:
+        """Soft-delete one character your organization owns after the user has chosen it by name and ID. Motions
+        are kept: they do not belong to a character. Built-in and other organizations' characters are refused.
+        Restorable with restore_character and the same ID. Reports deleted, or not_found_or_already_deleted.
+        """
+        return await read_result(ops().assets.delete("character", character_id, expected_name))
+
+    @tool(annotations=CHANGE)
+    async def delete_motion(
+        motion_id: Annotated[Id, Field(description="ID of a motion your organization owns.")],
+        expected_name: Annotated[
+            Name,
+            Field(description="The motion's current exact name as shown to the user; a mismatch refuses the delete."),
+        ],
+    ) -> dict[str, Any]:
+        """Soft-delete one motion your organization owns after the user has chosen it by name and ID. Trims, loops,
+        and stitches made from it are separate motions and are kept. Uthana example motions are refused.
+        Restorable with restore_motion and the same ID. Reports deleted, or not_found_or_already_deleted.
+        """
+        return await read_result(ops().assets.delete("motion", motion_id, expected_name))
+
+    @tool(annotations=RESTORE)
+    async def restore_character(
+        character_id: Annotated[Id, Field(description="ID of a deleted character your organization owns.")],
+    ) -> dict[str, Any]:
+        "Undo delete_character for one character your organization owns. Reports restored or already_active."
+        return await read_result(ops().assets.restore("character", character_id))
+
+    @tool(annotations=RESTORE)
+    async def restore_motion(
+        motion_id: Annotated[Id, Field(description="ID of a deleted motion your organization owns.")],
+    ) -> dict[str, Any]:
+        "Undo delete_motion for one motion your organization owns. Reports restored or already_active."
+        return await read_result(ops().assets.restore("motion", motion_id))
 
     @tool(annotations=READ)
     async def get_usage() -> dict[str, Any]:

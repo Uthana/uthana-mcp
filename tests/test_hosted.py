@@ -67,7 +67,7 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
         assert denied.status_code == 403
         result = rpc(client, "tools/list").json()
         tools = {row["name"]: row for row in result["result"]["tools"]}
-        assert len(tools) == 25
+        assert len(tools) == 32
         for name in ["generate_motion_from_video", "upload_character", "create_character_from_image", "save_motion"]:
             assert "input_file" in tools[name]["inputSchema"]["properties"]
             assert "file_path" not in tools[name]["inputSchema"]["properties"]
@@ -225,7 +225,7 @@ async def test_native_mcp_http_client_discovery_and_replay(tmp_path):
             async with streamable_http_client(ORIGIN + "/mcp", http_client=http) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    assert len((await session.list_tools()).tools) == 25
+                    assert len((await session.list_tools()).tools) == 32
                     args = {"request_id": "native-http-once", "prompt": "walk", "duration_seconds": 4}
                     first = await session.call_tool("generate_motion", args)
                     second = await session.call_tool("generate_motion", args)
@@ -475,3 +475,20 @@ def test_lost_cached_bytes_preserve_receipt_recovery_with_download_grants(tmp_pa
         assert str(tmp_path) not in json.dumps(response)
         assert minted == [result["artifact_id"]]
         assert sum(call[0] == "download" for call in apis["user1"].calls) == 1
+
+
+def test_hosted_asset_lifecycle_requires_write_scope_and_owner(tmp_path):
+    apis = {}
+    args = {"motion_id": "motion1", "expected_name": "Walking slowly"}
+    with TestClient(app_for(tmp_path, apis), base_url=ORIGIN) as client:
+        denied = tool(client, "delete_motion", args, user="read-only")
+        assert denied["isError"]
+        assert not [call for call in apis["read-only"].calls if call[0] == "update_asset"]
+        deleted = tool(client, "delete_motion", args)
+        assert deleted["structuredContent"]["outcome"] == "deleted"
+        restored = tool(client, "restore_motion", {"motion_id": "motion1"})
+        assert restored["structuredContent"]["outcome"] == "restored"
+        built_in = tool(client, "delete_character", {"character_id": "tar1", "expected_name": "Tar"})
+        assert built_in["isError"] and "not_owned" in built_in["content"][0]["text"]
+        model = tool(client, "download_character", {"character_id": "tar1"}, user="read-only")
+        assert model["structuredContent"]["download_url"].startswith(ORIGIN + "/files/artifacts/")

@@ -4,7 +4,7 @@ This server calls the Uthana environment shown in initialization and at the top 
 
 ## Rules shared by all tools
 
-- **Request recovery:** choose a durable `request_id` for each intentional mutation. Identical completed calls replay their stored result; reuse with different arguments is rejected. Inspect `get_request_status` after interruption. Pending or unknown outcomes mean work may already have started upstream: do not resubmit or bypass the receipt with a new ID. A confirmed rejection can be retried with the same ID and arguments after fixing the external cause. Changed inputs require a new intentional request after reconciling the old outcome. Never regenerate to recover polling, preview, or download failures.
+- **Request recovery:** choose a durable `request_id` for each intentional mutation (the asset-management tools below are idempotent and take none). Identical completed calls replay their stored result; reuse with different arguments is rejected. Inspect `get_request_status` after interruption. Pending or unknown outcomes mean work may already have started upstream: do not resubmit or bypass the receipt with a new ID. A confirmed rejection can be retried with the same ID and arguments after fixing the external cause. Changed inputs require a new intentional request after reconciling the old outcome. Never regenerate to recover polling, preview, or download failures.
 - **Unknown values:** `null` means unknown or not applicable; preserve it instead of converting it to zero, free, allowed, or success. Known zero remains zero.
 - **Pricing:** capabilities listed on https://uthana.com/pricing have their listed prices. Unlisted platform operations are free. `estimate_model_cost` uses current backend rates in USD and the stated quantity; missing or ambiguous rates are errors. Generation, stitch, and loop estimates use generated output seconds; auto-rig and character generation use whole asset counts. An estimate is not a measured debit or a credits-to-USD conversion. There is no per-call or token-based Uthana fee. Existing user scope and spending preferences govern execution.
 - **Review:** metadata verification establishes identity and timing, not visual quality. Inspect preview images and, where relevant, exported playback before assessing quality. If APNG timing is unavailable, cite frame indexes rather than invented timestamps. Sparse previews leave continuous contact, collision, and deformation uncertain. Export-only speed, torso, in-place, and Roblox effects are visible in the exported file, not the native APNG.
@@ -58,6 +58,18 @@ A major change, such as switching sword hands, adding a 270-degree backswing, an
 FBX/GLB can include mesh and skeleton animation; BVH requires `include_mesh=false`. Roblox export requires FBX and a supported Roblox character. A typical requested Roblox export uses 30 FPS, mesh enabled, and `roblox_compatible=true`; Tar and arbitrary Mixamo characters are not automatically compatible. Verify destination import separately.
 
 `check_download_allowed` reports current eligibility without reserving allowance. Previous downloads, pay-as-you-go (PAYG), or role exemptions may permit an export even with zero monthly allowance. `get_usage` reports balances and allowances in separate units; billing settings are information, not authorization to change them.
+
+## Rename, delete, and restore
+
+`rename_character`, `rename_motion`, `delete_character`, `delete_motion`, `restore_character`, and `restore_motion` change only assets your organization owns. Built-in Uthana characters (Tar, Ava, Manny), example motions, and other organizations' assets are refused without change.
+
+Select assets by ID from `list_characters` or `list_motions`, never by name alone. When several assets share a name, show the user each candidate's name, ID, and creation time and let them choose. Before deleting, show the exact items and the consequences below, then delete only what the user chose. One explicit approval covers the listed items; do not ask again per item. `delete_*` requires `expected_name` equal to the asset's current name; a mismatch is refused without change.
+
+Deletion is soft. `restore_*` with the same ID undoes it. Deleted assets no longer appear in listings, so keep the IDs the delete result returns. Deleting a character keeps every motion, since motions do not belong to a character; deleting a motion keeps the trims, loops, stitches, and saved edits made from it. Share pages for a deleted asset stop working. No tool deletes uploaded source files or cached exports.
+
+These tools need no `request_id`. Each reports its outcome (`renamed`, `unchanged`, `deleted`, `not_found_or_already_deleted`, `restored`, or `already_active`). After an interruption or unknown outcome, call the same tool again to learn the current state.
+
+`download_character` saves the character's own model (mesh and skeleton, no animation) as GLB or FBX. It is free and does not use download allowance; use `download_motion` for a motion on the character.
 
 ## Upload and create characters
 

@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 24 tools for the configured environment.
+The MCP uses the shared Uthana Python client and exposes 31 tools for the configured environment (32 on the hosted server, which adds `get_artifact_download`).
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
@@ -17,9 +17,10 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |
 | Inspection | Metadata, APNG/WebM, decoded APNG frames | Visual review belongs to the host |
 | Export | Retargeted FBX/GLB/BVH, mesh, FPS, speed, torso, in-place, Roblox | Destination import requires separate verification |
+| Asset management | Rename, soft-delete and restore one character or motion your organization owns; download a character's own model | Built-in, example and other organizations' assets are refused; delete requires the current name; deleted assets are not listed, so restore needs the ID; no deletion of uploaded source files or cached exports |
 | Billing reads | Model estimate, balance/rates, allowances, export eligibility | No recharge, billing mutation, or ledger tool |
 | Recovery | Durable local receipts and cached export verification | No upstream cancel or automatic ambiguous-request resubmission |
 
-The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
+The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion of uploaded source files or cached exports, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
 
 The transport is local stdio on Linux, macOS, and Windows. The local MCP calls the configured Uthana API; production is the default. Authenticated remote MCP hosting is separate work and is not required for server-prepared stitching. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.
