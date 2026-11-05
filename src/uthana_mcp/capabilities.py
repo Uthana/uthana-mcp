@@ -152,7 +152,11 @@ OPERATIONS = [
         "Add an FBX or GLB character; optionally auto-rig, include fingers, face forward, or convert to r15/ue5.",
         tools=["upload_character"],
         models=["autorig"],
-        limits=["FBX or GLB", "Up to 30 MiB", "Auto-rigging a mesh without a rig is priced; uploading a rigged character, including re-rigging its skeleton, is free"],
+        limits=[
+            "FBX or GLB",
+            "Up to 30 MiB",
+            "Auto-rigging a mesh without a rig is priced; uploading a rigged character, including re-rigging its skeleton, is free",
+        ],
         docs=f"{DOCS}/capabilities/auto-rig-and-upload-character",
         access=WRITE,
     ),
