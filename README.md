@@ -201,6 +201,7 @@ Each example makes a separate mutation. Use a distinct request ID for different 
 - [Hosted integration for operators](docs/hosting.md)
 - [First animation and export](docs/first-animation.md)
 - [Blender import, playback, and multiple clips](docs/blender.md)
+- [What each operation costs](docs/pricing.md)
 - [Operational checks](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
 - [Public API documentation](https://uthana.com/docs/api)

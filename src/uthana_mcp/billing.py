@@ -71,12 +71,14 @@ def receipt_billing(operation, args):
         "loop": "stitch-loop-2.0",
         "stitch": "stitch-loop-2.0",
     }.get(operation)
-    # Policy: choosing a target skeleton during initial auto-rig is one auto-rig charge;
-    # converting an already-rigged character (rerig_target without auto_rig) uses the same price.
-    if operation == "upload_character" and (args.get("auto_rig") is True or args.get("rerig_target")):
+    # The backend charges auto-rig only when it builds a skeleton for an unrigged mesh. Choosing a
+    # target skeleton adds nothing, and converting an already-rigged character (rerig_target without
+    # auto_rig) is not charged. auto_rig=true on a file that already has a rig is not charged either,
+    # but the MCP cannot tell in advance, so that cost stays unmeasured.
+    if operation == "upload_character" and args.get("auto_rig") is True:
         model = "autorig"
     free = operation in {"trim", "save", "download", "preview"} or (
-        operation == "upload_character" and args.get("auto_rig") is False and not args.get("rerig_target")
+        operation == "upload_character" and args.get("auto_rig") is not True
     )
     return {
         "api_mcp_fee_usd": "0",
