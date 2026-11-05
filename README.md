@@ -3,15 +3,27 @@
 [![PyPI version](https://badge.fury.io/py/uthana-mcp.svg)](https://badge.fury.io/py/uthana-mcp)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-The MCP connector code is licensed under [Apache-2.0](LICENSE). The bundled Tar character is separately licensed under the [Tar Demo Asset License](examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos, including commercial evaluation. Tar is not licensed for production games, asset-pack redistribution, AI training, or publication of appearance changes. [Tar usage guide](examples/tar/README.md).
+[MCP](https://modelcontextprotocol.io) connector for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
 
-Local [MCP](https://modelcontextprotocol.io) server for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
-
-The host supplies the reasoning model. This server uses the shared [Uthana Python client](https://github.com/Uthana/uthana-python-client) and speaks stdio. It registers 24 tools and the `uthana://workflow` resource.
+Connect to the hosted server with your Uthana account, or run the open-source connector locally with an API key. Your AI client supplies the reasoning model; Uthana provides the animation tools.
 
 📖 [API documentation](https://uthana.com/docs/api) · [First animation](docs/first-animation.md)
 
-## Install
+## Hosted
+
+Add this URL in your AI client's MCP settings:
+
+```text
+https://mcp.uthana.com/mcp
+```
+
+Sign in with your Uthana account and approve the requested permissions. Hosted setup needs no installation or API key. Start by asking: “Show my Uthana account’s available balance and allowances. Don’t create or change anything.”
+
+See the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. Normal client approval prompts and Uthana pricing apply.
+
+Tar, Ava, and Manny (also called Manny Fingers) are available to every user, so you can start animating without uploading a character. See the [first-animation walkthrough](docs/first-animation.md).
+
+## Local installation
 
 Download and run the installer for your platform:
 
@@ -33,7 +45,7 @@ The installer checks for uv, installs it if needed, and installs the MCP with Py
 
 See the [installation guide](docs/installation.md) for manual installation, environment settings, and tool timeouts.
 
-## Connect
+## Connect locally
 
 Use the absolute server command printed by the installer. For Claude Desktop (`claude_desktop_config.json`):
 
@@ -87,7 +99,8 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `estimate_model_cost` | USD estimate from current model rates |
 | `get_job` | Generation job state and available motion ID |
 | `get_motion` | Native motion metadata and source-file identity |
-| `get_request_status` | Local request state, result IDs, and recovery guidance |
+| `get_request_status` | Request state, result IDs, and recovery guidance |
+| `get_artifact_download` | Hosted only: refresh a cached file’s download link without another export |
 | `trim_motion` | Save an interval as a new motion |
 | `get_preview` | APNG or WebM preview |
 | `get_preview_frame` | One APNG frame with index and available timing |
@@ -174,7 +187,9 @@ Each example makes a separate mutation. Use a distinct request ID for different 
 - [Workflow and recovery](src/uthana_mcp/WORKFLOW.md)
 - [API coverage and limits](docs/api-coverage.md)
 - [Stitching steps and positioning](docs/stitching.md)
-- [Install and connect](docs/installation.md)
+- [Hosted connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp)
+- [Local installation and connection](docs/installation.md)
+- [Hosted integration for operators](docs/hosting.md)
 - [First animation and export](docs/first-animation.md)
 - [Operational checks](docs/operations.md)
 - [Contributing](CONTRIBUTING.md)
@@ -187,6 +202,6 @@ uv sync --locked
 uv run --locked bash ./test.sh
 ```
 
-Licensed under [Apache-2.0](LICENSE).
+## License
 
-The hosted MCP is a technical preview and is not recommended for production use. Operator integration is described in [Hosted transport](docs/hosting.md). Local stdio installation remains supported.
+The MCP connector code is licensed under [Apache-2.0](LICENSE). The bundled Tar character is separately licensed under the [Tar Demo Asset License](examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos, including commercial evaluation. Tar is not licensed for production games, asset-pack redistribution, AI training, or publication of appearance changes. [Tar usage guide](examples/tar/README.md).
