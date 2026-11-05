@@ -7,6 +7,7 @@ import pytest
 from fakes import FakeAPI
 
 from uthana_mcp.api import UthanaAPI
+from uthana_mcp.assets import AssetLifecycle
 from uthana_mcp.errors import APIError
 from uthana_mcp.operations import Operations
 
@@ -80,14 +81,16 @@ async def test_rename_of_missing_asset_is_rejected(ops):
     assert error.value.category == "not_found" and error.value.outcome == "rejected"
 
 
-async def test_restore_of_foreign_deleted_asset_is_undone(ops):
-    # Only staff roles can write outside their organization; the restore must not stick.
+async def test_restore_of_foreign_deleted_asset_is_refused_unchanged(ops):
+    # The backend refuses another organization's asset (admins included), so nothing is restored or undone.
     ops.api.assets["foreign1"]["deleted"] = "2026-11-01T00:00:00"
-    with pytest.raises(APIError) as error:
-        await ops.assets.restore("character", "foreign1")
-    assert error.value.category == "not_owned"
-    assert ops.api.assets["foreign1"]["deleted"] is not None
-    assert [call[1]["action"] for call in changes(ops)] == ["restore", "delete"]
+    for _ in range(2):
+        with pytest.raises(APIError) as error:
+            await ops.assets.restore("character", "foreign1")
+        assert error.value.category == "not_found" and error.value.outcome == "rejected"
+        assert "Nothing was changed" in str(error.value)
+        assert ops.api.assets["foreign1"]["deleted"] is not None
+    assert [call[1]["action"] for call in changes(ops)] == ["restore", "restore"]
 
 
 async def test_restore_without_write_access_is_not_found(ops):
@@ -131,7 +134,37 @@ async def test_api_lifecycle_documents_and_owner_check_inputs():
     finally:
         await api.close()
     assert sum("motion_download_secs_per_month" in body["query"] for body in seen) == 1
+    assert all("own_org_only: $own_org_only" in body["query"] for body in seen[-2:])
     assert [body["variables"] for body in seen[-2:]] == [
-        {"character_id": "c1", "deleted": True},
-        {"character_id": "c1", "deleted": False},
+        {"character_id": "c1", "deleted": True, "own_org_only": True},
+        {"character_id": "c1", "deleted": False, "own_org_only": True},
     ]
+
+
+@pytest.mark.parametrize("kind", ["character", "motion"])
+async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind):
+    # An admin account restoring another organization's asset: the backend refuses it with no change.
+    seen = []
+
+    def respond(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        error = {
+            "message": f"{kind.capitalize()} x1 does not belong to your organization. Nothing was changed.",
+            "type": "UserAccessRequired",
+            "path": [f"update_{kind}"],
+        }
+        return httpx.Response(200, json={"data": None, "errors": [error]})
+
+    class MissingThenRestore(UthanaAPI):
+        async def asset(self, kind, asset_id):
+            raise APIError("Motion, character, or job not found.", category="not_found", outcome="not_applicable")
+
+    api = MissingThenRestore("fake", transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(APIError) as error:
+            await AssetLifecycle(api).restore(kind, "x1")
+    finally:
+        await api.close()
+    assert error.value.category == "not_found" and error.value.outcome == "rejected"
+    assert [body["variables"] for body in seen] == [{f"{kind}_id": "x1", "deleted": False, "own_org_only": True}]

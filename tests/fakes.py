@@ -89,7 +89,8 @@ class FakeAPI:
     async def update_asset(self, kind, asset_id, action, *, name=None):
         self.calls.append(("update_asset", {"kind": kind, "asset_id": asset_id, "action": action, "name": name}))
         row = self.assets.get(asset_id)
-        if row is None:
+        # Like the backend with own_org_only: other organizations' assets are refused unchanged, admins included.
+        if row is None or row["org_id"] != await self.org_id():
             raise APIError("Uthana rejected access to the requested asset.", category="permission", outcome="rejected")
         if action == "rename":
             row["name"] = name

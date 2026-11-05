@@ -30,7 +30,7 @@ dependencies = [
 
 # Temporary until the Python client release with characters.get/restore and the motion update fix is published; remove before release.
 [tool.uv.sources]
-uthana = { git = "https://github.com/Uthana/uthana-python-client", rev = "bf188547ad9f10e8e564102f9be81e9a4b490e37" }
+uthana = { git = "https://github.com/Uthana/uthana-python-client", rev = "6f4a284af4422ac871f0d77a0b9aadaf9cf7e106" }
 
 [dependency-groups]
 dev = [

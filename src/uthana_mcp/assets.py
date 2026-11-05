@@ -1,7 +1,9 @@
 """Single-asset lifecycle for characters and motions: rename, soft delete, and restore.
 
 Each call reads the asset first, changes only assets owned by the caller's organization, and
-reports what happened. The calls are idempotent and keep no local receipt, so a batch caller can
+reports what happened. The backend also enforces ownership in the same statement as each change
+(``own_org_only``), so a restore, which cannot pre-read a deleted asset, never changes another
+organization's asset. The calls are idempotent and keep no local receipt, so a batch caller can
 apply them item by item and a retry after an unknown outcome reports the current state.
 """
 
@@ -158,8 +160,8 @@ class AssetLifecycle:
                 "outcome": "already_active",
                 "changed": False,
             }
-        org_id = await self.api.org_id()
         try:
+            # The backend restores only if the caller's organization owns the asset, admins included.
             updated = await self.api.update_asset(kind, asset_id, "restore")
         except APIError as error:
             if error.category == "permission":
@@ -169,15 +171,6 @@ class AssetLifecycle:
                     outcome="rejected",
                 ) from None
             raise
-        if updated["org_id"] != org_id:
-            # Only accounts with Uthana staff roles can write outside their organization. Undo at once.
-            await self.api.update_asset(kind, asset_id, "delete")
-            raise APIError(
-                f"{kind.capitalize()} {asset_id} belongs to another organization, so the restore was "
-                "undone at once by deleting it again. Only your organization's own assets can be restored.",
-                category="not_owned",
-                outcome="rejected",
-            )
         self._confirmed(kind, asset_id, updated, deleted=False)
         return {
             "kind": kind,

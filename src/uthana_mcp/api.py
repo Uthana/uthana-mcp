@@ -402,7 +402,11 @@ class UthanaAPI:
         return asset_record(row)
 
     async def update_asset(self, kind, asset_id, action, *, name=None):
-        """Rename, soft-delete, or restore one character or motion."""
+        """Rename, soft-delete, or restore one character or motion your organization owns.
+
+        ``own_org_only`` makes the backend check ownership in the same statement as the change, so
+        another organization's asset is refused unchanged, even for admin accounts.
+        """
         module = self.client.characters if kind == "character" else self.client.motions
         if action == "rename":
             call = (module.rename, identifier(asset_id), name)
@@ -410,7 +414,7 @@ class UthanaAPI:
             call = (getattr(module, action), identifier(asset_id))
         else:
             raise ValueError("action must be rename, delete, or restore")
-        row = await self._call(*call, mutation_field=f"update_{kind}")
+        row = await self._call(*call, own_org_only=True, mutation_field=f"update_{kind}")
         return asset_record(row)
 
     async def download_character(self, character_id, format):
