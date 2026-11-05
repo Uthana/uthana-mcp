@@ -28,6 +28,9 @@ dependencies = [
     "python-dotenv==1.2.3",
 ]
 
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client", rev = "9545290e418265446411a728cf2d066825d0e1ac" }
+
 [dependency-groups]
 dev = [
     "pytest==9.1.1",

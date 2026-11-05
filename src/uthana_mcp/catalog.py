@@ -77,7 +77,8 @@ def motion_page(data, query, source, method, offset, limit):
         "organization_window_may_be_truncated": organization_count >= 1000,
         "full_library_searched": False,
         "scope_note": "Up to 1000 recent organization motions plus examples supplied by the API. "
-        "No semantic search, full shared-library search, or older-history pagination. "
+        "No semantic search, full shared-library search, or older-history pagination here; "
+        "copy_best_library_motion runs the charged library search. "
         "Offsets page this filtered window; concurrent library changes may move results.",
     }
 

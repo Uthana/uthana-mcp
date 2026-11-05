@@ -113,6 +113,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `stitch` | Join typed motion/transition/motion steps with server preparation |
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
+| `copy_best_library_motion` | Charged library search: copies the single closest library clip into your organization |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
 | `check_download_allowed` | Current export eligibility |
 | `save_motion` | Register host-edited animated GLTF JSON |

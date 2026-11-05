@@ -14,6 +14,8 @@ This server calls the Uthana environment shown in initialization and at the top 
 
 `list_motions` searches names within up to 1000 recent organization motions plus API-provided Uthana examples. Each query word must occur in the name; `method` matches an exact Method tag. `source=organization` selects organization-owned motions, which may belong to teammates. Offsets page the filtered window; a motion may still exist outside it. Report the scope when returning no matches. Use `get_motion` and previews to assess suitability.
 
+`copy_best_library_motion` is Uthana's library search. It searches the shared motion library plus the organization's labeled motions by meaning, picks the single closest clip, and copies it into the organization as a new motion. It is charged (`library-search-1.0`, per second of the returned clip) even when the match is weak, and it returns one motion, not a list of candidates to browse. There is no free library browse, candidate preview, paging, or similar-to-this-motion search. Use it only when the user wants an existing library motion and accepts the charge; estimate with `estimate_model_cost`. Review the result with previews before calling it suitable. A poor match does not prove the library lacks a better clip; say so rather than claiming absence.
+
 `list_characters` filters character names by a case-insensitive substring and pages the matches. The API has no upstream paging arguments: the server reads a catalog capped at 16 MiB and returns the requested slice. A smaller `limit` does not reduce that read. Results include the scanned count and scope. If the catalog exceeds the cap, contact Uthana support for a paginated API.
 
 ## Generate and review

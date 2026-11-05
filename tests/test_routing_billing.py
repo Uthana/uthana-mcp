@@ -142,13 +142,14 @@ def test_usage_catalog_excludes_unpublished_backend_skus():
         {
             "org": {},
             "payg_prices": [
-                {"model_key": "nearest-neighbor", "billing_unit": "second", "unit_price": "0.10"},
+                {"model_key": "retarget", "billing_unit": "second", "unit_price": "0.01"},
                 {"model_key": "text-to-motion-bucmd", "billing_unit": "second", "unit_price": "0.03"},
+                {"model_key": "nearest-neighbor", "billing_unit": "second", "unit_price": "0.10"},
             ],
         }
     )
-    assert len(result["payg"]["rates"]) == 1
-    assert result["payg"]["rates"][0]["model"] == "text-to-motion-2.0"
+    # Library search (nearest-neighbor) is a published MCP capability; retarget is still a hidden SKU.
+    assert [rate["model"] for rate in result["payg"]["rates"]] == ["text-to-motion-2.0", "library-search-1.0"]
     assert result["api_mcp_fee_usd"] == "0"
 
 

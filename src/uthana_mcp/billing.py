@@ -12,6 +12,8 @@ PUBLISHED_MODELS = {
     "text-to-motion-1.0": "text-to-motion",
     "text-to-motion-2.0": "text-to-motion-bucmd",
     "text-to-motion-3.0": "text-to-motion-3.0",
+    # Library search copies the best library match and is billed per second of that clip.
+    "library-search-1.0": "nearest-neighbor",
     "video-to-motion-2.0": "video-to-motion-2.0",
     "video-to-motion-2.1": "video-to-motion-2.1",
     "locomotion-1.0": "locomotion",
@@ -62,6 +64,7 @@ def receipt_billing(operation, args):
     model = {
         "generate": "text-to-motion-3.0",
         "generate_v2": "text-to-motion-2.0",
+        "library_search": "library-search-1.0",
         "locomotion": "locomotion-1.0",
         "video": args.get("model"),
         "character_from_image": "character-gen-1.0",
