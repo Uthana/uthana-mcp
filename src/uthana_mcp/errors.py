@@ -29,6 +29,10 @@ class APIError(RuntimeError):
 
 
 REJECTIONS = {
+    "JobLimitExceeded": (
+        "rate_limit",
+        "Uthana rejected this generation because its job limit is reached. Wait for existing jobs to complete before submitting again.",
+    ),
     "LoginRequired": (
         "authentication",
         "Uthana rejected authentication. Check the API key for the configured Uthana environment.",
