@@ -42,7 +42,7 @@ start, end = (int(f) for f in arm.animation_data.action.frame_range)
 bpy.context.scene.frame_start, bpy.context.scene.frame_end = start, end
 ```
 
-Press Play. The character mesh is skinned to the armature, and the armature carries the action. GLB actions start at frame 0 and FBX actions at frame 1. The FBX importer brings the character in at real-world size, but with a non-unit object scale on the armature. Apply scale (Ctrl+A → Scale) only if another tool needs scale 1.
+Press Play. The character mesh is skinned to the armature, and the armature carries the action. Blender's glTF importer also adds an `Icosphere` object as the bones' display shape. It is not part of the exported file; leave it alone or hide it, and exclude it from measurements. GLB actions start at frame 0 and FBX actions at frame 1. The FBX importer brings the character in at real-world size, but with a non-unit object scale on the armature. Apply scale (Ctrl+A → Scale) only if another tool needs scale 1.
 
 ## 4. Several clips on one character
 
@@ -85,6 +85,6 @@ Switch clips by assigning a different action, or lay them out as NLA strips. No 
 
 ## Checks worth running
 
-- **Floor.** In rest pose the mesh's lowest point should sit at z ≈ 0. Measure the evaluated mesh per frame to find foot or toe penetration. Ignore helper meshes that are not skinned to the armature.
+- **Floor.** In rest pose the mesh's lowest point should sit at z ≈ 0. Measure the evaluated mesh per frame to find foot or toe penetration. Measure only meshes with an Armature modifier, so the importer's `Icosphere` bone shape is excluded.
 - **Loop seam.** For a loop, compare each joint's rotation on the first and last frame. A few degrees is normal; much more can show a hitch.
 - **Root travel.** Measure the first-to-last pelvis displacement on the ground plane, with distance and direction relative to the starting facing.
