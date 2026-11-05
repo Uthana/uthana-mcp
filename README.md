@@ -197,3 +197,15 @@ uv run --locked bash ./test.sh
 ## License
 
 The MCP connector code is licensed under [Apache-2.0](LICENSE). The bundled Tar character is separately licensed under the [Tar Demo Asset License](examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos, including commercial evaluation. Tar is not licensed for production games, asset-pack redistribution, AI training, or publication of appearance changes. [Tar usage guide](examples/tar/README.md).
+
+### Trial generation limits
+
+Without a valid saved payment method, an organization can have four queued,
+delayed, or running jobs per type. TTM and VTM have separate slots; all members
+share them. Pending generations reserve funds before running.
+
+A confirmed `job_limit_exceeded` HTTP 429 response is reported as
+`category="rate_limit"`, `outcome="rejected"`, and `safe_to_resubmit=true`.
+Wait for existing jobs to complete before resubmitting; the connector does not
+retry automatically. An unrecognized HTTP 429 keeps `outcome="unknown"` and
+requires the normal receipt recovery workflow before any resubmission.
