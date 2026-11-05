@@ -51,7 +51,22 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 "check_download_allowed",
                 "save_motion",
                 "download_motion",
+                "download_character",
+                "rename_character",
+                "rename_motion",
+                "delete_character",
+                "delete_motion",
+                "restore_character",
+                "restore_motion",
             }
+            for tool in ("delete_character", "delete_motion", "rename_character", "rename_motion"):
+                assert tools[tool].annotations.destructiveHint is True
+                assert tools[tool].annotations.idempotentHint is True
+                assert tools[tool].annotations.readOnlyHint is False
+            for tool in ("restore_character", "restore_motion"):
+                assert tools[tool].annotations.destructiveHint is False
+                assert tools[tool].annotations.readOnlyHint is False
+            assert "expected_name" in tools["delete_motion"].inputSchema["required"]
             assert "source_duration_seconds" not in tools["trim_motion"].inputSchema["properties"]
             assert tools["download_motion"].annotations.readOnlyHint is False
             for tool in ("list_motions", "get_usage", "check_download_allowed"):
@@ -154,6 +169,6 @@ async def test_actual_entrypoint_discovers_without_credentials(domain):
             assert domain in initialized.instructions
             workflow = await client.read_resource("uthana://workflow")
             assert domain in workflow.contents[0].text.splitlines()[0]
-            assert len((await client.list_tools()).tools) == 24
+            assert len((await client.list_tools()).tools) == 31
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

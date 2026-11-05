@@ -73,6 +73,16 @@ def normalize_job(job: dict) -> dict:
     }
 
 
+def asset_record(row: object) -> dict:
+    """Normalize a character or motion record returned by a read or lifecycle mutation."""
+    if not isinstance(row, dict):
+        raise ValueError("Expected a character or motion record")
+    name, deleted = row.get("name"), row.get("deleted")
+    if not isinstance(name, str) or not (deleted is None or isinstance(deleted, str)):
+        raise ValueError("Character or motion record has an invalid name or deletion time")
+    return {"id": identifier(row.get("id")), "name": name, "org_id": identifier(row.get("org_id")), "deleted": deleted}
+
+
 def motion_metadata(motion: dict) -> dict:
     motion_id = identifier(motion.get("id"))
     bundles = [a for a in motion.get("assets", []) if a.get("type") == "bundle" and a.get("uid") == motion_id]

@@ -12,6 +12,7 @@ from pathlib import Path
 import httpx
 from PIL import Image
 
+from .assets import AssetLifecycle
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
 from .errors import APIError
@@ -27,6 +28,7 @@ class Operations:
     def __init__(self, api, directory, input_directory=None):
         self.api = api
         self.store = Store(Path(directory), api.scope)
+        self.assets = AssetLifecycle(api)
         self.input_directory = Path(input_directory).expanduser().resolve() if input_directory else None
 
     async def generate(self, request_id, prompt, duration_seconds=4, character_id=TAR):
@@ -575,6 +577,29 @@ class Operations:
 
     async def usage(self):
         return usage_snapshot(await self.api.usage())
+
+    async def download_character(self, character_id, format="glb"):
+        """Save the character's own model file locally; no motion, retargeting, or download allowance."""
+        identifier(character_id)
+        if format not in {"glb", "fbx"}:
+            raise ValueError("Character format must be glb or fbx")
+        record = await self.api.asset("character", character_id)
+        data = await self.api.download_character(character_id, format)
+        signature = b"glTF" if format == "glb" else b"Kaydara FBX Binary"
+        if not data.startswith(signature):
+            raise ValueError(f"Character download did not return a {format.upper()} file")
+        return self.store.artifact(
+            data,
+            "." + format,
+            {
+                "character_id": character_id,
+                "name": record["name"],
+                "format": format,
+                "asset_kind": "character_model",
+                "includes_animation": False,
+                "billing": receipt_billing("character_download", {}),
+            },
+        )
 
     async def download_allowed(self, motion_id, character_id=TAR):
         identifier(motion_id)

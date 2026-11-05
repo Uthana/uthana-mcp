@@ -117,6 +117,10 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `check_download_allowed` | Current export eligibility |
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
+| `download_character` | The character's own GLB/FBX model, without animation |
+| `rename_character`, `rename_motion` | Rename an asset your organization owns |
+| `delete_character`, `delete_motion` | Soft-delete an asset your organization owns, after confirming its name |
+| `restore_character`, `restore_motion` | Undo a delete by ID |
 
 `UthanaAPI.generate_v1` is a Python adapter method for V1 generation. It is not a separate MCP tool.
 

@@ -12,7 +12,7 @@ from uthana.types import CharacterPreviewResult, UthanaError
 
 from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
-from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
+from .validation import UTHANA_DOMAIN, asset_record, identifier, motion_metadata, normalize_job
 
 
 class StitchAPIResult(StitchResult):
@@ -63,6 +63,8 @@ class UthanaAPI:
             max_response_bytes=response_limit,
             max_mutation_response_bytes=response_limit,
         )
+
+    _org_id: str | None = None
 
     async def close(self):
         self.client.close()
@@ -385,6 +387,44 @@ class UthanaAPI:
                     outcome="not_applicable",
                 ) from None
             raise
+
+    async def org_id(self) -> str:
+        """The caller's organization ID; an account's organization does not change during a session."""
+        if self._org_id is None:
+            org = await self._call(self.client.org.get_org, read_only=True)
+            self._org_id = identifier(org["id"])
+        return self._org_id
+
+    async def asset(self, kind, asset_id):
+        """Read one live character or motion with its owning organization."""
+        module = self.client.characters if kind == "character" else self.client.motions
+        row = await self._call(module.get, identifier(asset_id), read_only=True, resource=kind)
+        return asset_record(row)
+
+    async def update_asset(self, kind, asset_id, action, *, name=None):
+        """Rename, soft-delete, or restore one character or motion your organization owns.
+
+        ``own_org_only`` makes the backend check ownership in the same statement as the change, so
+        another organization's asset is refused unchanged, even for admin accounts.
+        """
+        module = self.client.characters if kind == "character" else self.client.motions
+        if action == "rename":
+            call = (module.rename, identifier(asset_id), name)
+        elif action in {"delete", "restore"}:
+            call = (getattr(module, action), identifier(asset_id))
+        else:
+            raise ValueError("action must be rename, delete, or restore")
+        row = await self._call(*call, own_org_only=True, mutation_field=f"update_{kind}")
+        return asset_record(row)
+
+    async def download_character(self, character_id, format):
+        return await self._call(
+            self.client.characters.download,
+            identifier(character_id),
+            output_format=format,
+            max_bytes=128 * 1024 * 1024,
+            read_only=True,
+        )
 
     async def motion_catalog(self):
         return await self._call(self.client.motions.catalog, read_only=True)

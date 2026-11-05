@@ -19,7 +19,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "uthana>=0.7.1",
+    "uthana>=0.8.0",
     "mcp==1.30.0",
     "httpx==0.28.1",
     "starlette==1.9.0",
@@ -27,6 +27,10 @@ dependencies = [
     "pydantic==2.13.5",
     "python-dotenv==1.2.3",
 ]
+
+# Temporary until the Python client release with characters.get/restore and the motion update fix is published; remove before release.
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client", rev = "6f4a284af4422ac871f0d77a0b9aadaf9cf7e106" }
 
 [dependency-groups]
 dev = [

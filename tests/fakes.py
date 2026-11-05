@@ -2,6 +2,8 @@ import io
 
 from PIL import Image
 
+from uthana_mcp.errors import APIError
+
 
 def native(motion_id="motion1", count=120, fps=30):
     return {
@@ -30,6 +32,17 @@ class FakeAPI:
         self.calls = []
         self.motions = {"motion1": native(), "motion2": native("motion2")}
         self.fail_verification = False
+        self.assets = {
+            row["id"]: {**row, "deleted": None}
+            for row in (
+                {"id": "mixamo1", "name": "First", "org_id": "org1"},
+                {"id": "mixamo2", "name": "Second", "org_id": "org1"},
+                {"id": "tar1", "name": "Tar", "org_id": "shared"},
+                {"id": "foreign1", "name": "Theirs", "org_id": "org2"},
+                {"id": "motion1", "name": "Walking slowly", "org_id": "org1"},
+                {"id": "example1", "name": "Walking example", "org_id": "shared"},
+            )
+        }
 
     async def close(self):
         pass
@@ -63,6 +76,31 @@ class FakeAPI:
 
     async def character_metadata(self, character_id):
         return {"engine": "roblox" if character_id == "roblox1" else "generic"}
+
+    async def org_id(self):
+        return "org1"
+
+    async def asset(self, kind, asset_id):
+        row = self.assets.get(asset_id)
+        if row is None or row["deleted"]:
+            raise APIError("Motion, character, or job not found.", category="not_found", outcome="not_applicable")
+        return dict(row)
+
+    async def update_asset(self, kind, asset_id, action, *, name=None):
+        self.calls.append(("update_asset", {"kind": kind, "asset_id": asset_id, "action": action, "name": name}))
+        row = self.assets.get(asset_id)
+        # Like the backend with own_org_only: other organizations' assets are refused unchanged, admins included.
+        if row is None or row["org_id"] != await self.org_id():
+            raise APIError("Uthana rejected access to the requested asset.", category="permission", outcome="rejected")
+        if action == "rename":
+            row["name"] = name
+        else:
+            row["deleted"] = "2026-11-04T00:00:00" if action == "delete" else None
+        return dict(row)
+
+    async def download_character(self, character_id, format):
+        self.calls.append(("download_character", {"character_id": character_id, "format": format}))
+        return b"glTF\x02\x00\x00\x00offline" if format == "glb" else b"Kaydara FBX Binary  \x00offline"
 
     async def characters(self):
         return [{"id": "mixamo1", "name": "First"}, {"id": "mixamo2", "name": "Second"}]
