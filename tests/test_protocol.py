@@ -48,13 +48,14 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 "list_characters",
                 "list_motions",
                 "get_usage",
+                "get_billing_history",
                 "check_download_allowed",
                 "save_motion",
                 "download_motion",
             }
             assert "source_duration_seconds" not in tools["trim_motion"].inputSchema["properties"]
             assert tools["download_motion"].annotations.readOnlyHint is False
-            for tool in ("list_motions", "get_usage", "check_download_allowed"):
+            for tool in ("list_motions", "get_usage", "get_billing_history", "check_download_allowed"):
                 assert tools[tool].annotations.readOnlyHint is True
             speed = tools["download_motion"].inputSchema["properties"]["speed_multiplier"]
             assert speed["exclusiveMinimum"] == 0 and speed["maximum"] == 2
@@ -154,6 +155,6 @@ async def test_actual_entrypoint_discovers_without_credentials(domain):
             assert domain in initialized.instructions
             workflow = await client.read_resource("uthana://workflow")
             assert domain in workflow.contents[0].text.splitlines()[0]
-            assert len((await client.list_tools()).tools) == 24
+            assert len((await client.list_tools()).tools) == 25
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

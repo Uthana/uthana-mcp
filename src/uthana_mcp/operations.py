@@ -13,12 +13,13 @@ import httpx
 from PIL import Image
 
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
+from .billing_history import billing_history_page, ledger_request
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchInput
 from .store import Store
-from .validation import TAR, identifier, number, text
+from .validation import TAR, UTHANA_DOMAIN, identifier, number, text
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
 
@@ -575,6 +576,14 @@ class Operations:
 
     async def usage(self):
         return usage_snapshot(await self.api.usage())
+
+    async def billing_history(self, since=None, until=None, entry_types=None, before_entry_id=None, limit=50):
+        if before_entry_id is not None:
+            identifier(before_entry_id)
+        request = ledger_request(since, until, entry_types, before_entry_id, limit)
+        rows = await self.api.ledger(**request)
+        domain = getattr(self.api, "domain", None) or UTHANA_DOMAIN
+        return billing_history_page(rows, limit=limit, domain=domain, request=request)
 
     async def download_allowed(self, motion_id, character_id=TAR):
         identifier(motion_id)

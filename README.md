@@ -114,6 +114,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
+| `get_billing_history` | Recorded PAYG charges, payments, free credit and adjustments, newest first |
 | `check_download_allowed` | Current export eligibility |
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |

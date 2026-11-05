@@ -150,6 +150,25 @@ class FakeAPI:
             ],
         }
 
+    async def ledger(self, **filters):
+        self.calls.append(("ledger", filters))
+        return [
+            {
+                "id": "pl1",
+                "created": "2026-11-03T10:00:00Z",
+                "type": "debit",
+                "total_usd": "0.2500",
+                "balance_before": "10.0000",
+                "balance_after": "9.7500",
+                "model": "text-to-motion-3.0",
+                "billing_unit": "second",
+                "quantity": 5.0,
+                "unit_price": "0.0500",
+                "ref": "motion:motion1",
+                "status": "ok",
+            }
+        ]
+
     async def usage(self):
         self.calls.append(("usage", {}))
         return {

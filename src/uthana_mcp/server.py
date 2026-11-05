@@ -667,6 +667,37 @@ def create_server(
         return await ops().usage()
 
     @tool(annotations=READ)
+    async def get_billing_history(
+        since: Annotated[
+            str | None,
+            Field(
+                description="Optional ISO 8601 start, inclusive, such as 2026-11-01T00:00:00Z; a time without offset is UTC."
+            ),
+        ] = None,
+        until: Annotated[
+            str | None, Field(description="Optional ISO 8601 end, exclusive; must be later than since.")
+        ] = None,
+        entry_types: Annotated[
+            list[Literal["charge", "payment", "free_credit", "adjustment"]] | None,
+            Field(min_length=1, max_length=4, description="Optional entry kinds to keep; omit for all."),
+        ] = None,
+        before_entry_id: Annotated[
+            Id | None,
+            Field(description="next_before_entry_id from the previous page, to read older entries."),
+        ] = None,
+        limit: Annotated[
+            Annotated[int, Field(ge=1, le=100)], Field(description="Maximum entries per page, integer 1-100.")
+        ] = 50,
+    ) -> dict[str, Any]:
+        (
+            "Read the organization's recorded pay-as-you-go (PAYG) ledger, newest first: charges with model, quantity, "
+            "unit price and the motion, character or job charged, plus payments, free credit and staff adjustments, "
+            "with signed USD amounts and balances. Read-only. Use it to reconcile what a workflow cost; "
+            "invoices and receipts are on the returned account page."
+        )
+        return await ops().billing_history(since, until, entry_types, before_entry_id, limit)
+
+    @tool(annotations=READ)
     async def check_download_allowed(
         motion_id: Annotated[Id, Field(description="Existing Uthana motion ID.")],
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,

@@ -28,6 +28,10 @@ dependencies = [
     "python-dotenv==1.2.3",
 ]
 
+# Temporary until the Python client release that includes org.get_ledger is published; remove before release.
+[tool.uv.sources]
+uthana = { git = "https://github.com/Uthana/uthana-python-client", rev = "fd7617ab3d7f740e04b9a0111ecbb67570115896" }
+
 [dependency-groups]
 dev = [
     "pytest==9.1.1",

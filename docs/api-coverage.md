@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 24 tools for the configured environment.
+The MCP uses the shared Uthana Python client and exposes 25 tools for the configured environment.
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |
 | Inspection | Metadata, APNG/WebM, decoded APNG frames | Visual review belongs to the host |
 | Export | Retargeted FBX/GLB/BVH, mesh, FPS, speed, torso, in-place, Roblox | Destination import requires separate verification |
-| Billing reads | Model estimate, balance/rates, allowances, export eligibility | No recharge, billing mutation, or ledger tool |
+| Billing reads | Model estimate, balance/rates, allowances, export eligibility, recorded PAYG ledger (`get_billing_history`) | No purchase, recharge, auto top-up or spending-limit change; invoices and receipts stay on the account page |
 | Recovery | Durable local receipts and cached export verification | No upstream cancel or automatic ambiguous-request resubmission |
 
 The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
