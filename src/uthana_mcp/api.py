@@ -5,6 +5,7 @@ This layer applies explicit environment configuration and conservative, redacted
 """
 
 import hashlib
+import math
 
 import httpx
 from uthana import StitchInput, StitchResult, Uthana
@@ -170,6 +171,21 @@ class UthanaAPI:
             mutation_field="create_text_to_motion",
         )
         return {"motion_id": identifier(result.motion_id), "character_id": character_id}
+
+    async def library_search(self, prompt, character_id):
+        result = await self._call(
+            self.client.ttm.library_search,
+            prompt,
+            character_id=character_id,
+            mutation_field="create_text_to_motion",
+        )
+        score = result.match_score
+        return {
+            "motion_id": identifier(result.motion_id),
+            "character_id": character_id,
+            "name": result.name,
+            "match_score": None if score is None or not math.isfinite(score) else round(score, 4),
+        }
 
     async def locomotion_styles(self):
         return await self._call(self.client.motions.list_locomotion_styles, read_only=True)

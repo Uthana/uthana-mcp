@@ -174,6 +174,15 @@ class FakeAPI:
         self.calls.append(("generate_v2", args))
         return {"motion_id": "motion1", "character_id": args["character_id"]}
 
+    async def library_search(self, **args):
+        self.calls.append(("library_search", args))
+        return {
+            "motion_id": "motion1",
+            "character_id": args["character_id"],
+            "name": "NN: " + args["prompt"],
+            "match_score": 0.8123,
+        }
+
     async def locomotion_styles(self):
         return ["neutral_male_a", "neutral_female_a"]
 

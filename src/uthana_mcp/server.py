@@ -230,6 +230,29 @@ def create_server(
         """
         return await ops().generate_v2(request_id, prompt, duration_seconds, character_id)
 
+    @tool(annotations=WRITE)
+    async def copy_best_library_motion(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        prompt: Annotated[
+            Annotated[str, Field(min_length=1, max_length=1000)],
+            Field(description="Description of the wanted motion, at most 1000 characters."),
+        ],
+        character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
+    ) -> dict[str, Any]:
+        """Charged library search: find the existing Uthana library motion closest to a description and copy
+        it into the organization as a new motion. Searches the shared motion library plus the organization's
+        labeled motions by meaning and returns only the single best match, not a candidate list. Billed as
+        library-search-1.0 per second of the returned clip, even when the match is weak; a poor match does
+        not prove the library lacks a better clip. Returns a motion ID directly; review it with get_preview.
+        See workflow library-search guidance.
+        """
+        return await ops().library_search(request_id, prompt, character_id)
+
     @tool(annotations=READ)
     async def list_locomotion_styles() -> dict[str, Any]:
         "List the available locomotion styles."
@@ -658,7 +681,10 @@ def create_server(
             Annotated[int, Field(ge=1, le=100)], Field(description="Maximum returned items, integer 1-100.")
         ] = 20,
     ) -> dict[str, Any]:
-        "Find recent motions by name. Searches up to 1000 organization motions plus API-provided examples, labeled by source. Offsets page this filtered window; a motion may still exist outside it."
+        """Find recent motions by name. Searches up to 1000 organization motions plus API-provided examples,
+        labeled by source. Offsets page this filtered window; a motion may still exist outside it.
+        Does not search the shared library; see copy_best_library_motion.
+        """
         return await ops().motions(query, source, method, offset, limit)
 
     @tool(annotations=READ)

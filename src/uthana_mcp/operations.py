@@ -52,6 +52,25 @@ class Operations:
             raise ValueError("V2 duration must use 0.4-second increments from 4 to 10 seconds")
         return await self.store.mutation(request_id, "generate_v2", args, lambda: self.api.generate_v2(**args))
 
+    async def library_search(self, request_id, prompt, character_id=TAR):
+        args = {"prompt": text(prompt, 1000), "character_id": identifier(character_id)}
+
+        async def invoke():
+            result = await self.api.library_search(**args)
+            return {
+                **result,
+                "result_kind": "copied_library_match",
+                "candidates_returned": 1,
+                "search_scope": "Uthana shared motion library plus this organization's labeled motions",
+                "exhaustive": False,
+                "review_status": "unreviewed",
+                "note": "The single closest clip by description, copied into this organization as a new motion. "
+                "A weak or unrelated match is still charged and does not prove a better clip is absent. "
+                "Use get_motion for duration and get_preview to review it.",
+            }
+
+        return await self.store.mutation(request_id, "library_search", args, invoke)
+
     async def locomotion_styles(self):
         styles = await self.api.locomotion_styles()
         if not isinstance(styles, list) or not all(isinstance(s, str) and s.strip() for s in styles):
