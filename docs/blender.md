@@ -81,7 +81,7 @@ Switch clips by assigning a different action, or lay them out as NLA strips. No 
 - **Uthana directions are character-relative.** Locomotion `travel_angle` is 0 forward, 90 to the character's right, -90 to its left, 180 backward. Stitch placement uses `forward_m`, `right_m` and `turn_degrees` (positive to the right) relative to the preceding clip's ending facing.
 - **GLB** follows glTF: Y-up, with the character facing +Z and its left side toward +X.
 - **In Blender** (Z-up), both GLB and FBX imports face **-Y**, with the character's left toward **+X**.
-- **Check direction against the character, not the world.** Compare root travel with the facing at the first frame, for example the vector from `upperarm_l` to `upperarm_r` crossed with up. Mirrored labels usually come from comparing against world axes.
+- **Check direction against the character, not the world.** Compare root travel with the facing at the first frame, for example up crossed with the vector from `upperarm_l` to `upperarm_r` (in Blender: +Z × −X = −Y, the character's forward). Mirrored labels usually come from comparing against world axes.
 
 ## Checks worth running
 
