@@ -1273,9 +1273,13 @@ wheels = [
 [[package]]
 name = "uthana"
 version = "0.8.0"
-source = { git = "https://github.com/Uthana/uthana-python-client.git?rev=011639867a9d8b082e2d63bd75fc94a3ef6ca33f#011639867a9d8b082e2d63bd75fc94a3ef6ca33f" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/64/5244204aff2a1a9950bc35e5f899aab95f1a02abcdb7921d0c1b63385b7b/uthana-0.8.0.tar.gz", hash = "sha256:a0ced121281f2f24824c6e1c61652cb29bc20eb76074d7edebe06a70943ed766", size = 66892, upload-time = "2026-11-05T17:46:37.886Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/39/ee655951a29e3c816ad5b97366f14af42b25b898ada6b86d2bbff848871d/uthana-0.8.0-py3-none-any.whl", hash = "sha256:ca92a3b0eed84f8f6c7587241879cfecc54444f4b2a68bb4bf44d5c992f46d6c", size = 40001, upload-time = "2026-11-05T17:46:36.745Z" },
 ]
 
 [[package]]
@@ -1314,7 +1318,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "python-dotenv", specifier = "==1.2.3" },
     { name = "starlette", specifier = "==1.9.0" },
-    { name = "uthana", git = "https://github.com/Uthana/uthana-python-client.git?rev=011639867a9d8b082e2d63bd75fc94a3ef6ca33f" },
+    { name = "uthana", specifier = ">=0.8.0" },
 ]
 
 [package.metadata.requires-dev]
