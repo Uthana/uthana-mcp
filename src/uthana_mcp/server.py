@@ -691,7 +691,7 @@ def create_server(
     ) -> dict[str, Any]:
         (
             "Read the organization's recorded pay-as-you-go (PAYG) ledger, newest first: charges with model, quantity, "
-            "unit price and the motion, character or job charged, plus payments, free credit and staff adjustments, "
+            "unit price, the motion or character charged (asset_id) and its processing job (job_id), plus payments, free credit and staff adjustments, "
             "with signed USD amounts and balances. Read-only. Use it to reconcile what a workflow cost; "
             "invoices and receipts are on the returned account page."
         )

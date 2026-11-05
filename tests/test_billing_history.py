@@ -19,6 +19,7 @@ ROWS = [
         "quantity": 5.0,
         "unit_price": "0.0500",
         "ref": "motion:m1",
+        "job_id": "m1",
         "task_id": "J1",
         "status": "ok",
     },
@@ -70,9 +71,10 @@ def test_entries_are_labeled_signed_and_linked():
     charge, failed, payment, adjustment, grant = page["entries"]
     assert charge["kind"] == "charge" and charge["amount_usd"] == "-0.2500"
     assert charge["motion_id"] == "m1" and charge["character_id"] is None and charge["job_id"] == "J1"
+    assert charge["asset_type"] == "motion" and charge["asset_id"] == "m1"
     assert charge["unit_price_usd"] == "0.0500" and charge["billing_unit"] == "second"
     assert failed["is_failed_generation"] is True and failed["amount_usd"] == "0"
-    assert failed["motion_id"] is None
+    assert failed["motion_id"] is None and failed["asset_id"] is None and failed["job_id"] == "J0"
     assert payment["kind"] == "payment" and payment["payment_source"] == "auto_top_up"
     assert payment["amount_usd"] == "10.0000"
     assert adjustment["kind"] == "adjustment" and adjustment["amount_usd"] == "-1.0000"
@@ -149,3 +151,34 @@ async def test_operation_passes_filters_to_the_client(tmp_path):
     page = await Operations(api, tmp_path).billing_history(entry_types=["charge"], limit=1)
     assert seen == {"limit": 2, "types": ["debit"]}
     assert page["has_more"] is True and page["filters"]["entry_types"] == ["charge"]
+
+
+def _charge(**fields):
+    row = {**ROWS[0], **fields}
+    return billing_history_page([row], limit=5, domain="uthana.com", request={"limit": 6})["entries"][0]
+
+
+def test_motion_debit_reports_the_job_from_task_id_not_the_motion():
+    # A real debit row: the backend puts the motion in job_id and the processing job in task_id.
+    entry = _charge(job_id="mMotion7Kq2", task_id="J4s8XkP2aQ1", ref="motion:mMotion7Kq2")
+    assert entry["job_id"] == "J4s8XkP2aQ1"
+    assert entry["asset_type"] == "motion" and entry["asset_id"] == "mMotion7Kq2"
+    assert entry["motion_id"] == "mMotion7Kq2" and entry["character_id"] is None
+
+
+def test_character_debit_without_a_worker_job_has_no_job_id():
+    entry = _charge(job_id="cChar9", task_id=None, ref="character:cChar9")
+    assert entry["job_id"] is None
+    assert entry["asset_type"] == "character" and entry["character_id"] == "cChar9" and entry["motion_id"] is None
+
+
+def test_failed_generation_job_falls_back_to_the_ref():
+    entry = _charge(job_id=None, task_id=None, ref="job_failed:J0Failed", status="failed", total_usd="0")
+    assert entry["job_id"] == "J0Failed" and entry["asset_id"] is None and entry["is_failed_generation"] is True
+
+
+def test_asset_id_without_a_known_ref_is_never_reported_as_a_job():
+    entry = _charge(job_id="mMotion7Kq2", task_id=None, ref="legacy:abc")
+    assert entry["job_id"] is None
+    assert entry["asset_id"] == "mMotion7Kq2" and entry["asset_type"] is None
+    assert entry["motion_id"] is None and entry["character_id"] is None

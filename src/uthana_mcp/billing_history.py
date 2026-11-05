@@ -18,12 +18,14 @@ LABELS = {
     "free_credit": "Free credit added by Uthana (welcome, promotion or affiliate commission)",
     "adjustment": "Balance correction made by Uthana staff",
 }
+ASSET_TYPES = ("motion", "character")
 PAYMENT_SOURCES = {"pi": "checkout", "inv": "invoice", "ar": "auto_top_up"}
 MAX_PAGE = 100
 NOTES = [
     "Amounts are recorded USD ledger entries, not estimates. Estimates from estimate_model_cost are never stored here.",
     "amount_usd is signed: charges are negative, payments and free credit positive, adjustments either way.",
     "balance_before_usd and balance_after_usd are the total spendable balance (free credit plus purchased balance). Charges use free credit first.",
+    "On a charge, asset_id (with motion_id or character_id) is the motion or character that was charged; job_id is the processing job, for get_job. Either can be null, for example a failed generation has no asset.",
     "A failed generation is recorded as a $0 charge with status failed; nothing is taken, so there is no separate refund entry. Uthana records no refund entry type.",
     "Organizations on a legacy monthly plan are not billed per operation and have no entries; use get_usage for remaining monthly allowances.",
     "Invoices and receipts are not available through the MCP. A signed-in member can open them from the account page's Invoices button.",
@@ -83,6 +85,25 @@ def _text(value):
     return value if isinstance(value, str) and value else None
 
 
+def charge_references(row, prefix, value):
+    """Split a debit row into the charged asset and the processing job.
+
+    The backend stores the charged motion or character ID in ``job_id`` and the
+    processing job in ``task_id``; ``ref`` is ``motion:<id>``, ``character:<id>``
+    or, for a failed generation, ``job_failed:<job id>``.
+    """
+    asset_type = prefix if prefix in ASSET_TYPES and value else None
+    asset_id = value if asset_type else _text(row.get("job_id"))
+    job_id = _text(row.get("task_id")) or (value if prefix == "job_failed" and value else None)
+    return {
+        "asset_type": asset_type,
+        "asset_id": asset_id,
+        "motion_id": asset_id if asset_type == "motion" else None,
+        "character_id": asset_id if asset_type == "character" else None,
+        "job_id": job_id,
+    }
+
+
 def ledger_entry(row):
     if not isinstance(row, dict) or not _text(row.get("id")) or not _text(row.get("type")):
         raise APIError("Invalid billing history response")
@@ -116,9 +137,7 @@ def ledger_entry(row):
                 "billing_unit": _text(row.get("billing_unit")),
                 "quantity": row.get("quantity"),
                 "unit_price_usd": None if unit_price is None else str(unit_price),
-                "job_id": _text(row.get("job_id")) or _text(row.get("task_id")),
-                "motion_id": value if prefix == "motion" and value else None,
-                "character_id": value if prefix == "character" and value else None,
+                **charge_references(row, prefix, value),
             }
         )
     elif kind == "payment":

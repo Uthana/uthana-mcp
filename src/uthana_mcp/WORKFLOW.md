@@ -57,7 +57,7 @@ A major change, such as switching sword hands, adding a 270-degree backswing, an
 
 FBX/GLB can include mesh and skeleton animation; BVH requires `include_mesh=false`. Roblox export requires FBX and a supported Roblox character. A typical requested Roblox export uses 30 FPS, mesh enabled, and `roblox_compatible=true`; Tar and arbitrary Mixamo characters are not automatically compatible. Verify destination import separately.
 
-`check_download_allowed` reports current eligibility without reserving allowance. Previous downloads, pay-as-you-go (PAYG), or role exemptions may permit an export even with zero monthly allowance. `get_usage` reports balances and allowances in separate units; billing settings are information, not authorization to change them. To say what a workflow cost, read the recorded charges with `get_billing_history` (filter by time or kind, page with `next_before_entry_id`) instead of subtracting balances or reusing an estimate.
+`check_download_allowed` reports current eligibility without reserving allowance. Previous downloads, pay-as-you-go (PAYG), or role exemptions may permit an export even with zero monthly allowance. `get_usage` reports balances and allowances in separate units; billing settings are information, not authorization to change them. To say what a workflow cost, read the recorded charges with `get_billing_history` (filter by time or kind, page with `next_before_entry_id`) instead of subtracting balances or reusing an estimate. On a charge, `asset_id` (also `motion_id` or `character_id`) is what was generated and `job_id` is the processing job for `get_job`; never pass one as the other.
 
 ## Upload and create characters
 
