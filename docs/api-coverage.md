@@ -1,10 +1,14 @@
 # API coverage
 
-The MCP uses the shared Uthana Python client and exposes 24 tools for the configured environment.
+The MCP uses the shared Uthana Python client and exposes 25 tools for the configured environment (26 on the hosted server, which adds `get_artifact_download`).
+
+Agents can ask the server directly: `get_capabilities` and the `uthana://capabilities` resource return a read-only catalog of every reviewed Uthana operation with its status (`available`, `platform_only`, `planned`, `not_offered`), models, limits, required access, documentation link, this server's version, environment and registered tools, plus optional account eligibility for priced models. The catalog lives in `src/uthana_mcp/capabilities.py`; update it with any tool change (a test fails if a tool is missing from it).
 
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
+| Capability discovery | `get_capabilities`, `uthana://capabilities` | Reviewed catalog, not a live platform probe; account rates read at call time |
 | Text-to-motion V2/V3 | Generate, poll V3, inspect | V2/V3 duration limits appear in tool schemas |
+| Text-to-motion V1 | Not a tool by design; listed as `platform_only` | Offered in the web app and API; use V2 or V3 here |
 | Video-to-motion (V2M) 2.0/2.1 | Selected-file upload and job polling | 128 MiB input limit |
 | Locomotion | Styles and cycle generation | Duration follows strides |
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |
@@ -20,6 +24,6 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Billing reads | Model estimate, balance/rates, allowances, export eligibility | No recharge, billing mutation, or ledger tool |
 | Recovery | Durable local receipts and cached export verification | No upstream cancel or automatic ambiguous-request resubmission |
 
-The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and a complete API explorer are outside this surface. A price entry or public API example does not imply a corresponding execution tool.
+The MCP does not yet cover every Uthana API capability. Full shared-library search, general scene editing, bulk operations, deletion, billing administration, and raw API execution are outside this surface; `get_capabilities` reports each as planned or not offered. A price entry or public API example does not imply a corresponding execution tool.
 
 The transport is local stdio on Linux, macOS, and Windows. The local MCP calls the configured Uthana API; production is the default. Authenticated remote MCP hosting is separate work and is not required for server-prepared stitching. Tool results currently use flexible JSON objects; a versioned, field-specific output schema remains future work.

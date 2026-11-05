@@ -16,6 +16,7 @@ from mcp.types import ImageContent, TextContent, ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
 from .api import UthanaAPI
+from .capabilities import account_eligibility, catalog
 from .config import Config
 from .errors import APIError
 from .operations import Operations
@@ -177,6 +178,44 @@ def create_server(
     )
     def workflow() -> str:
         return f"Active API environment: {domain}.\n\n" + files("uthana_mcp").joinpath("WORKFLOW.md").read_text()
+
+    transport = "hosted" if http_settings else "local_stdio"
+
+    def deployment_catalog():
+        tools = [registered.name for registered in server._tool_manager.list_tools()]
+        return catalog(version=server._mcp_server.version, domain=domain, transport=transport, tools=tools)
+
+    @server.resource(
+        "uthana://capabilities",
+        name="Uthana capabilities",
+        description="Read-only catalog of Uthana operations, models, limits, and this deployment's tools",
+        mime_type="application/json",
+    )
+    def capabilities() -> str:
+        return json.dumps(deployment_catalog(), indent=1)
+
+    @tool(annotations=READ)
+    async def get_capabilities(
+        include_account: Annotated[
+            bool,
+            Field(
+                description="Also read this account's billing mode, rates, and allowances. Read-only and free; false skips the account call."
+            ),
+        ] = True,
+    ) -> dict[str, Any]:
+        """Answer "what can I do with Uthana from this connection?" without creating work.
+        Lists platform operations with status (available in this MCP, platform-only, planned, not offered),
+        models, limits, required access, and documentation, plus this server's version, environment, and tools.
+        With include_account, adds which priced models currently have rates for this account.
+        """
+        result = deployment_catalog()
+        if include_account:
+            try:
+                result["account"] = account_eligibility(await ops().usage())
+            except (APIError, ValueError) as error:
+                # The catalog stays useful before a key is configured or when the account read fails.
+                result["account"] = {"checked_at": None, "error": str(error)}
+        return result
 
     @tool(annotations=WRITE)
     async def generate_motion(
