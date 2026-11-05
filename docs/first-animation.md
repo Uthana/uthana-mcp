@@ -55,7 +55,7 @@ What to expect:
 
 Generated motion varies from run to run. Following these steps gives you the same workflow, settings, and kind of result, not an identical animation. If the wave is not what you wanted, ask for another one; that is a new generation and is charged again.
 
-The $0.50 is an instruction your assistant follows. Uthana does not enforce a per-request budget. Your balance is the only hard limit: once it runs out, new paid work is refused, and a job already running can take it up to $1 below zero. Auto top-up is off unless you turn it on.
+The $0.50 is an instruction your assistant follows. Uthana does not enforce a per-request budget. Auto top-up is off unless you turn it on.
 
 ## Step 2: export the same motion
 

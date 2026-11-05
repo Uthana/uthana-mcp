@@ -11,7 +11,7 @@ Uthana charges for creating motion and characters. Looking things up, estimating
 | Video-to-Motion 2.0 / 2.1 | `generate_motion_from_video` | $0.05 / s | Seconds of generated motion, usually about the length of the video clip |
 | Locomotion 1.0 | `generate_locomotion` | $0.02 / s | Seconds of generated motion; length follows strides, not a requested duration |
 | Stitching and looping 2.0 | `stitch`, `create_looped_motion` | $0.01 / s | Seconds of the new motion, including transition frames |
-| Auto-rigging | `upload_character` with `auto_rig=true` or `rerig_target` | $0.15 / rig | One charge per rigged character; choosing `rerig_target` during auto-rig adds nothing |
+| Auto-rigging | `upload_character` when Uthana auto-rigs a mesh that has no rig (`auto_rig=true`) | $0.15 / rig | Charged only when auto-rigging runs; choosing `rerig_target` during auto-rig adds nothing |
 | Character generation | `create_character_from_image`, `create_character_from_prompt` | $0.75 / character | One charge per finished character |
 
 The charge uses the length of the motion Uthana actually produced, which can differ slightly from the length you asked for. A four-second Text-to-Motion 3.0 request produces 97 frames at 24 FPS (4.04 seconds), so it is estimated at $0.40 and charged $0.4042.
@@ -20,11 +20,11 @@ A failed generation is not charged. A retry, or another generation of the same p
 
 ## Free operations
 
-- Reading your account, balance and allowances (`get_usage`), listing and searching characters and motions, reading motion details and job status.
+- Reading your account, balance and allowances (`get_usage`), listing and searching your own characters and motions (`list_characters`, `list_motions`), reading motion details and job status.
 - Cost estimates (`estimate_model_cost`). An estimate never starts work.
 - Previews (`get_preview`, `get_preview_frame`).
 - Trimming a motion (`trim_motion`) and saving an edited motion (`save_motion`).
-- Uploading an already-rigged character (`upload_character` with `auto_rig=false` and no `rerig_target`).
+- Uploading an already-rigged character (`upload_character`), including converting its skeleton with `rerig_target`.
 - Exporting a motion you own onto any character you can access (`download_motion`), in any format.
 - Getting a fresh link to an export, or fetching an export that was already made (`get_artifact_download`, `get_request_status`). This reuses the existing file. It does not export or charge again.
 
@@ -38,7 +38,7 @@ Text-to-character previews (`preview_character_from_prompt`) have no published p
 
 ## Spending limits
 
-Your balance is the only hard limit. When it runs out, Uthana refuses new paid work; a job that is already running can take the balance up to $1 below zero. Auto top-up is off unless you turn it on in your account settings, where you can also set its monthly limit.
+Paid work uses your account balance. If your balance is too low, add credit in your account settings. Auto top-up is off unless you turn it on there, where you can also set its monthly limit. Because a job is charged when it finishes, jobs that finish close together can briefly leave your balance below zero; that amount comes out of your next credit.
 
 Uthana does not enforce a per-request or per-conversation budget. If you tell your assistant "only if it costs at most $0.50", that is an instruction your assistant follows, not a cap Uthana enforces. Your assistant should estimate first and stop if the estimate is over your limit or the price is unknown.
 
