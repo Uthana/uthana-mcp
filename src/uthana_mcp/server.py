@@ -19,7 +19,7 @@ from .api import UthanaAPI
 from .config import Config
 from .errors import APIError
 from .operations import Operations
-from .stitching import Step
+from .stitching import MotionStep
 from .validation import TAR
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
@@ -595,20 +595,20 @@ def create_server(
         ],
         character_id: Annotated[Id, Field(description="Target character ID for both motions.")],
         steps: Annotated[
-            list[Step],
+            list[MotionStep],
             Field(
-                min_length=3,
-                max_length=3,
-                description="Exactly motion, transition, motion. Motion ranges use native frames or seconds. Omit arriving placement for automatic continuation.",
+                min_length=2,
+                max_length=2,
+                description="Exactly two flat motion objects. Use trim fields in native frames or seconds. Outgoing transition fields belong to the first motion; omit all placement fields for automatic continuation.",
             ),
         ],
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Stitch typed steps with server sampling and alignment. No pose sampling is required.
+        """Stitch two motion objects with server sampling and alignment. No pose sampling is required.
         Transition duration defaults to one second. Allow at least 420 seconds. Review playback;
         billing uses output seconds. Recover uncertain requests instead of submitting again.
         """
-        options = {"character_id": character_id, "steps": [step.model_dump(exclude_none=True) for step in steps]}
+        options = {"character_id": character_id, "steps": [step.model_dump(exclude_unset=True) for step in steps]}
         return await with_progress(ctx, ops().stitch(request_id, options), "stitch")
 
     @tool(annotations=READ)

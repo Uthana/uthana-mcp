@@ -13,13 +13,14 @@ from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import unquote, urlsplit
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent, Tool, ToolAnnotations
+from pydantic import Field
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
@@ -55,6 +56,7 @@ class Runtime:
     identity: Identity
     operations: Operations
     files: "Files"
+    download_link: Callable[[str], Awaitable[dict]] | None = None
 
 
 def _https_origin(value: str) -> str:
@@ -99,7 +101,7 @@ def transform_tool(
         result = function(**kwargs)
         if inspect.isawaitable(result):
             result = await result
-        return runtime.files.project(result)
+        return await runtime.files.present(result, download_link=runtime.download_link)
 
     invoke.__signature__ = signature.replace(parameters=parameters)
     invoke.__doc__ = (function.__doc__ or "").replace("file_path", "input_file").replace("local file", "uploaded file")
@@ -160,6 +162,8 @@ def create_app(
     allowed_origins: tuple[str, ...] = (),
     login_url: str | None = None,
     readiness: Callable[[], Awaitable[bool]] | None = None,
+    mint_download: Callable[[Request, str], Awaitable[dict]] | None = None,
+    resolve_download: Callable[[str], Awaitable[tuple[Identity, str] | None]] | None = None,
 ) -> Starlette:
     """Compose an HTTP service around operator-provided authorization.
 
@@ -168,6 +172,8 @@ def create_app(
     CSRF protection for writes. The API factory must supply separate upstream
     credentials bound to that verified identity, not forward the incoming token.
     """
+    if (mint_download is None) != (resolve_download is None):
+        raise ValueError("Configure download minting and resolution together")
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, mode=0o700, exist_ok=True)
     origin = _https_origin(origin)
@@ -191,6 +197,20 @@ def create_app(
             ),
         },
     )
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True))
+    async def get_artifact_download(
+        artifact_id: Annotated[str, Field(pattern=r"^[a-f0-9]{32}$", strict=True)],
+    ) -> dict[str, Any]:
+        """Retrieve an owned cached artifact and a fresh download link without exporting or charging again.
+
+        Fetch the returned download_url directly. If it expires, call this tool again;
+        never repeat download_motion or generation just to refresh a link.
+        """
+        runtime = _CURRENT.get()
+        metadata = runtime.files.artifact_metadata(artifact_id)
+        return await runtime.files.present(metadata, download_link=runtime.download_link)
+
     http_app = server.streamable_http_app()
     in_flight: dict[str, int] = {}
 
@@ -241,7 +261,8 @@ def create_app(
 
     async def download(request: Request) -> Response:
         runtime = _CURRENT.get()
-        kind, file_id = request.path_params["kind"], request.path_params["file_id"]
+        kind = request.path_params.get("kind", "artifacts")
+        file_id = getattr(request.state, "download_artifact", None) or request.path_params["file_id"]
         try:
             if kind == "inputs":
                 path = runtime.files.input_path(file_id)
@@ -271,6 +292,7 @@ def create_app(
             Route("/.well-known/oauth-protected-resource/mcp", discovery),
             Route("/files", uploads, methods=["GET", "POST"]),
             Route("/files/{kind}/{file_id}", download),
+            Route("/downloads/{grant}", download),
             Mount("/", http_app),
         ],
         lifespan=lifespan,
@@ -316,55 +338,22 @@ def create_app(
             if request.headers.get("origin") not in (None, origin, *allowed_origins):
                 return await JSONResponse({"error": "Origin is not allowed"}, status_code=403)(scope, receive, send)
             try:
-                identity = await authenticate(request)
+                is_capability_download = request.method in {"GET", "HEAD"} and request.url.path.startswith(
+                    "/downloads/"
+                )
+                if is_capability_download:
+                    grant = request.url.path.removeprefix("/downloads/")
+                    resolved = await resolve_download(grant) if resolve_download else None
+                    if resolved is None:
+                        return await JSONResponse(
+                            {"error": "Download link expired or unavailable; request a fresh link"}, status_code=404
+                        )(scope, receive, send)
+                    identity, request.state.download_artifact = resolved
+                else:
+                    identity = await authenticate(request)
             except HTTPException as error:
                 return await JSONResponse({"error": error.detail}, status_code=error.status_code)(scope, receive, send)
             if identity is None or "mcp:read" not in identity.scopes:
-                if request.url.path == "/mcp" and request.method == "POST":
-                    body = bytearray()
-                    async for chunk in request.stream():
-                        body.extend(chunk)
-                        if len(body) > MAX_PROTOCOL_REQUEST_BYTES:
-                            return await JSONResponse(
-                                {"error": "Protocol request exceeds size limit"}, status_code=413
-                            )(scope, receive, send)
-                    try:
-                        payload = json.loads(body)
-                    except (ValueError, RecursionError):
-                        payload = None
-                    if isinstance(payload, dict) and payload.get("method") in {
-                        "initialize",
-                        "notifications/initialized",
-                        "tools/list",
-                        "resources/list",
-                        "resources/templates/list",
-                        "prompts/list",
-                    }:
-                        has_delivered_body = False
-
-                        async def replay_receive() -> Message:
-                            nonlocal has_delivered_body
-                            if not has_delivered_body:
-                                has_delivered_body = True
-                                return {"type": "http.request", "body": bytes(body), "more_body": False}
-                            return await receive()
-
-                        return await self.app(scope, replay_receive, send)
-                    if isinstance(payload, dict) and payload.get("method") == "tools/call":
-                        challenge = f'Bearer resource_metadata="{origin}/.well-known/oauth-protected-resource", error="invalid_token", error_description="Link your Uthana account to continue"'
-                        result = CallToolResult(
-                            isError=True,
-                            content=[TextContent(type="text", text="Link your Uthana account to continue")],
-                            _meta={"mcp/www_authenticate": [challenge]},
-                        )
-                        response = JSONResponse(
-                            {
-                                "jsonrpc": "2.0",
-                                "id": payload.get("id"),
-                                "result": result.model_dump(by_alias=True, exclude_none=True),
-                            }
-                        )
-                        return await response(scope, receive, send)
                 if login_url and request.method == "GET" and request.url.path.startswith("/files"):
                     response = RedirectResponse(login_url + "?next=" + request.url.path)
                 else:
@@ -390,7 +379,18 @@ def create_app(
                 api = await api_factory(request, identity)
                 api.scope = hashlib.sha256((origin + ":" + identity.scope).encode()).hexdigest()
                 operations = Operations(api, directory)
-                token = _CURRENT.set(Runtime(identity, operations, Files(operations, origin)))
+
+                async def download_link(artifact_id: str) -> dict:
+                    return await mint_download(request, artifact_id)
+
+                token = _CURRENT.set(
+                    Runtime(
+                        identity,
+                        operations,
+                        Files(operations, origin, viewer_origin=issuer),
+                        download_link if mint_download and not is_capability_download else None,
+                    )
+                )
                 await self.app(scope, receive, send)
             finally:
                 if token is not None:

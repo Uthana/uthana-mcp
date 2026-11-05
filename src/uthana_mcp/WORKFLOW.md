@@ -61,7 +61,7 @@ FBX/GLB can include mesh and skeleton animation; BVH requires `include_mesh=fals
 
 ## Upload and create characters
 
-For local stdio, selected inputs must be readable files inside `UTHANA_MCP_INPUT_DIR` on the server machine and are passed as `file_path`. Hosted tools instead take `input_file` descriptors from the authenticated upload page/API or a compatible attachment integration. Use the returned owned handle; never supply a server filesystem path. Hosted previews and exports return authenticated download URLs for the linked account. V2M accepts MP4/MOV/WebM up to 128 MiB and returns a job. `upload_character` accepts FBX/GLB up to 30 MiB; smaller files also rig faster. Use `auto_rig=false` for already-rigged characters. Upload two characters as separate intentional requests and preview/export the chosen motions on each character.
+For local stdio, selected inputs must be readable files inside `UTHANA_MCP_INPUT_DIR` on the server machine and are passed as `file_path`. Hosted tools instead take `input_file` descriptors from the authenticated upload page/API or a compatible attachment integration. Use the returned owned handle; never supply a server filesystem path. Hosted previews and exports return download URLs for owned cached artifacts. Fetch a returned `download_url` directly; it may be a temporary file-specific capability. Keep it private. If it expires, call `get_artifact_download` with the existing artifact ID to get a fresh URL without another export or charge. Never regenerate or repeat `download_motion` merely to obtain a new link. Use returned `viewer_url` values for the Uthana viewer; never invent a viewer route. V2M accepts MP4/MOV/WebM up to 128 MiB and returns a job. `upload_character` accepts FBX/GLB up to 30 MiB; smaller files also rig faster. Use `auto_rig=false` for already-rigged characters. Upload two characters as separate intentional requests and preview/export the chosen motions on each character.
 
 Retargeting is the central character workflow: generate a motion once, then preview and export it on any accessible character. Uthana adapts the motion to the target skeleton and proportions during preview and download; no second generation is needed to change characters. Verify contacts and mesh intersections on the actual target, since retargeting success does not prove artifact-free animation.
 
@@ -83,16 +83,8 @@ Avoid submitting another candidate from the same preview request, or using a fre
 
 ## Loop and stitch
 
-Use `stitch` with character_id and exactly three typed steps: motion, transition, motion.
-Motion steps identify existing motions and optionally select native frame or second ranges (never mixed).
-The transition defaults to one second. The service samples and aligns both clips; no local pose sampler is needed.
-Omit arriving-motion placement for automatic continuation. An explicit placement uses forward_m/right_m
-relative meters and turn_degrees positive right, with unspecified values zero. Absolute placement is unsupported.
-Inspect resolved_steps for effective ranges and transition duration, then review playback. Keep request_id;
-recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
-See [stitching](../../docs/stitching.md) for details. This path requires the coordinated backend and client release.
-
-`create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
+Use `stitch` with character_id and exactly two flat motion objects identified by motion_id. Select trims using trim_start_frame/trim_end_frame or trim_start_seconds/trim_end_seconds, never both units on one motion. Put transition_duration_seconds and transition_forward_meters/transition_right_meters/transition_facing_degrees on the outgoing first motion. Duration defaults to one second. Omit all placement fields for automatic continuation; supplying any placement field makes unspecified components zero. Final-motion transition fields are ignored after scalar checks. The service samples and aligns both clips; no local pose sampler is needed.
+Inspect flat resolved_steps for effective native trims and transition duration, then review playback. Keep request_id and recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
 
 ## Long calls and persistence
 
