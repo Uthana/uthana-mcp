@@ -141,13 +141,27 @@ async def test_default_and_final_transition_replay_identity(tmp_path):
     assert len(api.calls) == 1
 
 
-async def test_old_typed_receipt_recovers_but_cannot_replay(tmp_path):
+@pytest.mark.parametrize("contract", ["typed_steps", "motion_steps_v2"])
+async def test_old_typed_receipt_recovers_but_cannot_replay(tmp_path, contract):
     ops = Operations(FakeAPI(), tmp_path)
 
     async def historical():
         return {"motion_id": "old", "source_motion_ids": ["motion1", "motion2"]}
 
-    args = {"contract": "typed_steps", **StitchInput.model_validate(options()).model_dump(exclude_unset=True)}
+    args = {
+        "contract": contract,
+        "character_id": options()["character_id"],
+        "steps": [
+            {"motion_id": "motion1", "transition": {"duration_seconds": 1}},
+            {"motion_id": "motion2"},
+        ],
+    }
+    if contract == "typed_steps":
+        args["steps"] = [
+            {"type": "motion", "motion_id": "motion1"},
+            {"type": "transition", "duration_seconds": 1},
+            {"type": "motion", "motion_id": "motion2"},
+        ]
     await ops.store.mutation("old", "stitch", args, historical)
     assert ops.recover_request("old")["result"]["motion_id"] == "old"
     with pytest.raises(ValueError, match="different arguments"):
