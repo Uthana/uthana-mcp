@@ -83,16 +83,8 @@ Avoid submitting another candidate from the same preview request, or using a fre
 
 ## Loop and stitch
 
-Use `stitch` with character_id and exactly two motion objects identified by motion_id. Nest the optional outgoing transition on the first motion.
-Motion steps identify existing motions and optionally select native frame or second ranges (never mixed).
-Omitting `transition`, supplying `{}`, or omitting `duration_seconds` defaults to one second. A transition on the final motion is ignored after transport shape checks; it does not affect execution, billing, or request identity. `transition: null` on the first motion is invalid. The service samples and aligns both clips; no local pose sampler is needed.
-Omit arriving-motion placement for automatic continuation. An explicit placement uses forward_m/right_m
-relative meters and turn_degrees positive right, with unspecified values zero. Absolute placement is unsupported.
-Inspect resolved_steps for effective ranges and transition duration, then review playback. Keep request_id;
-recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
-See [stitching](../../docs/stitching.md) for details. This path requires the coordinated backend and client release.
-
-`create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
+Use `stitch` with character_id and exactly two flat motion objects identified by motion_id. Select trims using trim_start_frame/trim_end_frame or trim_start_seconds/trim_end_seconds, never both units on one motion. Put transition_duration_seconds and transition_forward_meters/transition_right_meters/transition_facing_degrees on the outgoing first motion. Duration defaults to one second. Omit all placement fields for automatic continuation; supplying any placement field makes unspecified components zero. Final-motion transition fields are ignored after scalar checks. The service samples and aligns both clips; no local pose sampler is needed.
+Inspect flat resolved_steps for effective native trims and transition duration, then review playback. Keep request_id and recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
 
 ## Long calls and persistence
 

@@ -93,4 +93,4 @@ known_third_party = ["uthana", "mcp", "httpx", "PIL", "pydantic", "pytest", "fak
 
 # Keep source verification reproducible before the coordinated SDK release.
 [tool.uv.sources]
-uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "b2e99897cd44cde3b5b3ae631023b076d2a83d72" }
+uthana = { git = "https://github.com/Uthana/uthana-python-client.git", rev = "011639867a9d8b082e2d63bd75fc94a3ef6ca33f" }

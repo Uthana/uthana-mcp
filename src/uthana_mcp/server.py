@@ -598,12 +598,12 @@ def create_server(
             Field(
                 min_length=2,
                 max_length=2,
-                description="Exactly two motion objects; the first may include an outgoing transition. Motion ranges use native frames or seconds. Omit arriving placement for automatic continuation.",
+                description="Exactly two flat motion objects. Use trim fields in native frames or seconds. Outgoing transition fields belong to the first motion; omit all placement fields for automatic continuation.",
             ),
         ],
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Stitch typed steps with server sampling and alignment. No pose sampling is required.
+        """Stitch two motion objects with server sampling and alignment. No pose sampling is required.
         Transition duration defaults to one second. Allow at least 420 seconds. Review playback;
         billing uses output seconds. Recover uncertain requests instead of submitting again.
         """

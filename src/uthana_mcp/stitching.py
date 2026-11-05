@@ -1,128 +1,48 @@
-"""Typed steps shared by server-prepared stitching interfaces."""
+"""Flat stitch tool discovery; the shared SDK owns request normalization."""
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from uthana.stitch import validate_stitch_input
 
-MAX_OFFSET_METERS = 100
-MAX_FRAME_INDEX = 2**53 - 1
-MAX_TURN_DEGREES = 180
-MIN_TRANSITION_SECONDS = 0.1
-MAX_TRANSITION_SECONDS = 3
-DEFAULT_TRANSITION_SECONDS = 1.0
 Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
-Seconds = Annotated[Number, Field(ge=0)]
-
-
-class MotionRange(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    start_frame: Annotated[int, Field(ge=0, le=MAX_FRAME_INDEX)] | None = Field(
-        default=None, description="Zero-based first native frame, inclusive; do not mix with seconds."
-    )
-    end_frame: Annotated[int, Field(ge=0, le=MAX_FRAME_INDEX)] | None = Field(
-        default=None, description="Last native frame, inclusive; omit for safe model context."
-    )
-    start_seconds: Seconds | None = Field(
-        default=None, description="Source start in seconds; snaps inward to native frames."
-    )
-    end_seconds: Seconds | None = Field(
-        default=None, description="Source end in seconds, inclusive; omit for safe model context."
-    )
-
-    @model_validator(mode="after")
-    def units_and_order(self) -> Self:
-        has_frame_range = self.start_frame is not None or self.end_frame is not None
-        has_second_range = self.start_seconds is not None or self.end_seconds is not None
-        if has_frame_range and has_second_range:
-            raise ValueError("Use frames or seconds within a range, not both")
-        start = self.start_frame if has_frame_range else self.start_seconds
-        end = self.end_frame if has_frame_range else self.end_seconds
-        if end is not None and end <= (start or 0):
-            raise ValueError("Range end must exceed start")
-        if any(value is None for value in self.model_dump(exclude_unset=True).values()):
-            raise ValueError("Omit unspecified range fields instead of passing null")
-        return self
-
-    def seconds(self, fps: float) -> tuple[float, float | None]:
-        if self.start_frame is not None or self.end_frame is not None:
-            return (self.start_frame or 0) / fps, self.end_frame / fps if self.end_frame is not None else None
-        return self.start_seconds or 0.0, self.end_seconds
-
-
-class RelativePlacement(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-    forward_m: Annotated[Number, Field(ge=-MAX_OFFSET_METERS, le=MAX_OFFSET_METERS)] = Field(
-        default=0.0, description="Forward gap in meters relative to the preceding motion’s ending facing."
-    )
-    right_m: Annotated[Number, Field(ge=-MAX_OFFSET_METERS, le=MAX_OFFSET_METERS)] = Field(
-        default=0.0, description="Rightward gap in meters relative to the preceding motion’s ending facing."
-    )
-    turn_degrees: Annotated[Number, Field(ge=-MAX_TURN_DEGREES, le=MAX_TURN_DEGREES)] = Field(
-        default=0.0, description="Relative turn in degrees; positive turns right."
-    )
-    absolute: Literal[False] = Field(
-        default=False, description="Only false is supported; absolute spatial placement is reserved."
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def reject_absolute(cls, value: object) -> object:
-        if isinstance(value, dict) and "absolute" in value and value["absolute"] is not False:
-            raise ValueError("Only relative placement (absolute: false) is supported")
-        return value
-
-
-class StitchTransition(BaseModel):
-    """Transport shape; duration bounds apply only to the outgoing transition."""
-
-    model_config = ConfigDict(extra="forbid", strict=True)
-    duration_seconds: Number = Field(
-        default=DEFAULT_TRANSITION_SECONDS,
-        description="Outgoing duration in seconds, 0.1-3, rounded to 20 Hz frames. Ignored on the final motion.",
-    )
 
 
 class MotionStep(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    motion_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$", description="Existing source motion ID.")]
-    range: MotionRange = Field(
-        default_factory=MotionRange, description="Optional native frame or second interval; never mix units."
+    motion_id: Annotated[str, Field(description="Existing source motion ID.")]
+    trim_start_frame: Annotated[int, Field(strict=True)] | None = Field(
+        default=None, description="First zero-based native frame, inclusive."
     )
-    placement: RelativePlacement | None = Field(
-        default=None,
-        description="Arriving motion only. Omit for automatic continuation; an object supplies explicit relative offsets.",
+    trim_end_frame: Annotated[int, Field(strict=True)] | None = Field(
+        default=None, description="Last native frame, inclusive; omit for model context."
     )
-    transition: StitchTransition | None = Field(
-        default=None,
-        description="Outgoing transition to the next motion. Omit or use {} for one second. Null is invalid on the first motion. Ignored on the final motion after shape checks.",
+    trim_start_seconds: Number | None = Field(
+        default=None, description="Source start in seconds; never mix trim units."
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def reject_null_placement(cls, value: object) -> object:
-        if isinstance(value, dict) and "placement" in value and value["placement"] is None:
-            raise ValueError("Omit placement for automatic continuation")
-        return value
+    trim_end_seconds: Number | None = Field(
+        default=None, description="Source end in seconds; snaps inward to native frames."
+    )
+    transition_duration_seconds: Number | None = Field(
+        default=None, description="Outgoing duration, 0.1-3 seconds; defaults to one. Ignored on the final motion."
+    )
+    transition_forward_meters: Number | None = Field(
+        default=None, description="Outgoing forward gap in meters, relative to ending facing."
+    )
+    transition_right_meters: Number | None = Field(
+        default=None, description="Outgoing rightward gap in meters, relative to ending facing."
+    )
+    transition_facing_degrees: Number | None = Field(
+        default=None, description="Outgoing relative facing in degrees; positive turns right."
+    )
 
 
 class StitchInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    character_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
+    character_id: str
     steps: Annotated[list[MotionStep], Field(min_length=2, max_length=2)]
 
-    @field_validator("steps")
-    @classmethod
-    def normalize(cls, steps: list[MotionStep]) -> list[MotionStep]:
-        first, last = steps
-        if first.placement is not None:
-            raise ValueError("Placement is supported only on the arriving motion")
-        if first.transition is None and "transition" in first.model_fields_set:
-            raise ValueError("Omit transition to use the default duration")
-        transition = first.transition or StitchTransition()
-        if not MIN_TRANSITION_SECONDS <= transition.duration_seconds <= MAX_TRANSITION_SECONDS:
-            raise ValueError("Transition duration must be 0.1-3 seconds")
-        # Copy nested models: normalization must never mutate caller-owned objects.
-        return [
-            first.model_copy(update={"transition": transition}),
-            last.model_copy(update={"transition": None}),
-        ]
+    @model_validator(mode="after")
+    def normalize(self) -> Self:
+        normalized = validate_stitch_input(self.model_dump(exclude_unset=True))
+        return self.model_copy(update={"steps": [MotionStep.model_validate(step) for step in normalized["steps"]]})

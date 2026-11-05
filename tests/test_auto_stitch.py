@@ -23,11 +23,11 @@ FIXTURES = json.loads((Path(__file__).parent / "fixtures/stitch_contract.json").
 
 @pytest.mark.parametrize("case", FIXTURES["valid"], ids=lambda c: c["name"])
 def test_shared_valid_contract(case):
-    result = StitchInput.model_validate(case["input"]).model_dump(exclude_none=True)
+    result = StitchInput.model_validate(case["input"]).model_dump(exclude_unset=True)
     assert result == case["normalized"]
     assert (
-        result["steps"][0]["transition"]["duration_seconds"]
-        == case["normalized"]["steps"][0]["transition"]["duration_seconds"]
+        result["steps"][0]["transition_duration_seconds"]
+        == case["normalized"]["steps"][0]["transition_duration_seconds"]
     )
 
 
@@ -49,7 +49,7 @@ async def test_recovery_placement_identity_and_legacy_receipt(tmp_path):
     replay = await Operations(api, tmp_path).stitch("join1", options())
     assert replay["replayed"] and len(api.calls) == 1
     changed = copy.deepcopy(options())
-    changed["steps"][1]["placement"] = {}
+    changed["steps"][0]["transition_forward_meters"] = 0
     with pytest.raises(ValueError, match="different arguments"):
         await ops.stitch("join1", changed)
     # Historical fingerprints are recoverable, but cannot be resubmitted under the new contract.
@@ -67,7 +67,7 @@ async def test_recovery_placement_identity_and_legacy_receipt(tmp_path):
 
 async def test_real_client_serialization_and_no_retry():
     calls = []
-    expected = StitchInput.model_validate(options()).model_dump(exclude_none=True)
+    expected = StitchInput.model_validate(options()).model_dump(exclude_unset=True)
 
     def handler(request):
         calls.append(json.loads(request.content))
@@ -86,7 +86,7 @@ async def test_real_client_serialization_and_no_retry():
 async def test_out_of_source_range_never_submits(tmp_path):
     api = FakeAPI()
     request = options()
-    request["steps"][0]["range"] = {"end_frame": 999}
+    request["steps"][0]["trim_end_frame"] = 999
     with pytest.raises(ValueError, match="native"):
         await Operations(api, tmp_path).stitch("bad", request)
     assert not api.calls
@@ -108,18 +108,18 @@ async def test_actual_stdio_simple_tool_schema_and_recovery(tmp_path):
             assert schema["properties"]["steps"]["minItems"] == 2
             assert schema["properties"]["steps"]["maxItems"] == 2
             assert "type" not in schema["$defs"]["MotionStep"]["properties"]
-            assert "transition" in schema["$defs"]["MotionStep"]["properties"]
+            assert "transition_duration_seconds" in schema["$defs"]["MotionStep"]["properties"]
             args = {"request_id": "stdio-join", **options()}
             result = await client.call_tool("stitch", args)
             assert not result.isError
             replay = await client.call_tool("stitch", args)
             assert replay.structuredContent["replayed"]
             ignored = copy.deepcopy(args)
-            ignored["steps"][1]["transition"] = {"duration_seconds": -999}
+            ignored["steps"][1]["transition_duration_seconds"] = -999
             assert (await client.call_tool("stitch", ignored)).structuredContent["replayed"]
             invalid = copy.deepcopy(args)
             invalid["request_id"] = "null-first"
-            invalid["steps"][0]["transition"] = None
+            invalid["steps"][0]["transition_duration_seconds"] = None
             assert (await client.call_tool("stitch", invalid)).isError
 
 
@@ -127,15 +127,15 @@ async def test_default_and_final_transition_replay_identity(tmp_path):
     api = FakeAPI()
     ops = Operations(api, tmp_path)
     await ops.stitch("same", options())
-    for first in ({}, {"duration_seconds": 1}, {"duration_seconds": 1.0}):
+    for first in ({}, {"transition_duration_seconds": 1}, {"transition_duration_seconds": 1.0}):
         request = options()
-        request["steps"][0]["transition"] = first
-        request["steps"][1]["transition"] = {"duration_seconds": -999}
+        request["steps"][0].update(first)
+        request["steps"][1]["transition_duration_seconds"] = -999
         original = copy.deepcopy(request)
         assert (await ops.stitch("same", request))["replayed"]
         assert request == original
     changed = options()
-    changed["steps"][0]["transition"] = {"duration_seconds": 2}
+    changed["steps"][0]["transition_duration_seconds"] = 2
     with pytest.raises(ValueError, match="different arguments"):
         await ops.stitch("same", changed)
     assert len(api.calls) == 1
@@ -147,7 +147,7 @@ async def test_old_typed_receipt_recovers_but_cannot_replay(tmp_path):
     async def historical():
         return {"motion_id": "old", "source_motion_ids": ["motion1", "motion2"]}
 
-    args = {"contract": "typed_steps", **StitchInput.model_validate(options()).model_dump(exclude_none=True)}
+    args = {"contract": "typed_steps", **StitchInput.model_validate(options()).model_dump(exclude_unset=True)}
     await ops.store.mutation("old", "stitch", args, historical)
     assert ops.recover_request("old")["result"]["motion_id"] == "old"
     with pytest.raises(ValueError, match="different arguments"):

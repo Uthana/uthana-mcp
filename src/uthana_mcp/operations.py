@@ -522,17 +522,17 @@ class Operations:
         return await self.verify_saved(receipt)
 
     async def stitch(self, request_id: str, options: object) -> dict:
-        options = StitchInput.model_validate(options).model_dump(exclude_none=True)
-        args = {"contract": "motion_steps_v2", **options}
+        options = StitchInput.model_validate(options).model_dump(exclude_unset=True)
+        args = {"contract": "flat_motion_steps_v1", **options}
         if self.store.completed(request_id, "stitch"):
             return self.recovered_saved(self.store.replay(request_id, "stitch", args))
         motion_steps = [options["steps"][0], options["steps"][1]]
         sources = [await self.api.motion(step["motion_id"]) for step in motion_steps]
         for step, source in zip(motion_steps, sources):
-            selected = step["range"]
+            selected = step
             fps = source["fps"]
-            start = selected.get("start_seconds", selected.get("start_frame", 0) / fps)
-            end = selected.get("end_seconds", selected.get("end_frame", source["frame_count"] - 1) / fps)
+            start = selected.get("trim_start_seconds", selected.get("trim_start_frame", 0) / fps)
+            end = selected.get("trim_end_seconds", selected.get("trim_end_frame", source["frame_count"] - 1) / fps)
             if not start < end <= source["last_sample_seconds"]:
                 raise ValueError("Motion range must fit its native source samples")
 
