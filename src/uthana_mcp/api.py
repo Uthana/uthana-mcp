@@ -392,6 +392,9 @@ class UthanaAPI:
     async def usage(self):
         return await self._call(self.client.org.get_usage, read_only=True)
 
+    async def ledger(self, **filters):
+        return await self._call(self.client.org.get_ledger, read_only=True, **filters)
+
     async def download_allowed(self, motion_id, character_id):
         result = await self._call(
             self.client.motions.download_allowed, identifier(motion_id), identifier(character_id), read_only=True
