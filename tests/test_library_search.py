@@ -57,3 +57,13 @@ def test_library_search_is_a_published_per_second_price():
     assert PUBLISHED_MODELS["library-search-1.0"] == "nearest-neighbor"
     rates = [{"model_key": "nearest-neighbor", "billing_unit": "second", "unit_price": "0.10"}]
     assert estimate_cost(rates, "library-search-1.0", 5)["estimated_cost_usd"] == "0.5000"
+
+
+async def test_estimate_tool_enum_matches_published_models(monkeypatch):
+    from uthana_mcp.server import create_server
+
+    monkeypatch.setenv("UTHANA_API_KEY", "")
+    tools = {tool.name: tool for tool in await create_server().list_tools()}
+    assert set(tools["estimate_model_cost"].inputSchema["properties"]["model"]["enum"]) == set(PUBLISHED_MODELS)
+    library = tools["copy_best_library_motion"]
+    assert library.annotations.readOnlyHint is False and library.annotations.idempotentHint is False

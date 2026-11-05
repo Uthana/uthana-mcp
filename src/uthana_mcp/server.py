@@ -296,6 +296,7 @@ def create_server(
                 "text-to-motion-1.0",
                 "text-to-motion-2.0",
                 "text-to-motion-3.0",
+                "library-search-1.0",
                 "video-to-motion-2.0",
                 "video-to-motion-2.1",
                 "locomotion-1.0",
