@@ -19,8 +19,8 @@ from .api import UthanaAPI
 from .config import Config
 from .errors import APIError
 from .operations import Operations
-from .stitching import Step
-from .validation import MAX_TTM3_DURATION_SECONDS, MIN_TTM3_DURATION_SECONDS, TAR, Ttm3Model
+from .stitching import MotionStep
+from .validation import TAR, Ttm3Model
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
@@ -191,12 +191,9 @@ def create_server(
             Field(description="Description of the requested motion, at most 1000 characters."),
         ],
         duration_seconds: Annotated[
-            Annotated[
-                float, Field(ge=MIN_TTM3_DURATION_SECONDS, le=MAX_TTM3_DURATION_SECONDS, multiple_of=1, strict=True)
-            ]
-            | None,
+            Annotated[float, Field(strict=True, allow_inf_nan=False)] | None,
             Field(
-                description="Whole seconds: 4-10 for Regular, 5-10 for Lite/Mini. Omit for the model default (4 or 5)."
+                description="Seconds, rounded and clamped by the backend to the model range. Omit for the model default (4 or 5)."
             ),
         ] = None,
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
@@ -605,20 +602,20 @@ def create_server(
         ],
         character_id: Annotated[Id, Field(description="Target character ID for both motions.")],
         steps: Annotated[
-            list[Step],
+            list[MotionStep],
             Field(
-                min_length=3,
-                max_length=3,
-                description="Exactly motion, transition, motion. Motion ranges use native frames or seconds. Omit arriving placement for automatic continuation.",
+                min_length=2,
+                max_length=2,
+                description="Exactly two flat motion objects. Use trim fields in native frames or seconds. Outgoing transition fields belong to the first motion; omit all placement fields for automatic continuation.",
             ),
         ],
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Stitch typed steps with server sampling and alignment. No pose sampling is required.
+        """Stitch two motion objects with server sampling and alignment. No pose sampling is required.
         Transition duration defaults to one second. Allow at least 420 seconds. Review playback;
         billing uses output seconds. Recover uncertain requests instead of submitting again.
         """
-        options = {"character_id": character_id, "steps": [step.model_dump(exclude_none=True) for step in steps]}
+        options = {"character_id": character_id, "steps": [step.model_dump(exclude_unset=True) for step in steps]}
         return await with_progress(ctx, ops().stitch(request_id, options), "stitch")
 
     @tool(annotations=READ)

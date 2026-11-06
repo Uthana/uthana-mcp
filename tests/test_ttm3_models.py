@@ -34,7 +34,7 @@ async def test_sdk_forwards_models_duration_and_fast_independently(model, is_fas
 
 
 @pytest.mark.parametrize("model", TTM3_MODELS)
-@pytest.mark.parametrize("duration", [None, 6])
+@pytest.mark.parametrize("duration", [None, 0, 4, 5.5, 6, 11])
 async def test_tool_defaults_receipts_and_replays_follow_model(tmp_path, model, duration):
     api = FakeAPI()
     ops = Operations(api, tmp_path)
@@ -64,7 +64,7 @@ async def test_tool_defaults_receipts_and_replays_follow_model(tmp_path, model, 
 
 
 @pytest.mark.parametrize("model", ["text-to-motion-3.0-lite", "text-to-motion-3.0-mini"])
-@pytest.mark.parametrize("duration", [4, 5.5, 11, True])
+@pytest.mark.parametrize("duration", [True, "4", float("nan"), float("inf"), float("-inf")])
 async def test_invalid_variant_duration_never_submits_or_creates_receipt(tmp_path, model, duration):
     api = FakeAPI()
     ops = Operations(api, tmp_path)

@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+import math
 import os
 import stat
 import time
@@ -21,7 +22,6 @@ from .safe_open import open_nofollow
 from .stitching import StitchInput
 from .store import Store
 from .validation import (
-    MAX_TTM3_DURATION_SECONDS,
     MIN_LITE_MINI_DURATION_SECONDS,
     MIN_TTM3_DURATION_SECONDS,
     TAR,
@@ -63,12 +63,9 @@ class Operations:
         if type(fast) is not bool:
             raise ValueError("fast must be a boolean")
         minimum = MIN_TTM3_DURATION_SECONDS if model == "text-to-motion-3.0" else MIN_LITE_MINI_DURATION_SECONDS
-        duration = number(minimum if duration_seconds is None else duration_seconds, minimum, MAX_TTM3_DURATION_SECONDS)
-        if duration != int(duration):
-            raise ValueError(
-                f"V3 duration must be a whole number of seconds from {minimum} to {MAX_TTM3_DURATION_SECONDS}; "
-                "it is not rounded silently"
-            )
+        duration = minimum if duration_seconds is None else duration_seconds
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration):
+            raise ValueError("duration_seconds must be a finite number; omit it to use the model default")
         args: TtmGenerationArgs = {
             "prompt": text(prompt, 1000),
             "duration_seconds": duration,
@@ -563,17 +560,17 @@ class Operations:
         return await self.verify_saved(receipt)
 
     async def stitch(self, request_id: str, options: object) -> dict:
-        options = StitchInput.model_validate(options).model_dump(exclude_none=True)
-        args = {"contract": "typed_steps", **options}
+        options = StitchInput.model_validate(options).model_dump(exclude_unset=True)
+        args = {"contract": "flat_motion_steps_v1", **options}
         if self.store.completed(request_id, "stitch"):
             return self.recovered_saved(self.store.replay(request_id, "stitch", args))
-        motion_steps = [options["steps"][0], options["steps"][2]]
+        motion_steps = [options["steps"][0], options["steps"][1]]
         sources = [await self.api.motion(step["motion_id"]) for step in motion_steps]
         for step, source in zip(motion_steps, sources):
-            selected = step["range"]
+            selected = step
             fps = source["fps"]
-            start = selected.get("start_seconds", selected.get("start_frame", 0) / fps)
-            end = selected.get("end_seconds", selected.get("end_frame", source["frame_count"] - 1) / fps)
+            start = selected.get("trim_start_seconds", selected.get("trim_start_frame", 0) / fps)
+            end = selected.get("trim_end_seconds", selected.get("trim_end_frame", source["frame_count"] - 1) / fps)
             if not start < end <= source["last_sample_seconds"]:
                 raise ValueError("Motion range must fit its native source samples")
 

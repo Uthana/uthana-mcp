@@ -11,7 +11,6 @@ Ttm3Model = Literal["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-mo
 TTM3_MODELS = get_args(Ttm3Model)
 MIN_TTM3_DURATION_SECONDS = 4
 MIN_LITE_MINI_DURATION_SECONDS = 5
-MAX_TTM3_DURATION_SECONDS = 10
 
 
 def identifier(value: str) -> str:

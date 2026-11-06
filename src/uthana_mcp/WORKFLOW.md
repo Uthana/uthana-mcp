@@ -27,7 +27,7 @@ Preserve the requested action and respect a chosen model. Otherwise, start with 
 | A quick placeholder, previsualization (previz), or a basic walk, turn, run, or jump where speed matters more than detail | Text-to-motion V2 (TTM V2), `generate_motion_v2` | Around 5 seconds |
 | A straightforward loopable walk/run cycle using an available locomotion style | `generate_locomotion`; select a style from `list_locomotion_styles` | Depends on the request; no fixed estimate here |
 
-`generate_motion` defaults to Regular (`text-to-motion-3.0`); `model` also accepts `text-to-motion-3.0-lite` and `text-to-motion-3.0-mini`. `fast` is an independent optional hint. Omitted duration defaults to 4 seconds for Regular or 5 for Lite/Mini; explicit durations must be whole seconds from 4-10 for Regular or 5-10 for Lite/Mini.
+`generate_motion` defaults to Regular (`text-to-motion-3.0`); `model` also accepts `text-to-motion-3.0-lite` and `text-to-motion-3.0-mini`. `fast` is an independent optional hint. Omitted duration defaults to 4 seconds for Regular or 5 for Lite/Mini; the backend rounds explicit durations to whole seconds and clamps them to the video model's supported range (4-10 for Regular, 5-10 for Lite/Mini). For example, Mini with four seconds is raised to five rather than rejected.
 
 V1 and V2 do not generate finger animation; Regular V3 does. Choose Regular V3 when finger motion matters, including for a placeholder or previz that needs animated fingers.
 
@@ -85,16 +85,8 @@ Avoid submitting another candidate from the same preview request, or using a fre
 
 ## Loop and stitch
 
-Use `stitch` with character_id and exactly three typed steps: motion, transition, motion.
-Motion steps identify existing motions and optionally select native frame or second ranges (never mixed).
-The transition defaults to one second. The service samples and aligns both clips; no local pose sampler is needed.
-Omit arriving-motion placement for automatic continuation. An explicit placement uses forward_m/right_m
-relative meters and turn_degrees positive right, with unspecified values zero. Absolute placement is unsupported.
-Inspect resolved_steps for effective ranges and transition duration, then review playback. Keep request_id;
-recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
-See [stitching](../../docs/stitching.md) for details. This path requires the coordinated backend and client release.
-
-`create_looped_motion` creates a new motion using the simplified preview API. Trim inputs are fractions from 0 to 1. Closed loops return to their start; open loops continue travel. Modify changes existing frames; extend adds transition frames. Optional open-loop targets use ground-plane x/y coordinates in meters and facing angles in radians. The API samples the poses.
+Use `stitch` with character_id and exactly two flat motion objects identified by motion_id. Select trims using trim_start_frame/trim_end_frame or trim_start_seconds/trim_end_seconds, never both units on one motion. Put transition_duration_seconds and transition_forward_meters/transition_right_meters/transition_facing_degrees on the outgoing first motion. Duration defaults to one second. Omit all placement fields for automatic continuation; supplying any placement field makes unspecified components zero. Final-motion transition fields are ignored after scalar checks. The service samples and aligns both clips; no local pose sampler is needed.
+Inspect flat resolved_steps for effective native trims and transition duration, then review playback. Keep request_id and recover uncertain requests before retrying. Older stitch receipts remain readable through get_request_status.
 
 ## Long calls and persistence
 
