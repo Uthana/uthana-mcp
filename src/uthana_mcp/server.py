@@ -20,7 +20,7 @@ from .config import Config
 from .errors import APIError
 from .operations import Operations
 from .stitching import MotionStep
-from .validation import TAR
+from .validation import TAR, Ttm3Model
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
@@ -191,18 +191,24 @@ def create_server(
             Field(description="Description of the requested motion, at most 1000 characters."),
         ],
         duration_seconds: Annotated[
-            Annotated[float, Field(ge=4, le=10, multiple_of=1, strict=True)],
-            Field(description="Requested duration in seconds, 4-10 inclusive; whole seconds for V3."),
-        ] = 4,
+            Annotated[float, Field(strict=True, allow_inf_nan=False)] | None,
+            Field(
+                description="Seconds, rounded and clamped by the backend to the model range. Omit for the model default (4 or 5)."
+            ),
+        ] = None,
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
+        model: Annotated[Ttm3Model, Field(description="TTM 3 model: Regular, Lite, or Mini.")] = "text-to-motion-3.0",
+        fast: Annotated[
+            bool, Field(strict=True, description="Independent speed hint; does not select a model.")
+        ] = False,
     ) -> dict[str, Any]:
         """Generate with text-to-motion V3, the usual starting point unless a fast basic placeholder is wanted.
         Prefer V3 for compound actions, performance style, expressive motion, and acrobatics or inversions
         such as cartwheels, even when they are a single action. Inference typically takes roughly 1-2 minutes,
-        with longer waits possible. Includes finger animation. Returns a job ID; poll get_job.
+        with longer waits possible. Regular includes finger animation. Returns a job ID; poll get_job.
         See workflow model-selection guidance.
         """
-        return await ops().generate(request_id, prompt, duration_seconds, character_id)
+        return await ops().generate(request_id, prompt, duration_seconds, character_id, model=model, fast=fast)
 
     @tool(annotations=WRITE)
     async def generate_motion_v2(
@@ -273,6 +279,8 @@ def create_server(
                 "text-to-motion-1.0",
                 "text-to-motion-2.0",
                 "text-to-motion-3.0",
+                "text-to-motion-3.0-lite",
+                "text-to-motion-3.0-mini",
                 "video-to-motion-2.0",
                 "video-to-motion-2.1",
                 "locomotion-1.0",

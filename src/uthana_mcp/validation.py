@@ -3,9 +3,14 @@
 import json
 import math
 import re
+from typing import Literal, get_args
 
 TAR = "cXi2eAP19XwQ"
 UTHANA_DOMAIN = "uthana.com"
+Ttm3Model = Literal["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"]
+TTM3_MODELS = get_args(Ttm3Model)
+MIN_TTM3_DURATION_SECONDS = 4
+MIN_LITE_MINI_DURATION_SECONDS = 5
 
 
 def identifier(value: str) -> str:

@@ -7,7 +7,7 @@ This layer applies explicit environment configuration and conservative, redacted
 import hashlib
 
 import httpx
-from uthana import StitchInput, StitchResult, Uthana
+from uthana import StitchInput, StitchResult, TtmJobModelType, Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .attribution import MCPTransport
@@ -135,17 +135,31 @@ class UthanaAPI:
                 "Uthana returned an invalid API response", outcome="not_applicable" if read_only else "unknown"
             ) from None
 
-    async def generate(self, prompt, duration_seconds, character_id):
+    async def generate(
+        self,
+        prompt,
+        duration_seconds,
+        character_id,
+        *,
+        model: TtmJobModelType = "text-to-motion-3.0",
+        fast: bool = False,
+    ):
         job = await self._call(
             self.client.ttm.create_job,
             prompt,
-            model="text-to-motion-3.0",
+            model=model,
+            fast=fast,
             character_id=character_id,
             length=duration_seconds,
             rewrite_prompt=True,
             mutation_field="create_text_to_motion_job",
         )
-        return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "character_id": character_id}
+        return {
+            "job_id": identifier(job["id"]),
+            "provider_status": job.get("status"),
+            "character_id": character_id,
+            "model": model,
+        }
 
     async def generate_v1(self, prompt: str, *, character_id: str) -> dict[str, str]:
         """Generate a native V1 motion; this model chooses its own duration."""

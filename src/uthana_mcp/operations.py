@@ -3,14 +3,17 @@
 import hashlib
 import io
 import json
+import math
 import os
 import stat
 import time
 import warnings
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 import httpx
 from PIL import Image
+from uthana import TtmJobModelType
 
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
@@ -18,9 +21,25 @@ from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchInput
 from .store import Store
-from .validation import TAR, identifier, number, text
+from .validation import (
+    MIN_LITE_MINI_DURATION_SECONDS,
+    MIN_TTM3_DURATION_SECONDS,
+    TAR,
+    TTM3_MODELS,
+    identifier,
+    number,
+    text,
+)
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
+
+
+class TtmGenerationArgs(TypedDict):
+    prompt: str
+    duration_seconds: float
+    character_id: str
+    model: NotRequired[TtmJobModelType]
+    fast: NotRequired[bool]
 
 
 class Operations:
@@ -29,15 +48,34 @@ class Operations:
         self.store = Store(Path(directory), api.scope)
         self.input_directory = Path(input_directory).expanduser().resolve() if input_directory else None
 
-    async def generate(self, request_id, prompt, duration_seconds=4, character_id=TAR):
-        args = {
+    async def generate(
+        self,
+        request_id,
+        prompt,
+        duration_seconds=None,
+        character_id=TAR,
+        *,
+        model: TtmJobModelType = "text-to-motion-3.0",
+        fast: bool = False,
+    ):
+        if model not in TTM3_MODELS:
+            raise ValueError(f"model must be one of: {', '.join(TTM3_MODELS)}")
+        if type(fast) is not bool:
+            raise ValueError("fast must be a boolean")
+        minimum = MIN_TTM3_DURATION_SECONDS if model == "text-to-motion-3.0" else MIN_LITE_MINI_DURATION_SECONDS
+        duration = minimum if duration_seconds is None else duration_seconds
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration):
+            raise ValueError("duration_seconds must be a finite number; omit it to use the model default")
+        args: TtmGenerationArgs = {
             "prompt": text(prompt, 1000),
-            "duration_seconds": number(duration_seconds, 4, 10),
+            "duration_seconds": duration,
             "character_id": identifier(character_id),
         }
-        # Recover historical receipts outside the current input contract through get_request_status.
-        if duration_seconds != int(duration_seconds):
-            raise ValueError("V3 duration must be a whole number of seconds from 4 to 10; it is not rounded silently")
+        # Omit the default hints so existing completed request IDs still replay.
+        if model != "text-to-motion-3.0":
+            args["model"] = model
+        if fast:
+            args["fast"] = fast
         return await self.store.mutation(request_id, "generate", args, lambda: self.api.generate(**args))
 
     async def generate_v2(self, request_id, prompt, duration_seconds=4, character_id=TAR):
