@@ -5,13 +5,13 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
 | Text-to-motion V2/V3 | Generate, poll V3, inspect | V2/V3 duration limits appear in tool schemas |
-| Video-to-motion (V2M) 2.0/2.1 | Selected-file upload and job polling | 128 MiB input limit |
+| Video-to-motion (V2M) 2.0/2.1/3.0 | Selected-file upload and job polling | 128 MiB input limit |
 | Locomotion | Styles and cycle generation | Duration follows strides |
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |
 | Character from image | Image preparation and generation | PNG/JPEG, 16 MiB, 16 megapixels, one frame |
 | Character from prompt | Preview images, then finalize one preview | A preview can be finalized by only one request ID |
 | Existing-motion loop | Simplified loop preview API | Contract may change |
-| Two-clip stitching | `stitch` accepts typed motion/transition/motion steps with server sampling and alignment | Automatic input requires the coordinated backend and Python client 0.6.0; see [stitching](stitching.md) |
+| Two-clip stitching | `stitch` accepts two flat motion steps with server sampling and alignment | Requires the flat-contract backend and Python client 0.8.0; see [stitching](stitching.md) |
 | Native motion edits | Trim and register edited GLTF | Custom pose editing belongs to host tools |
 | Character listing | Name filter and result pages | Local filtering over a 16 MiB catalog; no upstream pagination |
 | Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |

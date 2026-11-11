@@ -104,13 +104,13 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `trim_motion` | Save an interval as a new motion |
 | `get_preview` | APNG or WebM preview |
 | `get_preview_frame` | One APNG frame with index and available timing |
-| `generate_motion_from_video` | Video-to-motion (V2M) 2.0 or 2.1 job |
+| `generate_motion_from_video` | Video-to-motion (V2M) 2.0, 2.1, or 3.0 job |
 | `upload_character` | FBX/GLB upload, with optional auto-rig and rerig options |
 | `create_character_from_image` | PNG/JPEG to a rigged character |
 | `preview_character_from_prompt` | Preview images for a character description |
 | `create_character_from_prompt` | Rig the preview you chose |
 | `create_looped_motion` | Closed or open loop of an existing motion |
-| `stitch` | Join typed motion/transition/motion steps with server preparation |
+| `stitch` | Join two motion objects with server preparation |
 | `list_characters` | Character name filter and result pages |
 | `list_motions` | Recent motion name search and source filters |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
@@ -134,15 +134,9 @@ Join two motions with automatic positioning. The server handles sampling and ali
   "character_id": "CHARACTER_ID",
   "steps": [
     {
-      "type": "motion",
       "motion_id": "FIRST_MOTION_ID"
     },
     {
-      "type": "transition",
-      "duration_seconds": 1.0
-    },
-    {
-      "type": "motion",
       "motion_id": "SECOND_MOTION_ID"
     }
   ]
@@ -159,29 +153,18 @@ Select source intervals and place the second motion one meter forward and half a
   "character_id": "CHARACTER_ID",
   "steps": [
     {
-      "type": "motion",
       "motion_id": "FIRST_MOTION_ID",
-      "range": {
-        "start_frame": 12,
-        "end_frame": 60
-      }
+      "trim_start_frame": 12,
+      "trim_end_frame": 60,
+      "transition_duration_seconds": 1.5,
+      "transition_forward_meters": 1.0,
+      "transition_right_meters": 0.5,
+      "transition_facing_degrees": 45.0
     },
     {
-      "type": "transition",
-      "duration_seconds": 1.5
-    },
-    {
-      "type": "motion",
       "motion_id": "SECOND_MOTION_ID",
-      "range": {
-        "start_seconds": 0.5,
-        "end_seconds": 3.0
-      },
-      "placement": {
-        "forward_m": 1.0,
-        "right_m": 0.5,
-        "turn_degrees": 45.0
-      }
+      "trim_start_seconds": 0.5,
+      "trim_end_seconds": 3.0
     }
   ]
 }

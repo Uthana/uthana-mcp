@@ -260,8 +260,8 @@ class Operations:
 
     async def video(self, request_id, file_path, name, model="video-to-motion-2.0"):
         text(name)
-        if model not in {"video-to-motion-2.0", "video-to-motion-2.1"}:
-            raise ValueError("Choose video-to-motion-2.0 or video-to-motion-2.1")
+        if model not in {"video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"}:
+            raise ValueError("Choose video-to-motion-2.0, video-to-motion-2.1, or video-to-motion-3.0")
         filename, data, digest = self.read_input(file_path, {".mp4", ".mov", ".webm"})
         args = {"content_sha256": digest, "filename": filename, "name": name, "model": model}
         return await self.store.mutation(request_id, "video", args, lambda: self.api.video(filename, data, name, model))
@@ -522,17 +522,17 @@ class Operations:
         return await self.verify_saved(receipt)
 
     async def stitch(self, request_id: str, options: object) -> dict:
-        options = StitchInput.model_validate(options).model_dump(exclude_none=True)
-        args = {"contract": "typed_steps", **options}
+        options = StitchInput.model_validate(options).model_dump(exclude_unset=True)
+        args = {"contract": "flat_motion_steps_v1", **options}
         if self.store.completed(request_id, "stitch"):
             return self.recovered_saved(self.store.replay(request_id, "stitch", args))
-        motion_steps = [options["steps"][0], options["steps"][2]]
+        motion_steps = [options["steps"][0], options["steps"][1]]
         sources = [await self.api.motion(step["motion_id"]) for step in motion_steps]
         for step, source in zip(motion_steps, sources):
-            selected = step["range"]
+            selected = step
             fps = source["fps"]
-            start = selected.get("start_seconds", selected.get("start_frame", 0) / fps)
-            end = selected.get("end_seconds", selected.get("end_frame", source["frame_count"] - 1) / fps)
+            start = selected.get("trim_start_seconds", selected.get("trim_start_frame", 0) / fps)
+            end = selected.get("trim_end_seconds", selected.get("trim_end_frame", source["frame_count"] - 1) / fps)
             if not start < end <= source["last_sample_seconds"]:
                 raise ValueError("Motion range must fit its native source samples")
 
