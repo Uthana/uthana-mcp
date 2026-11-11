@@ -5,7 +5,7 @@ The MCP uses the shared Uthana Python client and exposes 24 tools for the config
 | Capability | MCP coverage | Limit |
 | --- | --- | --- |
 | Text-to-motion V2/V3 | Generate, poll V3, inspect | V2/V3 duration limits appear in tool schemas |
-| Video-to-motion (V2M) 2.0/2.1 | Selected-file upload and job polling | 128 MiB input limit |
+| Video-to-motion (V2M) 2.0/2.1/3.0 | Selected-file upload and job polling | 128 MiB input limit |
 | Locomotion | Styles and cycle generation | Duration follows strides |
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |
 | Character from image | Image preparation and generation | PNG/JPEG, 16 MiB, 16 megapixels, one frame |

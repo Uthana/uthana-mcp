@@ -19,7 +19,7 @@ https://mcp.uthana.com/mcp
 
 Sign in with your Uthana account and approve the requested permissions. Hosted setup needs no installation or API key. Start by asking: “Show my Uthana account’s available balance and allowances. Don’t create or change anything.”
 
-See the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. Normal client approval prompts and Uthana pricing apply.
+See the [setup guide](https://uthana.com/mcp/setup) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. The [technical reference](https://uthana.com/docs/api/capabilities/hosted-mcp) covers sign-in details, the client compatibility table, and recovery. Normal client approval prompts and Uthana pricing apply.
 
 Tar, Ava, and Manny (also called Manny Fingers) are available to every user, so you can start animating without uploading a character. See the [first-animation walkthrough](docs/first-animation.md).
 
@@ -104,7 +104,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `trim_motion` | Save an interval as a new motion |
 | `get_preview` | APNG or WebM preview |
 | `get_preview_frame` | One APNG frame with index and available timing |
-| `generate_motion_from_video` | Video-to-motion (V2M) 2.0 or 2.1 job |
+| `generate_motion_from_video` | Video-to-motion (V2M) 2.0, 2.1, or 3.0 job |
 | `upload_character` | FBX/GLB upload, with optional auto-rig and rerig options |
 | `create_character_from_image` | PNG/JPEG to a rigged character |
 | `preview_character_from_prompt` | Preview images for a character description |
