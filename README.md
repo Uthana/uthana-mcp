@@ -19,7 +19,7 @@ https://mcp.uthana.com/mcp
 
 Sign in with your Uthana account and approve the requested permissions. Hosted setup needs no installation or API key. Start by asking: “Show my Uthana account’s available balance and allowances. Don’t create or change anything.”
 
-See the [connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. Normal client approval prompts and Uthana pricing apply.
+See the [setup guide](https://uthana.com/mcp/setup) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. The [technical reference](https://uthana.com/docs/api/capabilities/hosted-mcp) covers sign-in details, the client compatibility table, and recovery. Normal client approval prompts and Uthana pricing apply.
 
 Tar, Ava, and Manny (also called Manny Fingers) are available to every user, so you can start animating without uploading a character. See the [first-animation walkthrough](docs/first-animation.md).
 

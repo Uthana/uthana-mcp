@@ -66,7 +66,11 @@ Create an API key in your [Uthana account settings](https://uthana.com). Set `UT
 
 ## Connect a host
 
-Claude Desktop (`claude_desktop_config.json`):
+Pick your client below. Each entry runs the same local server; only where the configuration lives differs. To connect without installing anything, use the hosted server instead; the [hosted connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp) has steps for each client.
+
+### Claude Desktop
+
+Open **Settings → Developer → Edit Config** in Claude Desktop, or edit `claude_desktop_config.json` directly (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
 
 ```json
 {
@@ -83,9 +87,23 @@ Claude Desktop (`claude_desktop_config.json`):
 }
 ```
 
-Cursor (`.cursor/mcp.json`) uses the same `mcpServers` object.
+Quit Claude Desktop completely and reopen it after saving.
 
-Codex (`~/.codex/config.toml`):
+### Claude Code
+
+```bash
+claude mcp add uthana -s user -e UTHANA_API_KEY=your-api-key -e UTHANA_MCP_INPUT_DIR=/absolute/path/to/selected-inputs -- /absolute/path/to/uthana-mcp
+```
+
+`-s user` makes Uthana available in every project; leave it out to add it to the current project only. Add it in one scope only: two entries with the same name in different scopes make `claude mcp remove` ask which one to remove. You can instead put the same `mcpServers` object as above in a project `.mcp.json`. `claude mcp list` shows **Connected** once the server starts.
+
+### Codex
+
+```bash
+codex mcp add uthana --env UTHANA_API_KEY=your-api-key --env UTHANA_MCP_INPUT_DIR=/absolute/path/to/selected-inputs -- /absolute/path/to/uthana-mcp
+```
+
+This writes the following to `~/.codex/config.toml`, which you can also edit by hand. The Codex app and CLI share this file:
 
 ```toml
 [mcp_servers.uthana]
@@ -97,15 +115,21 @@ UTHANA_API_KEY = "your-api-key"
 UTHANA_MCP_INPUT_DIR = "/absolute/path/to/selected-inputs"
 ```
 
-Claude Code (one command; `-s user` stores it for every project, or put the same `mcpServers` object as above in a project `.mcp.json`):
+### Cursor
 
-```bash
-claude mcp add uthana -s user -e UTHANA_API_KEY=your-api-key -e UTHANA_MCP_INPUT_DIR=/absolute/path/to/selected-inputs -- /absolute/path/to/uthana-mcp
-```
+Put the same `mcpServers` object as the Claude Desktop example in `.cursor/mcp.json` for one project, or `~/.cursor/mcp.json` for every project.
+
+### Paths and keys
 
 Use the absolute server command printed by the installer. Replace `your-api-key` with your API key and the input path with your own absolute path, then restart the host. The input directory is optional; omit `UTHANA_MCP_INPUT_DIR` if you do not need uploads.
 
 For a checkout installation, use the absolute path to `.venv/bin/uthana-mcp` (Windows: `.venv\Scripts\uthana-mcp.exe`) as the command with no arguments.
+
+### Files, results and disconnecting
+
+The local server reads input files only from `UTHANA_MCP_INPUT_DIR` on the machine where it runs. Files you attach in a chat are not passed to it; copy them into the input folder and tell your agent the file name. Exports and previews are written to the data directory on the same machine, and the agent returns their paths.
+
+To disconnect, remove the `uthana` entry from your client (`claude mcp remove uthana -s user`, `codex mcp remove uthana`, or delete it from the JSON file). Your API key keeps working until you revoke it in your [Uthana account settings](https://uthana.com); revoke it there if it may have been exposed. To switch accounts, replace `UTHANA_API_KEY` with a key from the other account and restart the host.
 
 ### Environment settings and timeouts
 
