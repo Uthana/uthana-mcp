@@ -381,8 +381,8 @@ def create_server(
         name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
         model: Annotated[
             Literal["video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"],
-            Field(description="Model identifier from the listed enum."),
-        ] = "video-to-motion-2.0",
+            Field(description="Model identifier from the listed enum. Defaults to video-to-motion-3.0."),
+        ] = "video-to-motion-3.0",
     ) -> dict[str, Any]:
         "Upload a selected local MP4/MOV/WebM and submit video-to-motion (V2M). Returns a job ID to poll. Maximum file size: 128 MiB."
         return await ops().video(request_id, file_path, name, model)

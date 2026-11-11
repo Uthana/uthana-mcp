@@ -258,7 +258,7 @@ class Operations:
             ) from None
         return path.name, data, hashlib.sha256(data).hexdigest()
 
-    async def video(self, request_id, file_path, name, model="video-to-motion-2.0"):
+    async def video(self, request_id, file_path, name, model="video-to-motion-3.0"):
         text(name)
         if model not in {"video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"}:
             raise ValueError("Choose video-to-motion-2.0, video-to-motion-2.1, or video-to-motion-3.0")

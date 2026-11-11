@@ -54,7 +54,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             }
             video_model = tools["generate_motion_from_video"].inputSchema["properties"]["model"]
             assert "video-to-motion-3.0" in video_model["enum"]
-            assert video_model["default"] == "video-to-motion-2.0"
+            assert video_model["default"] == "video-to-motion-3.0"
             price_model = tools["estimate_model_cost"].inputSchema["properties"]["model"]
             assert "video-to-motion-3.0" in price_model["enum"]
             assert "source_duration_seconds" not in tools["trim_motion"].inputSchema["properties"]
