@@ -124,7 +124,7 @@ async def test_rename_of_missing_asset_is_rejected(ops: Operations) -> None:
 
 
 async def test_restore_of_foreign_deleted_asset_is_refused_unchanged(ops: Operations) -> None:
-    # The backend refuses another organization's asset (admins included), so nothing is restored or undone.
+    # The ordinary account's existing backend permissions refuse another organization's asset.
     ops.api.assets["foreign1"]["deleted"] = "2026-11-01T00:00:00"
     for _ in range(2):
         with pytest.raises(APIError) as error:
@@ -184,11 +184,8 @@ async def test_api_lifecycle_documents_and_owner_check_inputs() -> None:
 
 
 @pytest.mark.parametrize("kind", ["character", "motion"])
-@pytest.mark.parametrize("status,error_type", [(200, "UserAccessRequired"), (404, "ResourceNotFound")])
-async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(
-    kind: str, status: int, error_type: str
-) -> None:
-    # Existing prechecks and the new ownership guard must have the same tool outcome.
+async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind: str) -> None:
+    # Existing permission denials become a generic not-found outcome in the new tool.
     seen = []
 
     def respond(request: httpx.Request) -> httpx.Response:
@@ -196,10 +193,10 @@ async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(
         seen.append(body)
         error = {
             "message": "Resource not found.",
-            "type": error_type,
+            "type": "UserAccessRequired",
             "path": [f"update_{kind}"],
         }
-        return httpx.Response(status, json={"data": None, "errors": [error]})
+        return httpx.Response(200, json={"data": None, "errors": [error]})
 
     class MissingThenRestore(UthanaAPI):
         async def asset(self, kind: str, asset_id: str) -> None:

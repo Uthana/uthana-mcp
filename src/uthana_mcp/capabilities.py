@@ -211,7 +211,7 @@ OPERATIONS = [
         "Rename, delete and restore assets",
         docs=f"{DOCS}/capabilities/asset-management",
         status="available",
-        summary="Manage assets owned by this organization. Delete selects only by ID; soft deletion is restorable.",
+        summary="Manage assets using your account's permissions. Delete selects only by ID; soft deletion is restorable.",
         tools=[
             "rename_character",
             "rename_motion",

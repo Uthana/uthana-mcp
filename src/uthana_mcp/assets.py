@@ -1,10 +1,9 @@
 """Single-asset lifecycle for characters and motions: rename, soft delete, and restore.
 
-Each call reads the asset first, changes only assets owned by the caller's organization, and
-reports what happened. The backend also enforces ownership in the same statement as each change
-for every API call, so a restore, which cannot pre-read a deleted asset, never changes another
-organization's asset. The calls are idempotent and keep no local receipt, so a batch caller can
-apply them item by item and a retry after an unknown outcome reports the current state.
+Rename and delete preflight live assets against the caller's organization. Restore forwards the ID
+because deleted assets cannot be pre-read; the backend's existing write permissions decide access.
+The calls are idempotent and keep no local receipt, so a batch caller can apply them item by item
+and recover the current state after an unknown outcome.
 """
 
 from __future__ import annotations
@@ -145,7 +144,6 @@ class AssetLifecycle:
                 "changed": False,
             }
         try:
-            # The backend restores only if the caller's organization owns the asset, admins included.
             updated = await self.api.update_asset(kind, asset_id, action="restore")
         except APIError as error:
             if error.category in NOT_VISIBLE and error.outcome == "rejected":

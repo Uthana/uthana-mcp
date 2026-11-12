@@ -29,7 +29,6 @@ class APIError(RuntimeError):
 
 
 REJECTIONS = {
-    "ResourceNotFound": ("not_found", "Resource not found."),
     "JobLimitExceeded": (
         "rate_limit",
         "Uthana rejected this generation because its job limit is reached. Wait for existing jobs to complete before submitting again.",

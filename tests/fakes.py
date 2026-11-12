@@ -90,7 +90,7 @@ class FakeAPI:
     async def update_asset(self, kind: str, asset_id: str, action: Any, *, name: str | None = None) -> Any:
         self.calls.append(("update_asset", {"kind": kind, "asset_id": asset_id, "action": action, "name": name}))
         row = self.assets.get(asset_id)
-        # Like the public backend API: other organizations' assets are refused unchanged, admins included.
+        # Model the existing write permissions of an ordinary organization account.
         if row is None or row["org_id"] != await self.org_id():
             raise APIError("Resource not found.", category="not_found", outcome="rejected")
         if action == "rename":

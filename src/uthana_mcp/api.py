@@ -87,12 +87,9 @@ class UthanaAPI:
                         status, "http_error"
                     )
                     raise read_error(category, http_status=status) from None
-                if status in (404, 429) and isinstance(error.response_data, dict):
+                if status == 429 and isinstance(error.response_data, dict):
                     rejection = graphql_error(error.response_data, mutation_field)
-                    if (
-                        rejection.outcome == "rejected"
-                        and rejection.category == {404: "not_found", 429: "rate_limit"}[status]
-                    ):
+                    if rejection.outcome == "rejected" and rejection.category == "rate_limit":
                         rejection.http_status = status
                         raise rejection from None
                 if status in (401, 403):
@@ -460,10 +457,9 @@ class UthanaAPI:
         return asset_record(row)
 
     async def update_asset(self, kind: str, asset_id: str, *, action: str, name: str | None = None) -> AssetRecord:
-        """Rename, soft-delete, or restore one character or motion your organization owns.
+        """Rename, soft-delete, or restore one character or motion by ID.
 
-        The backend checks ownership in the same statement as the change, so
-        another organization's asset is refused unchanged, even for admin accounts.
+        The backend's existing API write permissions remain authoritative.
         """
         module = self.client.characters if kind == "character" else self.client.motions
         if action == "rename":

@@ -791,16 +791,16 @@ def create_server(
 
     @tool(annotations=RESTORE)
     async def restore_character(
-        character_id: Annotated[Id, Field(description="ID of a deleted character your organization owns.")],
+        character_id: Annotated[Id, Field(description="ID of the deleted character to restore.")],
     ) -> dict[str, Any]:
-        "Undo delete_character for one character your organization owns. Reports restored or already_active."
+        "Undo delete_character using your account's existing write permissions. Reports restored or already_active."
         return await read_result(ops().assets.restore("character", character_id))
 
     @tool(annotations=RESTORE)
     async def restore_motion(
-        motion_id: Annotated[Id, Field(description="ID of a deleted motion your organization owns.")],
+        motion_id: Annotated[Id, Field(description="ID of the deleted motion to restore.")],
     ) -> dict[str, Any]:
-        "Undo delete_motion for one motion your organization owns. Reports restored or already_active."
+        "Undo delete_motion using your account's existing write permissions. Reports restored or already_active."
         return await read_result(ops().assets.restore("motion", motion_id))
 
     @tool(annotations=READ)
