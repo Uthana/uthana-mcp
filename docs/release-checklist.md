@@ -2,7 +2,7 @@
 
 Use this for every PyPI release and every hosted deployment that changes the connector. The goal is that a visitor arriving from PyPI, GitHub, the website, or the API docs gets the same recommended route, sign-in requirements, and status.
 
-Roles: the **release owner** is the engineer who opens the version-bump PR. The **website owner** maintains the uthana.com marketing pages. The **hosted owner** updates the hosted deployment pin in the Uthana service repository. One person can hold several roles.
+Roles: the **release owner** is the engineer who opens the version-bump PR. The **website owner** maintains the uthana.com marketing pages. The **hosted owner** prepares and verifies the tested hosted dependency refresh. One person can hold several roles.
 
 ## Before merging the version bump (release owner)
 
