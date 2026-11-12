@@ -184,8 +184,11 @@ async def test_api_lifecycle_documents_and_owner_check_inputs() -> None:
 
 
 @pytest.mark.parametrize("kind", ["character", "motion"])
-async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind: str):
-    # An admin account restoring another organization's asset -> Any: the backend refuses it with no change.
+@pytest.mark.parametrize("status,error_type", [(200, "UserAccessRequired"), (404, "ResourceNotFound")])
+async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(
+    kind: str, status: int, error_type: str
+) -> None:
+    # Existing prechecks and the new ownership guard must have the same tool outcome.
     seen = []
 
     def respond(request: httpx.Request) -> httpx.Response:
@@ -193,10 +196,10 @@ async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind: 
         seen.append(body)
         error = {
             "message": "Resource not found.",
-            "type": "ResourceNotFound",
+            "type": error_type,
             "path": [f"update_{kind}"],
         }
-        return httpx.Response(404, json={"data": None, "errors": [{**error, "path": [f"update_{kind}"]}]})
+        return httpx.Response(status, json={"data": None, "errors": [error]})
 
     class MissingThenRestore(UthanaAPI):
         async def asset(self, kind: str, asset_id: str) -> None:
@@ -209,6 +212,7 @@ async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind: 
     finally:
         await api.close()
     assert error.value.category == "not_found" and error.value.outcome == "rejected"
+    assert error.value.http_status is None
     assert [body["variables"] for body in seen] == [{f"{kind}_id": "x1", "deleted": False}]
 
 

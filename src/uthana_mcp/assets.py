@@ -148,7 +148,7 @@ class AssetLifecycle:
             # The backend restores only if the caller's organization owns the asset, admins included.
             updated = await self.api.update_asset(kind, asset_id, action="restore")
         except APIError as error:
-            if error.category == "permission":
+            if error.category in NOT_VISIBLE and error.outcome == "rejected":
                 raise APIError(
                     "Resource not found.",
                     category="not_found",
