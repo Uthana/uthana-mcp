@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Any
 
 import httpx
 import pytest
@@ -48,17 +47,35 @@ async def test_character_delete_keeps_motions(ops: Operations) -> None:
 
 
 @pytest.mark.parametrize("action", ["rename", "delete", "restore"])
-async def test_built_in_and_foreign_assets_are_refused_without_writing(ops: Operations, action: Any) -> None:
-    for asset_id, kind in (("tar1", "character"), ("example1", "motion")):
-        call = {
-            "rename": lambda: ops.assets.rename(kind, asset_id, name="Mine now"),
-            "delete": lambda: ops.assets.delete(kind, asset_id),
-            "restore": lambda: ops.assets.restore(kind, asset_id),
-        }[action]
-        with pytest.raises(APIError) as error:
-            await call()
-        assert error.value.category == "not_owned" and error.value.outcome == "rejected"
-    assert changes(ops) == []
+@pytest.mark.parametrize("kind,asset_id", [("character", "tar1"), ("motion", "example1")])
+async def test_foreign_and_missing_assets_are_indistinguishable(
+    ops: Operations, action: str, kind: str, asset_id: str
+) -> None:
+    async def invoke(selected: str) -> object:
+        if action == "rename":
+            return await ops.assets.rename(kind, selected, name="Mine now")
+        return await getattr(ops.assets, action)(kind, selected)
+
+    before = dict(ops.api.assets[asset_id])
+    if action == "delete":
+        foreign = await invoke(asset_id)
+        missing = await invoke("missing1")
+        assert {key: value for key, value in foreign.items() if key not in {"asset_id", "message"}} == {
+            key: value for key, value in missing.items() if key not in {"asset_id", "message"}
+        }
+        assert changes(ops) == []
+    else:
+        with pytest.raises(APIError) as foreign:
+            await invoke(asset_id)
+        with pytest.raises(APIError) as missing:
+            await invoke("missing1")
+        assert foreign.value.category == missing.value.category == "not_found"
+        assert foreign.value.outcome == missing.value.outcome == "rejected"
+        if action == "rename":
+            assert changes(ops) == []
+        else:
+            assert len(changes(ops)) == 2
+    assert ops.api.assets[asset_id] == before
 
 
 async def test_delete_reports_current_name_after_concurrent_rename(ops: Operations) -> None:
@@ -113,7 +130,6 @@ async def test_restore_of_foreign_deleted_asset_is_refused_unchanged(ops: Operat
         with pytest.raises(APIError) as error:
             await ops.assets.restore("character", "foreign1")
         assert error.value.category == "not_found" and error.value.outcome == "rejected"
-        assert "Nothing was changed" in str(error.value)
         assert ops.api.assets["foreign1"]["deleted"] is not None
     assert [call[1]["action"] for call in changes(ops)] == ["restore", "restore"]
 
@@ -176,11 +192,11 @@ async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind: 
         body = json.loads(request.content)
         seen.append(body)
         error = {
-            "message": f"{kind.capitalize()} x1 does not belong to your organization. Nothing was changed.",
-            "type": "UserAccessRequired",
+            "message": "Resource not found.",
+            "type": "ResourceNotFound",
             "path": [f"update_{kind}"],
         }
-        return httpx.Response(200, json={"data": None, "errors": [error]})
+        return httpx.Response(404, json={"data": None, "errors": [{**error, "path": [f"update_{kind}"]}]})
 
     class MissingThenRestore(UthanaAPI):
         async def asset(self, kind: str, asset_id: str) -> None:

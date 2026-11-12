@@ -496,6 +496,12 @@ def test_hosted_asset_lifecycle_requires_write_scope_and_owner(tmp_path: Path) -
         restored = tool(client, "restore_motion", {"motion_id": "motion1"})
         assert restored["structuredContent"]["outcome"] == "restored"
         built_in = tool(client, "delete_character", {"character_id": "tar1"})
-        assert built_in["isError"] and "not_owned" in built_in["content"][0]["text"]
+        missing = tool(client, "delete_character", {"character_id": "missing1"})
+        assert not built_in["isError"] and not missing["isError"]
+        assert (
+            built_in["structuredContent"]["outcome"]
+            == missing["structuredContent"]["outcome"]
+            == "not_found_or_already_deleted"
+        )
         model = tool(client, "download_character", {"character_id": "tar1"}, user="read-only")
         assert model["structuredContent"]["download_url"].startswith(ORIGIN + "/files/artifacts/")

@@ -64,28 +64,17 @@ class AssetLifecycle:
 
     async def _visible(self, kind: Kind, asset_id: str) -> AssetRecord | None:
         try:
-            return await self.api.asset(kind, asset_id)
+            record = await self.api.asset(kind, asset_id)
         except APIError as error:
             if error.category in NOT_VISIBLE:
                 return None
             raise
-
-    async def _require_owned(self, kind: Kind, record: AssetRecord) -> None:
-        org_id = await self.api.org_id()
-        if record["org_id"] != org_id:
-            raise APIError(
-                f"{kind.capitalize()} {record['id']} ({record['name']!r}) is a built-in Uthana asset or belongs to "
-                "another organization. Only your organization's own assets can be renamed, deleted, or restored. "
-                "Nothing was changed.",
-                category="not_owned",
-                outcome="rejected",
-            )
+        return record if record["org_id"] == await self.api.org_id() else None
 
     async def _visible_owned(self, kind: Kind, asset_id: str) -> AssetRecord:
         record = await self._visible(kind, asset_id)
         if record is None:
             raise APIError(_not_visible(kind, asset_id), category="not_found", outcome="rejected")
-        await self._require_owned(kind, record)
         return record
 
     @staticmethod
@@ -126,7 +115,6 @@ class AssetLifecycle:
                 "changed": False,
                 "message": _not_visible(kind, asset_id),
             }
-        await self._require_owned(kind, record)
         updated = await self.api.update_asset(kind, asset_id, action="delete")
         self._confirmed(kind, asset_id, updated, deleted=True)
         return {
@@ -149,7 +137,6 @@ class AssetLifecycle:
         identifier(asset_id)
         record = await self._visible(kind, asset_id)
         if record is not None:
-            await self._require_owned(kind, record)
             return {
                 "kind": kind,
                 "asset_id": asset_id,
@@ -163,7 +150,7 @@ class AssetLifecycle:
         except APIError as error:
             if error.category == "permission":
                 raise APIError(
-                    f"No deleted {kind} with ID {asset_id} belongs to your organization. Nothing was changed.",
+                    "Resource not found.",
                     category="not_found",
                     outcome="rejected",
                 ) from None

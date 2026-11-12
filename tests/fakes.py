@@ -92,7 +92,7 @@ class FakeAPI:
         row = self.assets.get(asset_id)
         # Like the public backend API: other organizations' assets are refused unchanged, admins included.
         if row is None or row["org_id"] != await self.org_id():
-            raise APIError("Uthana rejected access to the requested asset.", category="permission", outcome="rejected")
+            raise APIError("Resource not found.", category="not_found", outcome="rejected")
         if action == "rename":
             row["name"] = name
         else:

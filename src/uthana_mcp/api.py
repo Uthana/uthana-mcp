@@ -87,9 +87,12 @@ class UthanaAPI:
                         status, "http_error"
                     )
                     raise read_error(category, http_status=status) from None
-                if status == 429 and isinstance(error.response_data, dict):
+                if status in (404, 429) and isinstance(error.response_data, dict):
                     rejection = graphql_error(error.response_data, mutation_field)
-                    if rejection.outcome == "rejected" and rejection.category == "rate_limit":
+                    if (
+                        rejection.outcome == "rejected"
+                        and rejection.category == {404: "not_found", 429: "rate_limit"}[status]
+                    ):
                         rejection.http_status = status
                         raise rejection from None
                 if status in (401, 403):

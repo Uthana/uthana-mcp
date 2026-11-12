@@ -332,3 +332,25 @@ async def test_trial_limit_is_rejected_only_with_confirmed_generation_error(is_c
             assert "Wait for existing jobs" in str(exc.value)
     finally:
         await api.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "data": {"other": {"id": "m2"}},
+            "errors": [{"type": "ResourceNotFound", "message": "Resource not found.", "path": ["update_motion"]}],
+        },
+        {"data": None, "errors": [{"type": "ResourceNotFound", "message": "Resource not found.", "path": ["other"]}]},
+        {"errors": [{"message": "Not found"}]},
+    ],
+)
+async def test_unconfirmed_404_does_not_make_mutation_safe_to_repeat(payload: object) -> None:
+    api = UthanaAPI("fake", transport=httpx.MockTransport(lambda request: httpx.Response(404, json=payload)))
+    try:
+        with pytest.raises(APIError) as error:
+            await api.update_asset("motion", "m1", action="delete")
+        assert error.value.outcome == "unknown"
+        assert error.value.details()["safe_to_resubmit"] is False
+    finally:
+        await api.close()
