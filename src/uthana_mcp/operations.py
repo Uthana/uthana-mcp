@@ -39,7 +39,12 @@ ROBOTS = frozenset({"unitree_g1"})
 ROBOT_EXPORT_FPS = frozenset({24, 30, 60})
 
 
-def robot_trajectory_summary(data: bytes) -> dict:
+class RobotTrajectorySummary(TypedDict):
+    frame_count: int
+    columns: list[str]
+
+
+def robot_trajectory_summary(data: bytes) -> RobotTrajectorySummary:
     """Summarize a robot CSV export: one header row, then one row per frame. The download already happened."""
     try:
         lines = data.decode("utf-8").splitlines()
