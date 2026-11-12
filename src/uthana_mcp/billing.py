@@ -6,12 +6,16 @@ from .api import APIError
 from .validation import number
 
 PRICING_URL = "https://uthana.com/pricing"
-# Public names -> backend rate keys. Reviewed against the pricing page 2026-09-14.
+# Public names -> backend rate keys.
 # Rates themselves are fetched, never hardcoded here. Hidden backend SKUs are not public prices.
 PUBLISHED_MODELS = {
     "text-to-motion-1.0": "text-to-motion",
     "text-to-motion-2.0": "text-to-motion-bucmd",
     "text-to-motion-3.0": "text-to-motion-3.0",
+    "text-to-motion-3.0-lite": "text-to-motion-3.0-lite",
+    "text-to-motion-3.0-mini": "text-to-motion-3.0-mini",
+    # Library search copies the best library match and is billed per second of that clip.
+    "library-search-1.0": "nearest-neighbor",
     "video-to-motion-2.0": "video-to-motion-2.0",
     "video-to-motion-2.1": "video-to-motion-2.1",
     "video-to-motion-3.0": "video-to-motion-3.0",
@@ -53,16 +57,17 @@ def estimate_cost(rates, model, quantity):
         "agent_token_fee_usd": "0",
         "pricing_url": PRICING_URL,
         "rate_source": "configured Uthana environment: GraphQL payg_prices",
-        "note": "Estimate for the supplied output quantity, not a measured debit. Public capability mapping was "
-        "checked against the pricing page on 2026-09-14. Reconcile any rate mismatch with that page; "
+        "note": "Estimate for the supplied output quantity, not a measured debit. "
+        "Reconcile any rate mismatch with the public pricing page; "
         "never invent a credits-to-USD conversion. Actual generated duration and account terms may differ.",
     }
 
 
 def receipt_billing(operation, args):
     model = {
-        "generate": "text-to-motion-3.0",
+        "generate": args.get("model", "text-to-motion-3.0"),
         "generate_v2": "text-to-motion-2.0",
+        "library_search": "library-search-1.0",
         "locomotion": "locomotion-1.0",
         "video": args.get("model"),
         "character_from_image": "character-gen-1.0",
@@ -72,12 +77,14 @@ def receipt_billing(operation, args):
         "loop": "stitch-loop-2.0",
         "stitch": "stitch-loop-2.0",
     }.get(operation)
-    # Policy: choosing a target skeleton during initial auto-rig is one auto-rig charge;
-    # converting an already-rigged character (rerig_target without auto_rig) uses the same price.
-    if operation == "upload_character" and (args.get("auto_rig") is True or args.get("rerig_target")):
+    # The backend charges auto-rig only when it builds a skeleton for an unrigged mesh. Choosing a
+    # target skeleton adds nothing, and converting an already-rigged character (rerig_target without
+    # auto_rig) is not charged. auto_rig=true on a file that already has a rig is not charged either,
+    # but the MCP cannot tell in advance, so that cost stays unmeasured.
+    if operation == "upload_character" and args.get("auto_rig") is True:
         model = "autorig"
-    free = operation in {"trim", "save", "download", "preview"} or (
-        operation == "upload_character" and args.get("auto_rig") is False and not args.get("rerig_target")
+    free = operation in {"trim", "save", "download", "preview", "character_download"} or (
+        operation == "upload_character" and args.get("auto_rig") is not True
     )
     return {
         "api_mcp_fee_usd": "0",

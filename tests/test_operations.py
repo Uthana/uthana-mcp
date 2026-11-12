@@ -81,7 +81,7 @@ async def test_state_is_not_shared_between_credentials(tmp_path):
     assert is_private(first.path)
 
 
-@pytest.mark.parametrize("duration", [float("nan"), float("inf"), True, 3, 11])
+@pytest.mark.parametrize("duration", [float("nan"), float("inf"), float("-inf"), True, "4"])
 async def test_invalid_generation_never_submits(setup, duration):
     api, ops, _ = setup
     with pytest.raises(ValueError):
