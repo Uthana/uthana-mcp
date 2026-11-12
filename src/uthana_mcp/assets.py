@@ -2,7 +2,7 @@
 
 Each call reads the asset first, changes only assets owned by the caller's organization, and
 reports what happened. The backend also enforces ownership in the same statement as each change
-(``own_org_only``), so a restore, which cannot pre-read a deleted asset, never changes another
+for every API call, so a restore, which cannot pre-read a deleted asset, never changes another
 organization's asset. The calls are idempotent and keep no local receipt, so a batch caller can
 apply them item by item and a retry after an unknown outcome reports the current state.
 """

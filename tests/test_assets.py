@@ -160,10 +160,10 @@ async def test_api_lifecycle_documents_and_owner_check_inputs() -> None:
     finally:
         await api.close()
     assert sum("motion_download_secs_per_month" in body["query"] for body in seen) == 3
-    assert all("own_org_only: $own_org_only" in body["query"] for body in seen[-2:])
+    assert all("own_org_only" not in body["query"] for body in seen[-2:])
     assert [body["variables"] for body in seen[-2:]] == [
-        {"character_id": "c1", "deleted": True, "own_org_only": True},
-        {"character_id": "c1", "deleted": False, "own_org_only": True},
+        {"character_id": "c1", "deleted": True},
+        {"character_id": "c1", "deleted": False},
     ]
 
 
@@ -193,7 +193,7 @@ async def test_api_restore_refused_by_backend_is_not_found_and_not_undone(kind: 
     finally:
         await api.close()
     assert error.value.category == "not_found" and error.value.outcome == "rejected"
-    assert [body["variables"] for body in seen] == [{f"{kind}_id": "x1", "deleted": False, "own_org_only": True}]
+    assert [body["variables"] for body in seen] == [{f"{kind}_id": "x1", "deleted": False}]
 
 
 @pytest.mark.parametrize(
