@@ -84,7 +84,7 @@ Directions are character-relative. Locomotion `travel_angle` is 0 forward, 90 to
 
 ## Rename, delete, and restore
 
-`rename_character`, `rename_motion`, `delete_character`, `delete_motion`, `restore_character`, and `restore_motion` change only assets your organization owns. Built-in Uthana characters (Tar, Ava, Manny), example motions, and other organizations' assets are refused without change.
+`rename_character`, `rename_motion`, `delete_character`, and `delete_motion` check that the visible asset belongs to your organization before requesting a change. Built-in Uthana characters (Tar, Ava, Manny), example motions, and other organizations' assets are refused by that check. `restore_character` and `restore_motion` use the selected ID and the account's existing backend write permissions, including administrator privileges; deleted assets cannot be read before restoration.
 
 Select assets by ID from `list_characters` or `list_motions`, never by name alone. When several assets share a name, show the user each candidate's name, ID, and creation time and let them choose. Before deleting, show the exact items and the consequences below, then delete only what the user chose. One explicit approval covers the listed items; do not ask again per item. Delete tools take only the selected asset ID; names are descriptive and may change.
 
