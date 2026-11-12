@@ -1272,19 +1272,19 @@ wheels = [
 
 [[package]]
 name = "uthana"
-version = "0.8.0"
+version = "0.8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/da/64/5244204aff2a1a9950bc35e5f899aab95f1a02abcdb7921d0c1b63385b7b/uthana-0.8.0.tar.gz", hash = "sha256:a0ced121281f2f24824c6e1c61652cb29bc20eb76074d7edebe06a70943ed766", size = 66892, upload-time = "2026-11-05T17:46:37.886Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/13/7dc0a29163b8ba53f61f529535ba18ed4dad4ab06a5e57f1e37d87277b60/uthana-0.8.2.tar.gz", hash = "sha256:4a1d5b5c7780844f059f1f07c693fc2dc7bcd4804e7134dc43ccde49a5b0add0", size = 75499, upload-time = "2026-11-12T20:15:31.194Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/39/ee655951a29e3c816ad5b97366f14af42b25b898ada6b86d2bbff848871d/uthana-0.8.0-py3-none-any.whl", hash = "sha256:ca92a3b0eed84f8f6c7587241879cfecc54444f4b2a68bb4bf44d5c992f46d6c", size = 40001, upload-time = "2026-11-05T17:46:36.745Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/08/cabcbac438eebc17818ef0d091f7cacb8ef9abf7ea9f22d67b471c27e202/uthana-0.8.2-py3-none-any.whl", hash = "sha256:a152c971fb00777a571226d968d352b3b4de864feebc9203fb1d787afeccc305", size = 44353, upload-time = "2026-11-12T20:15:29.986Z" },
 ]
 
 [[package]]
 name = "uthana-mcp"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -1318,7 +1318,7 @@ requires-dist = [
     { name = "pydantic", specifier = "==2.13.5" },
     { name = "python-dotenv", specifier = "==1.2.3" },
     { name = "starlette", specifier = "==1.9.0" },
-    { name = "uthana", specifier = ">=0.8.0" },
+    { name = "uthana", specifier = ">=0.8.2,<0.9" },
 ]
 
 [package.metadata.requires-dev]

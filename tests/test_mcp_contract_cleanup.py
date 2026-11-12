@@ -1,6 +1,8 @@
 """Regression coverage for backend input, upload timing, and compatibility contracts."""
 
 import json
+from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -14,8 +16,8 @@ from uthana_mcp.server import create_server
 from uthana_mcp.validation import TAR
 
 
-@pytest.mark.parametrize("duration", [4, 4.0, 5, 6.0, 10, 10.0])
-async def test_v3_accepts_whole_seconds_and_ordinary_prompt_boundary(tmp_path, duration):
+@pytest.mark.parametrize("duration", [0, 4, 4.0, 4.1, 5, 5.5, 6.0, 10, 10.0, 11])
+async def test_v3_forwards_finite_durations_for_backend_normalization(tmp_path: Path, duration: Any) -> None:
     api = FakeAPI()
     ops = Operations(api, tmp_path)
     result = await ops.generate("request", "x" * 1000, duration)
@@ -29,10 +31,10 @@ async def test_v3_accepts_whole_seconds_and_ordinary_prompt_boundary(tmp_path, d
         ("x" * 1001, 4, "1000 characters"),
         ("x" * 2500, 4, "1000 characters"),
         ("x" * 8000, 4, "1000 characters"),
-        ("Run, jump, and land", 4.1, "whole number"),
-        ("Run, jump, and land", 5.5, "whole number"),
-        ("Run, jump, and land", 9.9, "whole number"),
-        ("Run, jump, and land", 4.0000000001, "whole number"),
+        ("Run, jump, and land", True, "finite number"),
+        ("Run, jump, and land", "4", "finite number"),
+        ("Run, jump, and land", float("nan"), "finite number"),
+        ("Run, jump, and land", float("inf"), "finite number"),
     ],
 )
 async def test_v3_rejects_unsupported_inputs_before_receipt_claim_or_submission(tmp_path, prompt, duration, error):
@@ -58,8 +60,11 @@ async def test_historical_completed_v3_recovers_after_input_contract_tightens(tm
     recovered = restarted.recover_request("legacy")
     assert recovered["result"]["job_id"] == original["job_id"]
     assert recovered["result"]["replayed"]
-    with pytest.raises(ValueError, match="1000 characters|whole number"):
-        await restarted.generate("legacy", prompt, duration)
+    if len(prompt) > 1000:
+        with pytest.raises(ValueError, match="1000 characters"):
+            await restarted.generate("legacy", prompt, duration)
+    else:
+        assert (await restarted.generate("legacy", prompt, duration))["replayed"]
     assert restarted.recover_request("legacy")["result"] == recovered["result"]
     assert api.calls == []
 
@@ -87,15 +92,14 @@ async def test_discovered_v3_schema_and_local_execution_match_backend_contract(t
     tools = {tool.name: tool for tool in await server.list_tools()}
     schema = tools["generate_motion"].inputSchema["properties"]
     assert schema["prompt"]["maxLength"] == 1000
-    assert schema["duration_seconds"]["minimum"] == 4
-    assert schema["duration_seconds"]["maximum"] == 10
-    assert schema["duration_seconds"]["multipleOf"] == 1
-    for changes in ({"prompt": "x" * 1001}, {"duration_seconds": 5.5}, {"duration_seconds": True}):
+    duration_schema = schema["duration_seconds"]["anyOf"][0]
+    assert not {"minimum", "maximum", "multipleOf"}.intersection(duration_schema)
+    for changes in ({"prompt": "x" * 1001}, {"duration_seconds": True}):
         with pytest.raises(ToolError):
             await server.call_tool("generate_motion", {"request_id": "bad", "prompt": "Jump", **changes})
     assert api.calls == []
     assert ops.store.get_request("bad")["state"] == "not_found"
-    await server.call_tool("generate_motion", {"request_id": "good", "prompt": "Jump", "duration_seconds": 4.0})
+    await server.call_tool("generate_motion", {"request_id": "good", "prompt": "Jump", "duration_seconds": 5.5})
     assert len(api.calls) == 1
     assert "untrusted backend data" in tools["upload_character"].description
 

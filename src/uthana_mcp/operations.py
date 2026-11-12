@@ -3,41 +3,83 @@
 import hashlib
 import io
 import json
+import math
 import os
 import stat
 import time
 import warnings
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 import httpx
 from PIL import Image
+from uthana import TtmJobModelType
 
+from .assets import AssetLifecycle
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
+from .billing_history import billing_history_page, ledger_request
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchInput
 from .store import Store
-from .validation import TAR, identifier, number, text
+from .validation import (
+    MIN_LITE_MINI_DURATION_SECONDS,
+    MIN_TTM3_DURATION_SECONDS,
+    TAR,
+    TTM3_MODELS,
+    UTHANA_DOMAIN,
+    identifier,
+    number,
+    text,
+)
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
+
+
+class TtmGenerationArgs(TypedDict):
+    prompt: str
+    duration_seconds: float
+    character_id: str
+    model: NotRequired[TtmJobModelType]
+    fast: NotRequired[bool]
 
 
 class Operations:
     def __init__(self, api, directory, input_directory=None):
         self.api = api
         self.store = Store(Path(directory), api.scope)
+        self.assets = AssetLifecycle(api)
         self.input_directory = Path(input_directory).expanduser().resolve() if input_directory else None
 
-    async def generate(self, request_id, prompt, duration_seconds=4, character_id=TAR):
-        args = {
+    async def generate(
+        self,
+        request_id,
+        prompt,
+        duration_seconds=None,
+        character_id=TAR,
+        *,
+        model: TtmJobModelType = "text-to-motion-3.0",
+        fast: bool = False,
+    ):
+        if model not in TTM3_MODELS:
+            raise ValueError(f"model must be one of: {', '.join(TTM3_MODELS)}")
+        if type(fast) is not bool:
+            raise ValueError("fast must be a boolean")
+        minimum = MIN_TTM3_DURATION_SECONDS if model == "text-to-motion-3.0" else MIN_LITE_MINI_DURATION_SECONDS
+        duration = minimum if duration_seconds is None else duration_seconds
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration):
+            raise ValueError("duration_seconds must be a finite number; omit it to use the model default")
+        args: TtmGenerationArgs = {
             "prompt": text(prompt, 1000),
-            "duration_seconds": number(duration_seconds, 4, 10),
+            "duration_seconds": duration,
             "character_id": identifier(character_id),
         }
-        # Recover historical receipts outside the current input contract through get_request_status.
-        if duration_seconds != int(duration_seconds):
-            raise ValueError("V3 duration must be a whole number of seconds from 4 to 10; it is not rounded silently")
+        # Omit the default hints so existing completed request IDs still replay.
+        if model != "text-to-motion-3.0":
+            args["model"] = model
+        if fast:
+            args["fast"] = fast
         return await self.store.mutation(request_id, "generate", args, lambda: self.api.generate(**args))
 
     async def generate_v2(self, request_id, prompt, duration_seconds=4, character_id=TAR):
@@ -51,6 +93,25 @@ class Operations:
         if abs(frames / 8 - round(frames / 8)) > 1e-8:
             raise ValueError("V2 duration must use 0.4-second increments from 4 to 10 seconds")
         return await self.store.mutation(request_id, "generate_v2", args, lambda: self.api.generate_v2(**args))
+
+    async def library_search(self, request_id: str, prompt: str, *, character_id: str = TAR) -> dict:
+        args = {"prompt": text(prompt, 1000), "character_id": identifier(character_id)}
+
+        async def invoke() -> dict:
+            result = await self.api.library_search(**args)
+            return {
+                **result,
+                "result_kind": "copied_library_match",
+                "candidates_returned": 1,
+                "search_scope": "Uthana shared motion library plus this organization's labeled motions",
+                "exhaustive": False,
+                "review_status": "unreviewed",
+                "note": "The single closest clip by description, copied into this organization as a new motion. "
+                "A weak or unrelated match is still charged and does not prove a better clip is absent. "
+                "Use get_motion for duration and get_preview to review it.",
+            }
+
+        return await self.store.mutation(request_id, "library_search", args, invoke)
 
     async def locomotion_styles(self):
         styles = await self.api.locomotion_styles()
@@ -258,7 +319,7 @@ class Operations:
             ) from None
         return path.name, data, hashlib.sha256(data).hexdigest()
 
-    async def video(self, request_id, file_path, name, model="video-to-motion-2.0"):
+    async def video(self, request_id, file_path, name, model="video-to-motion-3.0"):
         text(name)
         if model not in {"video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"}:
             raise ValueError("Choose video-to-motion-2.0, video-to-motion-2.1, or video-to-motion-3.0")
@@ -575,6 +636,47 @@ class Operations:
 
     async def usage(self):
         return usage_snapshot(await self.api.usage())
+
+    async def billing_history(
+        self,
+        *,
+        since: str | None = None,
+        until: str | None = None,
+        entry_types: list[str] | None = None,
+        before_entry_id: str | None = None,
+        limit: int = 50,
+    ) -> dict:
+        if before_entry_id is not None:
+            identifier(before_entry_id)
+        request = ledger_request(
+            since=since, until=until, entry_types=entry_types, before_entry_id=before_entry_id, limit=limit
+        )
+        rows = await self.api.ledger(**request)
+        domain = getattr(self.api, "domain", None) or UTHANA_DOMAIN
+        return billing_history_page(rows, limit=limit, domain=domain, request=request)
+
+    async def download_character(self, character_id: str, format: str = "glb") -> dict:
+        """Save the character's own model file locally; no motion, retargeting, or download allowance."""
+        identifier(character_id)
+        if format not in {"glb", "fbx"}:
+            raise ValueError("Character format must be glb or fbx")
+        record = await self.api.asset("character", character_id)
+        data = await self.api.download_character(character_id, format)
+        signature = b"glTF" if format == "glb" else b"Kaydara FBX Binary"
+        if not data.startswith(signature):
+            raise ValueError(f"Character download did not return a {format.upper()} file")
+        return self.store.artifact(
+            data,
+            "." + format,
+            {
+                "character_id": character_id,
+                "name": record["name"],
+                "format": format,
+                "asset_kind": "character_model",
+                "includes_animation": False,
+                "billing": receipt_billing("character_download", {}),
+            },
+        )
 
     async def download_allowed(self, motion_id, character_id=TAR):
         identifier(motion_id)

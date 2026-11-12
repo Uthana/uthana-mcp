@@ -3,9 +3,14 @@
 import json
 import math
 import re
+from typing import Literal, TypedDict, get_args
 
 TAR = "cXi2eAP19XwQ"
 UTHANA_DOMAIN = "uthana.com"
+Ttm3Model = Literal["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"]
+TTM3_MODELS = get_args(Ttm3Model)
+MIN_TTM3_DURATION_SECONDS = 4
+MIN_LITE_MINI_DURATION_SECONDS = 5
 
 
 def identifier(value: str) -> str:
@@ -71,6 +76,23 @@ def normalize_job(job: dict) -> dict:
         "credits_used": None,
         "next_action": "Inspect the existing job; do not regenerate" if state == "unresolved" else None,
     }
+
+
+class AssetRecord(TypedDict):
+    id: str
+    name: str | None
+    org_id: str
+    deleted: str | None
+
+
+def asset_record(row: object) -> AssetRecord:
+    """Normalize a character or motion record returned by a read or lifecycle mutation."""
+    if not isinstance(row, dict):
+        raise ValueError("Expected a character or motion record")
+    name, deleted = row.get("name"), row.get("deleted")
+    if not (name is None or isinstance(name, str)) or not (deleted is None or isinstance(deleted, str)):
+        raise ValueError("Character or motion record has an invalid name or deletion time")
+    return {"id": identifier(row.get("id")), "name": name, "org_id": identifier(row.get("org_id")), "deleted": deleted}
 
 
 def motion_metadata(motion: dict) -> dict:
