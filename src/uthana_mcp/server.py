@@ -16,16 +16,20 @@ from mcp.types import ImageContent, TextContent, ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
 from .api import UthanaAPI
+from .capabilities import account_eligibility, catalog
 from .config import Config
 from .errors import APIError
 from .operations import Operations
-from .stitching import Step
-from .validation import TAR
+from .stitching import MotionStep
+from .validation import TAR, Ttm3Model
 
 Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+# Lifecycle changes set a state, so repeating one reports the current state instead of changing more.
+CHANGE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True)
+RESTORE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 
 
 class ZoneEndPosition(BaseModel):
@@ -178,6 +182,44 @@ def create_server(
     def workflow() -> str:
         return f"Active API environment: {domain}.\n\n" + files("uthana_mcp").joinpath("WORKFLOW.md").read_text()
 
+    transport = "hosted" if http_settings else "local_stdio"
+
+    def deployment_catalog() -> dict[str, object]:
+        tools = [registered.name for registered in server._tool_manager.list_tools()]
+        return catalog(version=server._mcp_server.version, domain=domain, transport=transport, tools=tools)
+
+    @server.resource(
+        "uthana://capabilities",
+        name="Uthana capabilities",
+        description="Read-only catalog of Uthana operations, models, limits, and this deployment's tools",
+        mime_type="application/json",
+    )
+    def capabilities() -> str:
+        return json.dumps(deployment_catalog(), indent=1)
+
+    @tool(annotations=READ)
+    async def get_capabilities(
+        include_account: Annotated[
+            bool,
+            Field(
+                description="Also read this account's billing mode, rates, and allowances. Read-only and free; false skips the account call."
+            ),
+        ] = True,
+    ) -> dict[str, Any]:
+        """Answer "what can I do with Uthana from this connection?" without creating work.
+        Lists platform operations with status (available in this MCP, platform-only, planned, not offered),
+        models, limits, required access, and documentation, plus this server's version, environment, and tools.
+        With include_account, adds which priced models currently have rates for this account.
+        """
+        result = deployment_catalog()
+        if include_account:
+            try:
+                result["account"] = account_eligibility(await ops().usage())
+            except (APIError, ValueError) as error:
+                # The catalog stays useful before a key is configured or when the account read fails.
+                result["account"] = {"checked_at": None, "error": str(error)}
+        return result
+
     @tool(annotations=WRITE)
     async def generate_motion(
         request_id: Annotated[
@@ -191,18 +233,24 @@ def create_server(
             Field(description="Description of the requested motion, at most 1000 characters."),
         ],
         duration_seconds: Annotated[
-            Annotated[float, Field(ge=4, le=10, multiple_of=1, strict=True)],
-            Field(description="Requested duration in seconds, 4-10 inclusive; whole seconds for V3."),
-        ] = 4,
+            Annotated[float, Field(strict=True, allow_inf_nan=False)] | None,
+            Field(
+                description="Seconds, rounded and clamped by the backend to the model range. Omit for the model default (4 or 5)."
+            ),
+        ] = None,
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
+        model: Annotated[Ttm3Model, Field(description="TTM 3 model: Regular, Lite, or Mini.")] = "text-to-motion-3.0",
+        fast: Annotated[
+            bool, Field(strict=True, description="Independent speed hint; does not select a model.")
+        ] = False,
     ) -> dict[str, Any]:
         """Generate with text-to-motion V3, the usual starting point unless a fast basic placeholder is wanted.
         Prefer V3 for compound actions, performance style, expressive motion, and acrobatics or inversions
         such as cartwheels, even when they are a single action. Inference typically takes roughly 1-2 minutes,
-        with longer waits possible. Includes finger animation. Returns a job ID; poll get_job.
+        with longer waits possible. Regular includes finger animation. Returns a job ID; poll get_job.
         See workflow model-selection guidance.
         """
-        return await ops().generate(request_id, prompt, duration_seconds, character_id)
+        return await ops().generate(request_id, prompt, duration_seconds, character_id, model=model, fast=fast)
 
     @tool(annotations=WRITE)
     async def generate_motion_v2(
@@ -229,6 +277,29 @@ def create_server(
         cartwheels. Returns a motion ID directly; timing is approximate. See workflow model-selection guidance.
         """
         return await ops().generate_v2(request_id, prompt, duration_seconds, character_id)
+
+    @tool(annotations=WRITE)
+    async def copy_best_library_motion(
+        request_id: Annotated[
+            Id,
+            Field(
+                description="Client-chosen durable idempotency key, 1-128 letters, digits, underscores, or hyphens. Reuse only for the same operation and arguments; follow workflow recovery before retrying."
+            ),
+        ],
+        prompt: Annotated[
+            Annotated[str, Field(min_length=1, max_length=1000)],
+            Field(description="Description of the wanted motion, at most 1000 characters."),
+        ],
+        character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
+    ) -> dict[str, Any]:
+        """Charged library search: find the existing Uthana library motion closest to a description and copy
+        it into the organization as a new motion. Searches the shared motion library plus the organization's
+        labeled motions by meaning and returns only the single best match, not a candidate list. Billed as
+        library-search-1.0 per second of the returned clip, even when the match is weak; a poor match does
+        not prove the library lacks a better clip. Returns a motion ID directly; review it with get_preview.
+        See workflow library-search guidance.
+        """
+        return await ops().library_search(request_id, prompt, character_id=character_id)
 
     @tool(annotations=READ)
     async def list_locomotion_styles() -> dict[str, Any]:
@@ -273,8 +344,12 @@ def create_server(
                 "text-to-motion-1.0",
                 "text-to-motion-2.0",
                 "text-to-motion-3.0",
+                "text-to-motion-3.0-lite",
+                "text-to-motion-3.0-mini",
+                "library-search-1.0",
                 "video-to-motion-2.0",
                 "video-to-motion-2.1",
+                "video-to-motion-3.0",
                 "locomotion-1.0",
                 "stitch-loop-2.0",
                 "autorig",
@@ -379,9 +454,9 @@ def create_server(
         ],
         name: Annotated[Name, Field(description="Name for the new motion or character, 1-200 characters.")],
         model: Annotated[
-            Literal["video-to-motion-2.0", "video-to-motion-2.1"],
-            Field(description="Model identifier from the listed enum."),
-        ] = "video-to-motion-2.0",
+            Literal["video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"],
+            Field(description="Model identifier from the listed enum. Defaults to video-to-motion-3.0."),
+        ] = "video-to-motion-3.0",
     ) -> dict[str, Any]:
         "Upload a selected local MP4/MOV/WebM and submit video-to-motion (V2M). Returns a job ID to poll. Maximum file size: 128 MiB."
         return await ops().video(request_id, file_path, name, model)
@@ -594,20 +669,20 @@ def create_server(
         ],
         character_id: Annotated[Id, Field(description="Target character ID for both motions.")],
         steps: Annotated[
-            list[Step],
+            list[MotionStep],
             Field(
-                min_length=3,
-                max_length=3,
-                description="Exactly motion, transition, motion. Motion ranges use native frames or seconds. Omit arriving placement for automatic continuation.",
+                min_length=2,
+                max_length=2,
+                description="Exactly two flat motion objects. Use trim fields in native frames or seconds. Outgoing transition fields belong to the first motion; omit all placement fields for automatic continuation.",
             ),
         ],
         ctx: Context = None,
     ) -> dict[str, Any]:
-        """Stitch typed steps with server sampling and alignment. No pose sampling is required.
+        """Stitch two motion objects with server sampling and alignment. No pose sampling is required.
         Transition duration defaults to one second. Allow at least 420 seconds. Review playback;
         billing uses output seconds. Recover uncertain requests instead of submitting again.
         """
-        options = {"character_id": character_id, "steps": [step.model_dump(exclude_none=True) for step in steps]}
+        options = {"character_id": character_id, "steps": [step.model_dump(exclude_unset=True) for step in steps]}
         return await with_progress(ctx, ops().stitch(request_id, options), "stitch")
 
     @tool(annotations=READ)
@@ -658,13 +733,113 @@ def create_server(
             Annotated[int, Field(ge=1, le=100)], Field(description="Maximum returned items, integer 1-100.")
         ] = 20,
     ) -> dict[str, Any]:
-        "Find recent motions by name. Searches up to 1000 organization motions plus API-provided examples, labeled by source. Offsets page this filtered window; a motion may still exist outside it."
+        """Find recent motions by name. Searches up to 1000 organization motions plus API-provided examples,
+        labeled by source. Offsets page this filtered window; a motion may still exist outside it.
+        Does not search the shared library; see copy_best_library_motion.
+        """
         return await ops().motions(query, source, method, offset, limit)
+
+    @tool(annotations=READ)
+    async def download_character(
+        character_id: Annotated[Id, Field(description="Existing character ID, including built-in characters.")],
+        format: Annotated[Literal["glb", "fbx"], Field(description="Model file format: glb or fbx.")] = "glb",
+    ) -> dict[str, Any]:
+        """Save the character's own rigged model file (mesh and skeleton, no animation). Free; does not use
+        download allowance. To get a motion on this character, use download_motion instead.
+        """
+        return await read_result(ops().download_character(character_id, format))
+
+    @tool(annotations=CHANGE)
+    async def rename_character(
+        character_id: Annotated[Id, Field(description="ID of a character your organization owns.")],
+        name: Annotated[Name, Field(description="New name, 1-200 characters.")],
+    ) -> dict[str, Any]:
+        """Rename one character your organization owns. Built-in and other organizations' characters are refused.
+        Reports the previous name. Safe to retry: a repeat reports unchanged.
+        """
+        return await read_result(ops().assets.rename("character", character_id, name=name))
+
+    @tool(annotations=CHANGE)
+    async def rename_motion(
+        motion_id: Annotated[Id, Field(description="ID of a motion your organization owns.")],
+        name: Annotated[Name, Field(description="New name, 1-200 characters.")],
+    ) -> dict[str, Any]:
+        """Rename one motion your organization owns. Uthana example motions are refused. Reports the previous name.
+        Safe to retry: a repeat reports unchanged.
+        """
+        return await read_result(ops().assets.rename("motion", motion_id, name=name))
+
+    @tool(annotations=CHANGE)
+    async def delete_character(
+        character_id: Annotated[Id, Field(description="ID of a character your organization owns.")],
+    ) -> dict[str, Any]:
+        """Soft-delete one character your organization owns after the user has selected its ID. Motions
+        are kept: they do not belong to a character. Built-in and other organizations' characters are refused.
+        Restorable with restore_character and the same ID. Reports deleted, or not_found_or_already_deleted.
+        """
+        return await read_result(ops().assets.delete("character", character_id))
+
+    @tool(annotations=CHANGE)
+    async def delete_motion(
+        motion_id: Annotated[Id, Field(description="ID of a motion your organization owns.")],
+    ) -> dict[str, Any]:
+        """Soft-delete one motion your organization owns after the user has selected its ID. Trims, loops,
+        and stitches made from it are separate motions and are kept. Uthana example motions are refused.
+        Restorable with restore_motion and the same ID. Reports deleted, or not_found_or_already_deleted.
+        """
+        return await read_result(ops().assets.delete("motion", motion_id))
+
+    @tool(annotations=RESTORE)
+    async def restore_character(
+        character_id: Annotated[Id, Field(description="ID of the deleted character to restore.")],
+    ) -> dict[str, Any]:
+        "Undo delete_character using your account's existing write permissions. Reports restored or already_active."
+        return await read_result(ops().assets.restore("character", character_id))
+
+    @tool(annotations=RESTORE)
+    async def restore_motion(
+        motion_id: Annotated[Id, Field(description="ID of the deleted motion to restore.")],
+    ) -> dict[str, Any]:
+        "Undo delete_motion using your account's existing write permissions. Reports restored or already_active."
+        return await read_result(ops().assets.restore("motion", motion_id))
 
     @tool(annotations=READ)
     async def get_usage() -> dict[str, Any]:
         "Read organization pay-as-you-go (PAYG) balance, rates, and monthly allowances with explicit units. See workflow pricing guidance."
         return await ops().usage()
+
+    @tool(annotations=READ)
+    async def get_billing_history(
+        since: Annotated[
+            str | None,
+            Field(
+                description="Optional ISO 8601 start, inclusive, such as 2026-11-01T00:00:00Z; a time without offset is UTC."
+            ),
+        ] = None,
+        until: Annotated[
+            str | None, Field(description="Optional ISO 8601 end, exclusive; must be later than since.")
+        ] = None,
+        entry_types: Annotated[
+            list[Literal["charge", "payment", "free_credit", "adjustment"]] | None,
+            Field(min_length=1, max_length=4, description="Optional entry kinds to keep; omit for all."),
+        ] = None,
+        before_entry_id: Annotated[
+            Id | None,
+            Field(description="next_before_entry_id from the previous page, to read older entries."),
+        ] = None,
+        limit: Annotated[
+            Annotated[int, Field(ge=1, le=100)], Field(description="Maximum entries per page, integer 1-100.")
+        ] = 50,
+    ) -> dict[str, Any]:
+        (
+            "Read the organization's recorded pay-as-you-go (PAYG) ledger, newest first: charges with model, quantity, "
+            "unit price, the motion or character charged (asset_id) and its processing job (job_id), plus payments, free credit and staff adjustments, "
+            "with signed USD amounts and balances. Read-only. Use it to reconcile what a workflow cost; "
+            "invoices and receipts are on the returned account page."
+        )
+        return await ops().billing_history(
+            since=since, until=until, entry_types=entry_types, before_entry_id=before_entry_id, limit=limit
+        )
 
     @tool(annotations=READ)
     async def check_download_allowed(
@@ -709,7 +884,10 @@ def create_server(
             Literal[24, 30, 60], Field(description="Export sample rate in frames/second: 24, 30, or 60.")
         ] = 30,
         include_mesh: Annotated[
-            bool, Field(description="Include character mesh with skeleton animation in FBX/GLB; must be false for BVH.")
+            bool,
+            Field(
+                description="Include character mesh with skeleton animation in FBX/GLB; must be false for BVH. Keep true to import and play directly; false gives a bare skeleton for an identical rig."
+            ),
         ] = True,
         in_place: Annotated[bool, Field(description="Remove horizontal root travel in the exported file.")] = False,
         roblox_compatible: Annotated[
@@ -726,10 +904,11 @@ def create_server(
             Field(description="Freeze pelvis/leg rotations to the skeleton T-pose; overrides in_place."),
         ] = False,
     ) -> dict[str, Any]:
-        """Download a retargeted asset. torso_only freezes pelvis/leg rotations to the skeleton T-pose and overrides
-        in_place; root translation resets only when pelvis is the skeleton root. FBX/GLB can include mesh and
-        skeleton animation; BVH requires include_mesh=false. Roblox requires FBX and a supported Roblox
-        character. See workflow export guidance.
+        """Download an asset already retargeted to character_id. For Blender or an engine, keep include_mesh=true
+        and import the file unchanged; no animation transfer is needed. torso_only freezes pelvis/leg rotations to
+        the skeleton T-pose and overrides in_place; root translation resets only when pelvis is the skeleton root.
+        FBX/GLB can include mesh and skeleton animation; BVH requires include_mesh=false. Roblox requires FBX and a
+        supported Roblox character. See workflow export guidance.
         """
         return await ops().download(
             request_id,

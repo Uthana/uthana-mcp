@@ -1,6 +1,9 @@
 import io
+from typing import Any
 
 from PIL import Image
+
+from uthana_mcp.errors import APIError
 
 
 def native(motion_id="motion1", count=120, fps=30):
@@ -30,6 +33,17 @@ class FakeAPI:
         self.calls = []
         self.motions = {"motion1": native(), "motion2": native("motion2")}
         self.fail_verification = False
+        self.assets = {
+            row["id"]: {**row, "deleted": None}
+            for row in (
+                {"id": "mixamo1", "name": "First", "org_id": "org1"},
+                {"id": "mixamo2", "name": "Second", "org_id": "org1"},
+                {"id": "tar1", "name": "Tar", "org_id": "shared"},
+                {"id": "foreign1", "name": "Theirs", "org_id": "org2"},
+                {"id": "motion1", "name": "Walking slowly", "org_id": "org1"},
+                {"id": "example1", "name": "Walking example", "org_id": "shared"},
+            )
+        }
 
     async def close(self):
         pass
@@ -69,6 +83,31 @@ class FakeAPI:
 
     async def character_metadata(self, character_id):
         return {"engine": "roblox" if character_id == "roblox1" else "generic"}
+
+    async def org_id(self) -> Any:
+        return "org1"
+
+    async def asset(self, kind: str, asset_id: str) -> Any:
+        row = self.assets.get(asset_id)
+        if row is None or row["deleted"]:
+            raise APIError("Motion, character, or job not found.", category="not_found", outcome="not_applicable")
+        return dict(row)
+
+    async def update_asset(self, kind: str, asset_id: str, action: Any, *, name: str | None = None) -> Any:
+        self.calls.append(("update_asset", {"kind": kind, "asset_id": asset_id, "action": action, "name": name}))
+        row = self.assets.get(asset_id)
+        # Model the existing write permissions of an ordinary organization account.
+        if row is None or row["org_id"] != await self.org_id():
+            raise APIError("Resource not found.", category="not_found", outcome="rejected")
+        if action == "rename":
+            row["name"] = name
+        else:
+            row["deleted"] = "2026-11-04T00:00:00" if action == "delete" else None
+        return dict(row)
+
+    async def download_character(self, character_id: str, format: Any) -> Any:
+        self.calls.append(("download_character", {"character_id": character_id, "format": format}))
+        return b"glTF\x02\x00\x00\x00offline" if format == "glb" else b"Kaydara FBX Binary  \x00offline"
 
     async def characters(self):
         return [{"id": "mixamo1", "name": "First"}, {"id": "mixamo2", "name": "Second"}]
@@ -156,6 +195,25 @@ class FakeAPI:
             ],
         }
 
+    async def ledger(self, **filters: Any) -> Any:
+        self.calls.append(("ledger", filters))
+        return [
+            {
+                "id": "pl1",
+                "created": "2026-11-03T10:00:00Z",
+                "type": "debit",
+                "total_usd": "0.2500",
+                "balance_before": "10.0000",
+                "balance_after": "9.7500",
+                "model": "text-to-motion-3.0",
+                "billing_unit": "second",
+                "quantity": 5.0,
+                "unit_price": "0.0500",
+                "ref": "motion:motion1",
+                "status": "ok",
+            }
+        ]
+
     async def usage(self):
         self.calls.append(("usage", {}))
         return {
@@ -179,6 +237,15 @@ class FakeAPI:
     async def generate_v2(self, **args):
         self.calls.append(("generate_v2", args))
         return {"motion_id": "motion1", "character_id": args["character_id"]}
+
+    async def library_search(self, **args: Any) -> Any:
+        self.calls.append(("library_search", args))
+        return {
+            "motion_id": "motion1",
+            "character_id": args["character_id"],
+            "name": "NN: " + args["prompt"],
+            "match_score": 0.8123,
+        }
 
     async def locomotion_styles(self):
         return ["neutral_male_a", "neutral_female_a"]

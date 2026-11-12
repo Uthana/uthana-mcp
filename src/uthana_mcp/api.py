@@ -5,14 +5,15 @@ This layer applies explicit environment configuration and conservative, redacted
 """
 
 import hashlib
+import math
 
 import httpx
-from uthana import StitchInput, StitchResult, Uthana
+from uthana import Org, StitchInput, StitchResult, TtmJobModelType, Uthana
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
-from .validation import UTHANA_DOMAIN, identifier, motion_metadata, normalize_job
+from .validation import UTHANA_DOMAIN, AssetRecord, asset_record, identifier, motion_metadata, normalize_job
 
 
 class StitchAPIResult(StitchResult):
@@ -89,6 +90,11 @@ class UthanaAPI:
                         status, "http_error"
                     )
                     raise read_error(category, http_status=status) from None
+                if status == 429 and isinstance(error.response_data, dict):
+                    rejection = graphql_error(error.response_data, mutation_field)
+                    if rejection.outcome == "rejected" and rejection.category == "rate_limit":
+                        rejection.http_status = status
+                        raise rejection from None
                 if status in (401, 403):
                     category = "authentication" if status == 401 else "permission"
                     action = (
@@ -138,17 +144,31 @@ class UthanaAPI:
                 "Uthana returned an invalid API response", outcome="not_applicable" if read_only else "unknown"
             ) from None
 
-    async def generate(self, prompt, duration_seconds, character_id):
+    async def generate(
+        self,
+        prompt,
+        duration_seconds,
+        character_id,
+        *,
+        model: TtmJobModelType = "text-to-motion-3.0",
+        fast: bool = False,
+    ):
         job = await self._call(
             self.client.ttm.create_job,
             prompt,
-            model="text-to-motion-3.0",
+            model=model,
+            fast=fast,
             character_id=character_id,
             length=duration_seconds,
             rewrite_prompt=True,
             mutation_field="create_text_to_motion_job",
         )
-        return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "character_id": character_id}
+        return {
+            "job_id": identifier(job["id"]),
+            "provider_status": job.get("status"),
+            "character_id": character_id,
+            "model": model,
+        }
 
     async def generate_v1(self, prompt: str, *, character_id: str) -> dict[str, str]:
         """Generate a native V1 motion; this model chooses its own duration."""
@@ -173,6 +193,21 @@ class UthanaAPI:
             mutation_field="create_text_to_motion",
         )
         return {"motion_id": identifier(result.motion_id), "character_id": character_id}
+
+    async def library_search(self, prompt: str, character_id: str) -> dict[str, object]:
+        result = await self._call(
+            self.client.ttm.library_search,
+            prompt,
+            character_id=character_id,
+            mutation_field="create_text_to_motion",
+        )
+        score = result.match_score
+        return {
+            "motion_id": identifier(result.motion_id),
+            "character_id": character_id,
+            "name": result.name,
+            "match_score": None if score is None or not math.isfinite(score) else round(score, 4),
+        }
 
     async def locomotion_styles(self):
         return await self._call(self.client.motions.list_locomotion_styles, read_only=True)
@@ -389,11 +424,73 @@ class UthanaAPI:
                 ) from None
             raise
 
+    async def org(self) -> Org:
+        """Read the current organization without caching its changing allowances."""
+        row: object = await self._call(self.client.org.get_org, read_only=True)
+        if not isinstance(row, dict):
+            raise APIError("Uthana returned an invalid organization record", outcome="not_applicable")
+        try:
+            org_id = identifier(row.get("id"))
+        except ValueError:
+            raise APIError("Uthana returned an invalid organization ID", outcome="not_applicable") from None
+        result: Org = {"id": org_id}
+        if "name" in row:
+            name = row["name"]
+            if name is not None and not isinstance(name, str):
+                raise APIError("Uthana returned an invalid organization name", outcome="not_applicable")
+            result["name"] = name
+        for field in ("motion_download_secs_per_month", "motion_download_secs_per_month_remaining"):
+            if field in row:
+                value = row[field]
+                if value is not None and (type(value) not in (int, float) or not math.isfinite(value)):
+                    raise APIError("Uthana returned an invalid organization allowance", outcome="not_applicable")
+                if field == "motion_download_secs_per_month":
+                    result["motion_download_secs_per_month"] = value
+                else:
+                    result["motion_download_secs_per_month_remaining"] = value
+        return result
+
+    async def org_id(self) -> str:
+        return (await self.org())["id"]
+
+    async def asset(self, kind: str, asset_id: str) -> AssetRecord:
+        """Read one live character or motion with its owning organization."""
+        module = self.client.characters if kind == "character" else self.client.motions
+        row = await self._call(module.get, identifier(asset_id), read_only=True, resource=kind)
+        return asset_record(row)
+
+    async def update_asset(self, kind: str, asset_id: str, *, action: str, name: str | None = None) -> AssetRecord:
+        """Rename, soft-delete, or restore one character or motion by ID.
+
+        The backend's existing API write permissions remain authoritative.
+        """
+        module = self.client.characters if kind == "character" else self.client.motions
+        if action == "rename":
+            call = (module.rename, identifier(asset_id), name)
+        elif action in {"delete", "restore"}:
+            call = (getattr(module, action), identifier(asset_id))
+        else:
+            raise ValueError("action must be rename, delete, or restore")
+        row = await self._call(*call, mutation_field=f"update_{kind}")
+        return asset_record(row)
+
+    async def download_character(self, character_id: str, format: str) -> bytes:
+        return await self._call(
+            self.client.characters.download,
+            identifier(character_id),
+            output_format=format,
+            max_bytes=128 * 1024 * 1024,
+            read_only=True,
+        )
+
     async def motion_catalog(self):
         return await self._call(self.client.motions.catalog, read_only=True)
 
     async def usage(self):
         return await self._call(self.client.org.get_usage, read_only=True)
+
+    async def ledger(self, **filters: object) -> list[dict]:
+        return await self._call(self.client.org.get_ledger, read_only=True, **filters)
 
     async def download_allowed(self, motion_id, character_id):
         result = await self._call(

@@ -29,6 +29,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             assert set(tools) == {
                 "generate_motion",
                 "generate_motion_v2",
+                "copy_best_library_motion",
                 "generate_locomotion",
                 "list_locomotion_styles",
                 "estimate_model_cost",
@@ -48,11 +49,35 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 "list_characters",
                 "list_motions",
                 "get_usage",
+                "get_billing_history",
                 "check_download_allowed",
                 "save_motion",
                 "download_motion",
                 "download_robot_motion",
+                "download_character",
+                "rename_character",
+                "rename_motion",
+                "delete_character",
+                "delete_motion",
+                "restore_character",
+                "restore_motion",
+                "get_capabilities",
             }
+            video_model = tools["generate_motion_from_video"].inputSchema["properties"]["model"]
+            assert "video-to-motion-3.0" in video_model["enum"]
+            assert video_model["default"] == "video-to-motion-3.0"
+            price_model = tools["estimate_model_cost"].inputSchema["properties"]["model"]
+            assert "video-to-motion-3.0" in price_model["enum"]
+
+            for tool in ("delete_character", "delete_motion", "rename_character", "rename_motion"):
+                assert tools[tool].annotations.destructiveHint is True
+                assert tools[tool].annotations.idempotentHint is True
+                assert tools[tool].annotations.readOnlyHint is False
+            for tool in ("restore_character", "restore_motion"):
+                assert tools[tool].annotations.destructiveHint is False
+                assert tools[tool].annotations.readOnlyHint is False
+            assert set(tools["delete_motion"].inputSchema["properties"]) == {"motion_id"}
+            assert set(tools["delete_character"].inputSchema["properties"]) == {"character_id"}
             assert "source_duration_seconds" not in tools["trim_motion"].inputSchema["properties"]
             assert tools["download_motion"].annotations.readOnlyHint is False
             robot = tools["download_robot_motion"]
@@ -60,7 +85,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             assert robot.inputSchema["properties"]["robot"]["const"] == "unitree_g1"
             assert robot.inputSchema["properties"]["fps"]["enum"] == [24, 30, 60]
             assert "include_mesh" not in robot.inputSchema["properties"]
-            for tool in ("list_motions", "get_usage", "check_download_allowed"):
+            for tool in ("list_motions", "get_usage", "get_billing_history", "check_download_allowed"):
                 assert tools[tool].annotations.readOnlyHint is True
             speed = tools["download_motion"].inputSchema["properties"]["speed_multiplier"]
             assert speed["exclusiveMinimum"] == 0 and speed["maximum"] == 2
@@ -92,6 +117,13 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             assert "Do not execute" in prompt.messages[0].content.text
             generated = structured(await client.call_tool("generate_motion", {"request_id": "gen1", "prompt": "Jump"}))
             assert generated["job_id"] == "job1"
+            mini = structured(
+                await client.call_tool(
+                    "generate_motion",
+                    {"request_id": "mini", "prompt": "Jump", "model": "text-to-motion-3.0-mini", "fast": True},
+                )
+            )
+            assert mini["billing"]["model"] == "text-to-motion-3.0-mini"
             status = structured(await client.call_tool("get_job", {"job_id": generated["job_id"]}))
             assert status["motion_id"] == "motion1"
             trimmed = structured(
@@ -160,6 +192,9 @@ async def test_actual_entrypoint_discovers_without_credentials(domain):
             assert domain in initialized.instructions
             workflow = await client.read_resource("uthana://workflow")
             assert domain in workflow.contents[0].text.splitlines()[0]
-            assert len((await client.list_tools()).tools) == 25
+            assert len((await client.list_tools()).tools) == 35
+
+            assert len((await client.list_tools()).tools) == 35
+
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

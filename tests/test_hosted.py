@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 import socket
+from pathlib import Path
 
 import httpx
 import pytest
@@ -21,7 +22,7 @@ ORIGIN = "https://mcp.example.test"
 HEADERS = {"Authorization": "Bearer user1", "Accept": "application/json, text/event-stream"}
 
 
-def app_for(directory, apis):
+def app_for(directory, apis, **options):
     async def authenticate(request):
         key = request.headers.get("Authorization", "").removeprefix("Bearer ")
         key = {"user1-rotated": "user1"}.get(key, key)
@@ -40,6 +41,7 @@ def app_for(directory, apis):
         issuer="https://issuer.example.test",
         authenticate=authenticate,
         api_factory=api_factory,
+        **options,
     )
 
 
@@ -66,7 +68,10 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
         assert denied.status_code == 403
         result = rpc(client, "tools/list").json()
         tools = {row["name"]: row for row in result["result"]["tools"]}
-        assert len(tools) == 25
+        assert len(tools) == 36
+
+        assert len(tools) == 36
+
         for name in ["generate_motion_from_video", "upload_character", "create_character_from_image", "save_motion"]:
             assert "input_file" in tools[name]["inputSchema"]["properties"]
             assert "file_path" not in tools[name]["inputSchema"]["properties"]
@@ -127,17 +132,24 @@ async def test_untrusted_attachment_urls_rejected_without_fetch(tmp_path, url):
         await files.resolve(InputFile(file_id="external", download_url=url, file_name="file.png"))
 
 
-def test_anonymous_tool_metadata_and_linking_challenge(tmp_path):
-    with TestClient(app_for(tmp_path, {}), base_url=ORIGIN) as client:
-        tools = rpc(client, "tools/list", user="anonymous").json()["result"]["tools"]
+@pytest.mark.parametrize(
+    "method", ["initialize", "tools/list", "tools/call", "resources/list", "prompts/list", "notifications/initialized"]
+)
+def test_anonymous_protocol_requires_discoverable_oauth(tmp_path, method):
+    apis = {}
+    with TestClient(app_for(tmp_path, apis), base_url=ORIGIN) as client:
+        response = rpc(client, method, user="anonymous")
+        assert response.status_code == 401
+        assert (
+            response.headers["WWW-Authenticate"]
+            == f'Bearer resource_metadata="{ORIGIN}/.well-known/oauth-protected-resource"'
+        )
+        assert not apis
+        assert client.get("/.well-known/oauth-protected-resource").status_code == 200
+        tools = rpc(client, "tools/list").json()["result"]["tools"]
         assert all(tool["securitySchemes"][0]["type"] == "oauth2" for tool in tools)
         upload = next(tool for tool in tools if tool["name"] == "upload_character")
-        definition = upload["inputSchema"]["$defs"]["InputFile"]
-        assert set(definition["properties"]) == {"file_id", "download_url", "file_name", "mime_type"}
-        assert set(definition["required"]) == {"file_id", "download_url"}
-        challenge = tool(client, "get_usage", {}, user="anonymous")
-        assert challenge["isError"]
-        assert "mcp/www_authenticate" in challenge["_meta"]
+        assert set(upload["inputSchema"]["$defs"]["InputFile"]["required"]) == {"file_id", "download_url"}
 
 
 def test_owned_export_link_and_replay_does_not_regenerate(tmp_path):
@@ -234,7 +246,10 @@ async def test_native_mcp_http_client_discovery_and_replay(tmp_path):
             async with streamable_http_client(ORIGIN + "/mcp", http_client=http) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    assert len((await session.list_tools()).tools) == 25
+                    assert len((await session.list_tools()).tools) == 36
+
+                    assert len((await session.list_tools()).tools) == 36
+
                     args = {"request_id": "native-http-once", "prompt": "walk", "duration_seconds": 4}
                     first = await session.call_tool("generate_motion", args)
                     second = await session.call_tool("generate_motion", args)
@@ -314,6 +329,7 @@ def test_http_upload_generation_preview_edit_and_export_workflows(tmp_path):
             ("get_job", {"job_id": "job1"}),
             ("get_motion", {"motion_id": "motion1"}),
             ("get_usage", {}),
+            ("get_billing_history", {"entry_types": ["charge"], "limit": 5}),
             ("list_characters", {}),
             ("list_motions", {}),
             ("list_locomotion_styles", {}),
@@ -336,9 +352,8 @@ def test_http_upload_generation_preview_edit_and_export_workflows(tmp_path):
                 "request_id": "stitch",
                 "character_id": "mixamo1",
                 "steps": [
-                    {"type": "motion", "motion_id": "motion1"},
-                    {"type": "transition"},
-                    {"type": "motion", "motion_id": "motion2", "placement": {"forward_m": 2, "turn_degrees": 45}},
+                    {"motion_id": "motion1", "transition_forward_meters": 2, "transition_facing_degrees": 45},
+                    {"motion_id": "motion2"},
                 ],
             },
         )
@@ -393,3 +408,117 @@ async def test_disconnect_preserves_unknown_receipt_without_resubmission(tmp_pat
         assert status["state"] == "unknown"
         assert tool(client, "generate_motion", payload["params"]["arguments"])["isError"]
     assert len(api.calls) == 1
+
+
+def test_capability_download_refresh_recovery_and_owner_isolation(tmp_path):
+    apis, grants = {}, {}
+    identity = Identity("user1", "org1", frozenset({"mcp:read"}))
+
+    async def mint(request, artifact_id):
+        assert request.headers["Authorization"] == "Bearer user1"
+        grant = f"grant{len(grants)}"
+        grants[grant] = (identity, artifact_id)
+        return {"download_url": f"{ORIGIN}/downloads/{grant}", "download_expires_at": 1234567890}
+
+    async def resolve(grant):
+        return grants.get(grant)
+
+    args = {"request_id": "export-cached", "motion_id": "motion1", "character_id": "character1"}
+    with TestClient(app_for(tmp_path, apis, mint_download=mint, resolve_download=resolve), base_url=ORIGIN) as client:
+        result = tool(client, "download_motion", args)["structuredContent"]
+        assert result["viewer_url"] == "https://issuer.example.test/app/play/character1/motion1"
+        response = client.get(result["download_url"])
+        assert response.status_code == 200 and response.content
+        assert response.headers["Cache-Control"] == "no-store"
+        assert response.headers["Referrer-Policy"] == "no-referrer"
+        assert response.headers["Content-Disposition"].endswith('.glb"')
+        assert client.head(result["download_url"]).status_code == 200
+        assert client.head(result["download_url"]).content == b""
+        assert client.get(result["download_url"] + "tamper").status_code == 404
+        # Another authenticated user cannot mint a grant for the known artifact ID.
+        denied = tool(client, "get_artifact_download", {"artifact_id": result["artifact_id"]}, user="user2")
+        assert denied["isError"]
+        assert len(grants) == 1
+        renewed_result = tool(client, "get_artifact_download", {"artifact_id": result["artifact_id"]})
+        assert not renewed_result.get("isError"), renewed_result
+        renewed = renewed_result["structuredContent"]
+        assert renewed["download_url"] != result["download_url"]
+        recovered = tool(client, "get_request_status", {"request_id": "export-cached"})["structuredContent"]
+        assert "/downloads/" in json.dumps(recovered)
+        assert sum(call[0] == "download" for call in apis["user1"].calls) == 1
+        # Expiry/revocation is enforced by the operator's resolver on every GET.
+        grants.clear()
+        assert client.get(result["download_url"]).status_code == 404
+        assert client.get("/downloads/unconfigured", headers=HEADERS).status_code == 404
+        assert not apis["user2"].calls
+
+
+@pytest.mark.parametrize("change", ["missing", "corrupt"])
+def test_artifact_link_never_reexports_or_exposes_paths_for_lost_bytes(tmp_path, change):
+    apis = {}
+    with TestClient(app_for(tmp_path, apis), base_url=ORIGIN) as client:
+        result = tool(client, "download_motion", {"request_id": "cached", "motion_id": "m1"})["structuredContent"]
+        path = next(tmp_path.rglob(result["artifact_id"] + ".glb"))
+        if change == "missing":
+            path.unlink()
+        else:
+            path.write_bytes(b"changed")
+        response = tool(client, "get_artifact_download", {"artifact_id": result["artifact_id"]})
+        assert response["isError"]
+        assert str(tmp_path) not in json.dumps(response)
+        assert sum(call[0] == "download" for call in apis["user1"].calls) == 1
+
+
+@pytest.mark.parametrize("change", ["missing", "corrupt"])
+def test_lost_cached_bytes_preserve_receipt_recovery_with_download_grants(tmp_path, change):
+    apis, minted = {}, []
+
+    async def mint(request, artifact_id):
+        minted.append(artifact_id)
+        return {"download_url": f"{ORIGIN}/downloads/private", "download_expires_at": 1234567890}
+
+    async def resolve(grant):
+        return None
+
+    with TestClient(app_for(tmp_path, apis, mint_download=mint, resolve_download=resolve), base_url=ORIGIN) as client:
+        result = tool(client, "download_motion", {"request_id": "recover-lost", "motion_id": "m1"})["structuredContent"]
+        path = next(tmp_path.rglob(result["artifact_id"] + ".glb"))
+        if change == "missing":
+            path.unlink()
+        else:
+            path.write_bytes(b"changed")
+        response = tool(client, "get_request_status", {"request_id": "recover-lost"})
+        assert not response.get("isError"), response
+        recovered = response["structuredContent"]
+        assert recovered["state"] == "complete"
+        assert recovered["artifact_status"] == "unavailable_or_changed"
+        assert recovered["result"]["motion_id"] == "m1"
+        assert recovered["result"]["artifact_id"] == result["artifact_id"]
+        assert "download_url" not in recovered["result"]
+        assert "next_action" in recovered
+        assert str(tmp_path) not in json.dumps(response)
+        assert minted == [result["artifact_id"]]
+        assert sum(call[0] == "download" for call in apis["user1"].calls) == 1
+
+
+def test_hosted_asset_lifecycle_requires_write_scope_and_owner(tmp_path: Path) -> None:
+    apis = {}
+    args = {"motion_id": "motion1"}
+    with TestClient(app_for(tmp_path, apis), base_url=ORIGIN) as client:
+        denied = tool(client, "delete_motion", args, user="read-only")
+        assert denied["isError"]
+        assert not [call for call in apis["read-only"].calls if call[0] == "update_asset"]
+        deleted = tool(client, "delete_motion", args)
+        assert deleted["structuredContent"]["outcome"] == "deleted"
+        restored = tool(client, "restore_motion", {"motion_id": "motion1"})
+        assert restored["structuredContent"]["outcome"] == "restored"
+        built_in = tool(client, "delete_character", {"character_id": "tar1"})
+        missing = tool(client, "delete_character", {"character_id": "missing1"})
+        assert not built_in["isError"] and not missing["isError"]
+        assert (
+            built_in["structuredContent"]["outcome"]
+            == missing["structuredContent"]["outcome"]
+            == "not_found_or_already_deleted"
+        )
+        model = tool(client, "download_character", {"character_id": "tar1"}, user="read-only")
+        assert model["structuredContent"]["download_url"].startswith(ORIGIN + "/files/artifacts/")

@@ -25,6 +25,24 @@ async def test_hosted_token_is_trimmed_by_sdk(token):
     assert seen == ["Bearer delegated-token", "Bearer delegated-token"]
 
 
+async def test_robot_download_uses_published_client_csv_route() -> None:
+    seen = []
+    body = b"Frame,root_x\n0,0.0\n"
+
+    def respond(request):
+        seen.append(request)
+        return httpx.Response(200, content=body)
+
+    api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
+    try:
+        assert await api.download_robot(motion_id="m1", character_id="c1", robot="unitree_g1", fps=24) == body
+        assert seen[0].url.path == "/motion/file/motion_viewer/c1/m1/csv/unitree_g1_c1-m1.csv"
+        assert dict(seen[0].url.params) == {"fps": "24"}
+        assert seen[0].extensions["timeout"]["read"] == 660.0
+    finally:
+        await api.close()
+
+
 @pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_uses_configured_host(domain):
     api = UthanaAPI("fake", domain)
@@ -296,19 +314,39 @@ async def test_eligibility_null_is_unknown_and_strings_are_not_booleans(allowed)
         await api.close()
 
 
-async def test_robot_download_uses_client_csv_route():
+@pytest.mark.parametrize("is_confirmed", [True, False])
+async def test_trial_limit_is_rejected_only_with_confirmed_generation_error(is_confirmed: bool) -> None:
     seen = []
-    body = b"Frame,root_x\n0,0.0\n"
 
     def respond(request):
         seen.append(request)
-        return httpx.Response(200, content=body)
+        envelope = (
+            {
+                "data": None,
+                "errors": [
+                    {
+                        "type": "JobLimitExceeded",
+                        "code": "job_limit_exceeded",
+                        "path": ["create_text_to_motion_job"],
+                        "message": "Wait for existing jobs.",
+                    }
+                ],
+            }
+            if is_confirmed
+            else {"errors": [{"message": "rate limited"}]}
+        )
+        return httpx.Response(429, json=envelope)
 
-    api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
     try:
-        assert await api.download_robot(motion_id="m1", character_id="c1", robot="unitree_g1", fps=24) == body
-        assert seen[0].url.path == "/motion/file/motion_viewer/c1/m1/csv/unitree_g1_c1-m1.csv"
-        assert dict(seen[0].url.params) == {"fps": "24"}
-        assert seen[0].extensions["timeout"]["read"] == 660.0
+        with pytest.raises(APIError) as exc:
+            await api.generate("Walk", 4, "tar")
+        assert exc.value.category == "rate_limit"
+        assert exc.value.http_status == 429
+        assert exc.value.outcome == ("rejected" if is_confirmed else "unknown")
+        assert exc.value.details()["safe_to_resubmit"] is is_confirmed
+        assert len(seen) == 1
+        if is_confirmed:
+            assert "Wait for existing jobs" in str(exc.value)
     finally:
         await api.close()
