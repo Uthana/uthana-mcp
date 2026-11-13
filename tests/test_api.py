@@ -25,6 +25,24 @@ async def test_hosted_token_is_trimmed_by_sdk(token):
     assert seen == ["Bearer delegated-token", "Bearer delegated-token"]
 
 
+async def test_robot_download_uses_published_client_csv_route() -> None:
+    seen = []
+    body = b"Frame,root_x\n0,0.0\n"
+
+    def respond(request):
+        seen.append(request)
+        return httpx.Response(200, content=body)
+
+    api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
+    try:
+        assert await api.download_robot(motion_id="m1", character_id="c1", robot="unitree_g1", fps=24) == body
+        assert seen[0].url.path == "/motion/file/motion_viewer/c1/m1/csv/unitree_g1_c1-m1.csv"
+        assert dict(seen[0].url.params) == {"fps": "24"}
+        assert seen[0].extensions["timeout"]["read"] == 660.0
+    finally:
+        await api.close()
+
+
 @pytest.mark.parametrize("domain", ["uthana.com", "other.example.com"])
 async def test_uses_configured_host(domain):
     api = UthanaAPI("fake", domain)

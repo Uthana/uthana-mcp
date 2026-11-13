@@ -1,12 +1,12 @@
 # Uthana MCP
 
-[![PyPI version](https://badge.fury.io/py/uthana-mcp.svg)](https://badge.fury.io/py/uthana-mcp) [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/LICENSE)
+[![PyPI version](https://badge.fury.io/py/uthana-mcp.svg)](https://badge.fury.io/py/uthana-mcp) [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/LICENSE)
 
 [MCP](https://modelcontextprotocol.io) connector for [Uthana](https://uthana.com): generate motion from text or video, create characters from prompts, images, or rigged files, trim, loop, and stitch motions, and export retargeted animation.
 
 Connect to the hosted server with your Uthana account, or run the open-source connector locally with an API key. Your AI client supplies the reasoning model; Uthana provides the animation tools.
 
-📖 [Set up Uthana MCP](https://uthana.com/mcp/setup) · [API documentation](https://uthana.com/docs/api) · [First animation](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/first-animation.md)
+📖 [Set up Uthana MCP](https://uthana.com/mcp/setup) · [API documentation](https://uthana.com/docs/api) · [First animation](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/first-animation.md)
 
 ## Status and versions
 
@@ -27,7 +27,7 @@ Sign in with your Uthana account and approve the requested permissions. Hosted s
 
 See the [setup guide](https://uthana.com/mcp/setup) for Codex desktop/CLI, Claude desktop/web, Claude Code CLI, and Cursor setup, file uploads, downloads, and troubleshooting. The [technical reference](https://uthana.com/docs/api/capabilities/hosted-mcp) covers sign-in details, the client compatibility table, and recovery. Normal client approval prompts and Uthana pricing apply.
 
-Tar, Ava, and Manny (also called Manny Fingers) are available to every user, so you can start animating without uploading a character. See the [first-animation walkthrough](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/first-animation.md).
+Tar, Ava, and Manny (also called Manny Fingers) are available to every user, so you can start animating without uploading a character. See the [first-animation walkthrough](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/first-animation.md).
 
 ## Local installation
 
@@ -49,7 +49,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 The installer checks for uv, installs it if needed, and installs the MCP with Python 3.12. No existing Python installation is required. It prints the server command for your host configuration. Create an API key in your [Uthana account settings](https://uthana.com) and paste its value into `UTHANA_API_KEY` below.
 
-See the [installation guide](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/installation.md) for manual installation, environment settings, and tool timeouts.
+See the [installation guide](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/installation.md) for manual installation, environment settings, and tool timeouts.
 
 ## Connect locally
 
@@ -90,9 +90,9 @@ Claude Code (one command; `-s user` stores it for every project, or put the same
 claude mcp add uthana -s user -e UTHANA_API_KEY=your-api-key -e UTHANA_MCP_INPUT_DIR=/absolute/path/to/selected-inputs -- /absolute/path/to/uthana-mcp
 ```
 
-[Install and connect](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/installation.md) has Windows path examples and host timeout settings.
+[Install and connect](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/installation.md) has Windows path examples and host timeout settings.
 
-Restart your host, then ask it to read Uthana’s workflow, check account access, and estimate a motion before generating it. Production generation spends your account’s credits. Continue with the [first-animation walkthrough](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/first-animation.md) for upload, generation, and export.
+Restart your host, then ask it to read Uthana’s workflow, check account access, and estimate a motion before generating it. Production generation spends your account’s credits. Continue with the [first-animation walkthrough](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/first-animation.md) for upload, generation, and export.
 
 ## Tools
 
@@ -125,6 +125,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `check_download_allowed` | Current export eligibility |
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
+| `download_robot_motion` | Unitree G1 robot joint trajectory as CSV |
 | `download_character` | The character's own GLB/FBX model, without animation |
 | `rename_character`, `rename_motion` | Rename an asset your organization owns |
 | `delete_character`, `delete_motion` | Soft-delete an asset your organization owns, by ID after the user selects it |
@@ -184,21 +185,21 @@ Select source intervals and place the second motion one meter forward and half a
 
 Choose ranges that fit your source motions and leave the required transition context. Frame indices use each source’s native FPS; do not mix frames and seconds within one range. Inspect `resolved_steps` and review playback before accepting the result.
 
-Each example makes a separate mutation. Use a distinct request ID for different arguments; recover an uncertain request before retrying. See [stitching](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/stitching.md) for the full contract.
+Each example makes a separate mutation. Use a distinct request ID for different arguments; recover an uncertain request before retrying. See [stitching](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/stitching.md) for the full contract.
 
 ## Documentation
 
-- [Workflow and recovery](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/src/uthana_mcp/WORKFLOW.md)
-- [API coverage and limits](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/api-coverage.md)
-- [Stitching steps and positioning](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/stitching.md)
+- [Workflow and recovery](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/src/uthana_mcp/WORKFLOW.md)
+- [API coverage and limits](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/api-coverage.md)
+- [Stitching steps and positioning](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/stitching.md)
 - [Hosted connection guide](https://uthana.com/docs/api/capabilities/hosted-mcp)
-- [Local installation and connection](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/installation.md)
-- [Hosted integration for operators](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/hosting.md)
-- [First animation and export](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/first-animation.md)
-- [Blender import, playback, and multiple clips](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/blender.md)
-- [What each operation costs](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/pricing.md)
-- [Operational checks](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/docs/operations.md)
-- [Contributing](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/CONTRIBUTING.md)
+- [Local installation and connection](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/installation.md)
+- [Hosted integration for operators](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/hosting.md)
+- [First animation and export](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/first-animation.md)
+- [Blender import, playback, and multiple clips](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/blender.md)
+- [What each operation costs](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/pricing.md)
+- [Operational checks](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/docs/operations.md)
+- [Contributing](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/CONTRIBUTING.md)
 
 - [Public API documentation](https://uthana.com/docs/api)
 
@@ -217,4 +218,4 @@ A confirmed `job_limit_exceeded` HTTP 429 response is reported as `category="rat
 
 ## License
 
-The MCP connector code is licensed under [Apache-2.0](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/LICENSE). The bundled Tar character is separately licensed under the [Tar Demo Asset License](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos, including commercial evaluation. Tar is not licensed for production games, asset-pack redistribution, AI training, or publication of appearance changes. [Tar usage guide](https://github.com/Uthana/uthana-mcp/blob/v0.4.0/examples/tar/README.md).
+The MCP connector code is licensed under [Apache-2.0](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/LICENSE). The bundled Tar character is separately licensed under the [Tar Demo Asset License](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos, including commercial evaluation. Tar is not licensed for production games, asset-pack redistribution, AI training, or publication of appearance changes. [Tar usage guide](https://github.com/Uthana/uthana-mcp/blob/v0.4.1/examples/tar/README.md).

@@ -83,7 +83,7 @@ def receipt_billing(operation, args):
     # but the MCP cannot tell in advance, so that cost stays unmeasured.
     if operation == "upload_character" and args.get("auto_rig") is True:
         model = "autorig"
-    free = operation in {"trim", "save", "download", "preview", "character_download"} or (
+    free = operation in {"trim", "save", "download", "robot_download", "preview", "character_download"} or (
         operation == "upload_character" and args.get("auto_rig") is not True
     )
     return {
