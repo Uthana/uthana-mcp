@@ -81,7 +81,7 @@ OPERATIONS = [
         summary="Choose 3.0 or 3.0 Lite ($0.10/s) or 3.0 Mini ($0.075/s). 3.0 includes finger animation. Returns a job.",
         models=["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"],
         limits=[
-            "Backend rounds and clamps duration: 3.0 4-10 seconds (default 4); 3.0 Lite and 3.0 Mini 5-10 seconds (default 5), shorter requests raised to and billed as 5 seconds",
+            "Backend rounds and clamps duration: 3.0 4-10 seconds (default 4); 3.0 Lite and 3.0 Mini 5-10 seconds (default 5), shorter requests raised to 5 seconds; estimates use the adjusted duration, the final charge the motion actually generated",
             "Prompt up to 1000 characters",
         ],
     ),
