@@ -36,7 +36,9 @@ async def test_large_catalog_filter_pagination_and_separate_read_cap(tmp_path):
     try:
         ops = Operations(api, tmp_path)
         result = await ops.characters(limit=1, query="rigged hero")
-        assert result["characters"] == [{"character_id": "hero1", "name": "Rigged Hero"}]
+        assert result["characters"] == [
+            {"character_id": "hero1", "name": "Rigged Hero", "created": None, "updated": None}
+        ]
         assert result["scanned_count"] == 16002 and result["pagination"] == "local_bounded_catalog"
         assert result["next_offset"] == 1
         assert (await ops.characters(offset=1, limit=1, query="rigged hero"))["next_offset"] is None

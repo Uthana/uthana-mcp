@@ -250,10 +250,9 @@ OPERATIONS = [
     ),
     _op(
         "export_other_formats",
-        "Robot joint trajectories (Unitree G1) and USD/USDZ export",
+        "USD/USDZ export",
         status="planned",
         summary="Not available in this release.",
-        docs=f"{DOCS}/capabilities/unitree-g1",
     ),
     _op(
         "download_character",

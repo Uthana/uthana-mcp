@@ -701,7 +701,8 @@ def create_server(
             ),
         ] = "",
     ) -> dict[str, Any]:
-        """Find accessible characters by name and return a result page. Filtering and paging are local over a
+        """Find accessible characters by name with IDs and available record creation/update timestamps.
+        Filtering and paging are local over a
         catalog capped at 16 MiB because the API has no upstream pagination. Reducing limit does not reduce the
         upstream response.
         """

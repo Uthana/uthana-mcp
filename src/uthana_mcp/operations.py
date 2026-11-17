@@ -646,7 +646,15 @@ class Operations:
         rows = [row for row in rows if query.casefold() in str(row.get("name", "")).casefold()]
         page = rows[offset : offset + limit]
         return {
-            "characters": [{"character_id": identifier(row["id"]), "name": row.get("name")} for row in page],
+            "characters": [
+                {
+                    "character_id": identifier(row["id"]),
+                    "name": row.get("name"),
+                    "created": row.get("created"),
+                    "updated": row.get("updated"),
+                }
+                for row in page
+            ],
             "next_offset": offset + limit if offset + limit < len(rows) else None,
             "pagination": "local_bounded_catalog",
             "scanned_count": scanned,
