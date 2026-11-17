@@ -368,6 +368,18 @@ def create_server(
         return await ops().estimate_cost(model, quantity)
 
     @tool(annotations=READ)
+    async def list_jobs(
+        method: Annotated[
+            Literal["TextToMotion", "VideoToMotion", "Other"] | None,
+            Field(description="Optional generation category; omit for all supported categories."),
+        ] = None,
+    ) -> dict[str, Any]:
+        """Discover supported jobs from the last 24 hours for your user or organization, newest first.
+        Read-only; use get_job to retrieve a selected job's result. Missing jobs do not authorize resubmission.
+        """
+        return await read_result(ops().api.jobs(method))
+
+    @tool(annotations=READ)
     async def get_job(
         job_id: Annotated[
             Id, Field(description="Existing job ID returned by generation; a motion ID is not a job ID.")

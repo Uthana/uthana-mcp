@@ -34,6 +34,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
                 "list_locomotion_styles",
                 "estimate_model_cost",
                 "get_job",
+                "list_jobs",
                 "get_motion",
                 "get_request_status",
                 "trim_motion",
@@ -85,7 +86,7 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             assert robot.inputSchema["properties"]["robot"]["const"] == "unitree_g1"
             assert robot.inputSchema["properties"]["fps"]["enum"] == [24, 30, 60]
             assert "include_mesh" not in robot.inputSchema["properties"]
-            for tool in ("list_motions", "get_usage", "get_billing_history", "check_download_allowed"):
+            for tool in ("list_jobs", "list_motions", "get_usage", "get_billing_history", "check_download_allowed"):
                 assert tools[tool].annotations.readOnlyHint is True
             speed = tools["download_motion"].inputSchema["properties"]["speed_multiplier"]
             assert speed["exclusiveMinimum"] == 0 and speed["maximum"] == 2
@@ -192,9 +193,9 @@ async def test_actual_entrypoint_discovers_without_credentials(domain):
             assert domain in initialized.instructions
             workflow = await client.read_resource("uthana://workflow")
             assert domain in workflow.contents[0].text.splitlines()[0]
-            assert len((await client.list_tools()).tools) == 35
+            assert len((await client.list_tools()).tools) == 36
 
-            assert len((await client.list_tools()).tools) == 35
+            assert len((await client.list_tools()).tools) == 36
 
             result = await client.call_tool("get_job", {"job_id": "job1"})
             assert result.isError and "UTHANA_API_KEY" in result.content[0].text

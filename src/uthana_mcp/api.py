@@ -227,6 +227,28 @@ class UthanaAPI:
     async def prices(self):
         return await self._call(self.client.org.get_prices, read_only=True)
 
+    async def jobs(self, method: str | None = None) -> dict:
+        rows = await self._call(self.client.jobs.list, method=method, read_only=True)
+        if not isinstance(rows, list):
+            raise APIError("Uthana returned an invalid job list", outcome="not_applicable")
+        jobs = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise APIError("Uthana returned an invalid job record", outcome="not_applicable")
+            try:
+                job = normalize_job(row)
+            except (ValueError, TypeError):
+                raise APIError("Uthana returned invalid job metadata", outcome="not_applicable") from None
+            for field in ("method", "created", "started", "ended"):
+                value = row.get(field)
+                job[field] = value if isinstance(value, str) else None
+            jobs.append(job)
+        return {
+            "jobs": jobs,
+            "scope_note": "Supported jobs from the last 24 hours associated with your user or organization, newest first. "
+            "This is not full job history. List results omit generation results; use get_job for a selected job's motion ID.",
+        }
+
     async def job(self, job_id):
         job = await self._call(self.client.jobs.get, identifier(job_id), read_only=True, resource="job")
         if not job:

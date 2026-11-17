@@ -350,3 +350,75 @@ async def test_trial_limit_is_rejected_only_with_confirmed_generation_error(is_c
             assert "Wait for existing jobs" in str(exc.value)
     finally:
         await api.close()
+
+
+@pytest.mark.parametrize("status", ["RUNNING", "FINISHED", "FAILED"])
+async def test_job_discovery_uses_sdk_and_preserves_scope(status):
+    seen = []
+
+    def respond(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "jobs": [
+                        {
+                            "id": "j1",
+                            "status": status,
+                            "method": "TextToMotion",
+                            "created_at": "2026-01-01T00:00:00Z",
+                            "started_at": None,
+                            "ended_at": None,
+                        }
+                    ]
+                }
+            },
+        )
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        result = await api.jobs("TextToMotion")
+    finally:
+        await api.close()
+    job = result["jobs"][0]
+    assert job["job_id"] == "j1" and job["motion_id"] is None
+    assert job["created"] == "2026-01-01T00:00:00Z" and job["started"] is None
+    assert job["provider_status"] == status
+    assert job["state"] == {"RUNNING": "pending", "FINISHED": "unresolved", "FAILED": "failed"}[status]
+    assert seen[0]["variables"] == {"method": "TextToMotion"}
+    assert "query ListJobs" in seen[0]["query"]
+    assert "24 hours" in result["scope_note"]
+
+
+async def test_empty_job_discovery():
+    api = UthanaAPI(
+        "fake", transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": {"jobs": []}}))
+    )
+    try:
+        assert (await api.jobs())["jobs"] == []
+    finally:
+        await api.close()
+
+
+@pytest.mark.parametrize("rows", [[None], [{"id": "j1", "status": {"bad": True}}]])
+async def test_job_discovery_rejects_invalid_records(rows):
+    api = UthanaAPI(
+        "fake", transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": {"jobs": rows}}))
+    )
+    try:
+        with pytest.raises(APIError):
+            await api.jobs()
+    finally:
+        await api.close()
+
+
+async def test_job_discovery_preserves_permission_error():
+    api = UthanaAPI("fake", transport=httpx.MockTransport(lambda request: httpx.Response(403)))
+    try:
+        with pytest.raises(APIError) as failure:
+            await api.jobs()
+        assert failure.value.category == "permission"
+    finally:
+        await api.close()
