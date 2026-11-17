@@ -475,6 +475,25 @@ class UthanaAPI:
     async def org_id(self) -> str:
         return (await self.org())["id"]
 
+    async def character(self, character_id: str) -> dict:
+        character_id = identifier(character_id)
+        row = await self._call(self.client.characters.get, character_id, read_only=True, resource="character")
+        try:
+            record = asset_record(row)
+        except (ValueError, TypeError):
+            raise APIError("Uthana returned invalid character metadata", outcome="not_applicable") from None
+        if record["id"] != character_id:
+            raise APIError("Character metadata returned a different character ID", outcome="not_applicable")
+        return {
+            "character_id": record["id"],
+            "name": record["name"],
+            "org_id": record["org_id"],
+            "created": row.get("created") if isinstance(row.get("created"), str) else None,
+            "updated": row.get("updated") if isinstance(row.get("updated"), str) else None,
+            "source": "organization" if record["org_id"] == await self.org_id() else "other_accessible",
+            "permissions_note": "Visibility and ownership do not establish permission to edit this character.",
+        }
+
     async def asset(self, kind: str, asset_id: str) -> AssetRecord:
         """Read one live character or motion with its owning organization."""
         module = self.client.characters if kind == "character" else self.client.motions

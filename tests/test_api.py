@@ -422,3 +422,57 @@ async def test_job_discovery_preserves_permission_error():
         assert failure.value.category == "permission"
     finally:
         await api.close()
+
+
+@pytest.mark.parametrize("owner,source", [("org1", "organization"), ("builtins", "other_accessible")])
+async def test_character_inspection_uses_sdk_and_reports_ownership(owner, source):
+    def respond(request):
+        query = json.loads(request.content)["query"]
+        if "GetCharacter" in query:
+            data = {
+                "character": {
+                    "id": "c1",
+                    "name": "Alex",
+                    "org_id": owner,
+                    "created": "2026-01-01T00:00:00Z",
+                    "updated": {},
+                    "deleted": None,
+                }
+            }
+        else:
+            data = {"org": {"id": "org1"}}
+        return httpx.Response(200, json={"data": data})
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        result = await api.character("c1")
+    finally:
+        await api.close()
+    assert result["character_id"] == "c1" and result["name"] == "Alex"
+    assert result["source"] == source and result["org_id"] == owner
+    assert result["created"] == "2026-01-01T00:00:00Z" and result["updated"] is None
+
+
+@pytest.mark.parametrize("status", [403, 404])
+async def test_character_inspection_preserves_access_errors(status):
+    api = UthanaAPI("fake", transport=httpx.MockTransport(lambda request: httpx.Response(status)))
+    try:
+        with pytest.raises(APIError) as failure:
+            await api.character("c1")
+        assert failure.value.category == {403: "permission", 404: "not_found"}[status]
+    finally:
+        await api.close()
+
+
+@pytest.mark.parametrize(
+    "row", [None, {"id": "other", "name": "Alex", "org_id": "org1"}, {"id": "c1", "name": {}, "org_id": "org1"}]
+)
+async def test_character_inspection_rejects_missing_or_invalid_records(row):
+    api = UthanaAPI(
+        "fake", transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": {"character": row}}))
+    )
+    try:
+        with pytest.raises(APIError):
+            await api.character("c1")
+    finally:
+        await api.close()
