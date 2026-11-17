@@ -48,7 +48,7 @@ To practice uploading with the bundled Tar GLB, use `auto_rig=false`; it is alre
 What to expect:
 
 - **Estimate:** $0.40 for four seconds at $0.10 per second.
-- **Wait:** generation usually takes about 1–2 minutes, sometimes longer when the service is busy. That is the wait, not the clip length: the clip is four seconds long.
+- **Wait:** generation usually takes about 2–4 minutes with Text-to-Motion 3.0 (about 1 minute with 3.0 Lite or 3.0 Mini), sometimes longer when the service is busy. That is the wait, not the clip length: the clip is four seconds long.
 - **Preview:** frames of Tar raising the right hand to head height, waving, and lowering it. Hosted connections also return a link that opens the motion in the Uthana app.
 
 ![Unedited preview frames of Tar waving](images/first-animation-tar-wave.jpg)

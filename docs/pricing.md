@@ -6,7 +6,8 @@ Uthana charges for creating motion and characters. Looking things up, estimating
 
 | Operation | MCP tool | Rate | What is measured |
 | --- | --- | --- | --- |
-| Text-to-Motion 3.0 | `generate_motion` | $0.10 / s | Seconds of generated motion |
+| Text-to-Motion 3.0 and 3.0 Lite | `generate_motion` | $0.10 / s | Seconds of generated motion; 3.0 Lite is billed for at least 5 seconds |
+| Text-to-Motion 3.0 Mini | `generate_motion` | $0.075 / s | Seconds of generated motion; billed for at least 5 seconds |
 | Text-to-Motion 2.0 | `generate_motion_v2` | $0.03 / s | Seconds of generated motion |
 | Video-to-Motion 2.0 / 2.1 | `generate_motion_from_video` | $0.05 / s | Seconds of generated motion, usually about the length of the video clip |
 | Video-to-Motion 3.0 (default) | `generate_motion_from_video` | $0.06 / s | Seconds of generated motion |
@@ -19,7 +20,7 @@ The charge uses the length of the motion Uthana actually produced, which can dif
 
 A failed generation is not charged. A retry, or another generation of the same prompt, is a new operation and is charged again.
 
-Regular, Lite and Mini are explicit Text-to-Motion 3.0 model choices. Use `estimate_model_cost` for the selected model's current rate; do not substitute the Regular rate or assume an unavailable rate is zero. `copy_best_library_motion` is charged at the current Library search rate per second of the returned clip, even for a weak match.
+3.0, 3.0 Lite and 3.0 Mini are explicit Text-to-Motion 3.0 model choices. 3.0 generates 4-10 seconds (default 4); 3.0 Lite and 3.0 Mini generate 5-10 seconds (default 5), and a shorter request is raised to 5 seconds and billed as 5 seconds. Use `estimate_model_cost` for the selected model's current rate; do not substitute the 3.0 rate or assume an unavailable rate is zero. `copy_best_library_motion` is charged at the current Library search rate per second of the returned clip, even for a weak match.
 
 ## Free operations
 
