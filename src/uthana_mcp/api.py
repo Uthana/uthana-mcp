@@ -528,7 +528,11 @@ class UthanaAPI:
         return await self._call(self.client.motions.catalog, read_only=True)
 
     async def usage(self):
-        return await self._call(self.client.org.get_usage, read_only=True)
+        data = await self._call(self.client.org.get_usage, read_only=True)
+        if not isinstance(data, dict) or not isinstance(data.get("org"), dict):
+            raise APIError("Organization usage unavailable", outcome="not_applicable")
+        org = await self.org()
+        return {**data, "org": {**data["org"], "id": org["id"], "name": org.get("name")}}
 
     async def ledger(self, **filters: object) -> list[dict]:
         return await self._call(self.client.org.get_ledger, read_only=True, **filters)

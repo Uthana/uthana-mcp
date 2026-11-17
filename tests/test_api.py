@@ -266,6 +266,8 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
                 assert "payg_total_usd" in query
                 assert "email" not in query and "users" not in query
                 return httpx.Response(200, json={"data": {"org": {"payg_enabled": True}}})
+            if "name" in query and "motion_download_secs_per_month" in query:
+                return httpx.Response(200, json={"data": {"org": {"id": "o1", "name": "Studio"}}})
             assert "motion_download_allowed(motion_id: $motion_id, character_id: $character_id)" in query
             assert body["variables"] == {"motion_id": "m1", "character_id": "c1"}
             return httpx.Response(
@@ -288,7 +290,7 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
         assert (await api.usage())["org"]["payg_enabled"] is True
         assert (await api.download_allowed("m1", "c1"))["allowed"] is False
         await api.download("m1", "c1", "fbx", 30, True, True, False, 0.5, True)
-        assert len(seen) == 4
+        assert len(seen) == 5
     finally:
         await api.close()
 
@@ -476,3 +478,25 @@ async def test_character_inspection_rejects_missing_or_invalid_records(row):
             await api.character("c1")
     finally:
         await api.close()
+
+
+async def test_usage_combines_published_sdk_usage_and_identity_reads():
+    queries = []
+
+    def respond(request):
+        query = json.loads(request.content)["query"]
+        queries.append(query)
+        data = (
+            {"org": {"payg_enabled": True, "payg_total_usd": "12.50"}, "subscription": None}
+            if "query Usage" in query
+            else {"org": {"id": "org1", "name": "Studio"}}
+        )
+        return httpx.Response(200, json={"data": data})
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        data = await api.usage()
+    finally:
+        await api.close()
+    assert data["org"] == {"id": "org1", "name": "Studio", "payg_enabled": True, "payg_total_usd": "12.50"}
+    assert len(queries) == 2 and all("mutation" not in query for query in queries)

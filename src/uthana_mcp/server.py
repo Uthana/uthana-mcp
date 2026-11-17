@@ -827,7 +827,7 @@ def create_server(
 
     @tool(annotations=READ)
     async def get_usage() -> dict[str, Any]:
-        "Read organization pay-as-you-go (PAYG) balance, rates, and monthly allowances with explicit units. See workflow pricing guidance."
+        "Read organization identity, subscription status, pay-as-you-go (PAYG) balance, rates, and monthly allowances with explicit units. See workflow pricing guidance."
         return await ops().usage()
 
     @tool(annotations=READ)

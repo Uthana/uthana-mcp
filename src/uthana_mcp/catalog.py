@@ -106,8 +106,18 @@ def usage_snapshot(data):
     payg = org.get("payg_enabled")
     if payg is not None and not isinstance(payg, bool):
         raise APIError("Invalid billing mode in usage response")
-    subscription = data.get("subscription") or {}
-    active = subscription.get("status") == "active"
+    subscription = data.get("subscription")
+    if subscription is None:
+        subscription = {}
+    if not isinstance(subscription, dict):
+        raise APIError("Invalid subscription in usage response")
+    subscription_status = subscription.get("status")
+    if subscription_status is not None and not isinstance(subscription_status, str):
+        raise APIError("Invalid subscription status in usage response")
+    org_name = org.get("name")
+    if org_name is not None and not isinstance(org_name, str):
+        raise APIError("Invalid organization name in usage response")
+    active = subscription_status == "active"
     download_limit = optional_number(
         subscription.get("secs_per_month") if active else org.get("motion_download_secs_per_month")
     )
@@ -124,6 +134,12 @@ def usage_snapshot(data):
     return {
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "scope": "organization",
+        "organization": {"id": identifier(org["id"]) if org.get("id") is not None else None, "name": org_name},
+        "subscription": {
+            "status": subscription_status,
+            "download_seconds_per_month": optional_number(subscription.get("secs_per_month")),
+            "characters": optional_number(subscription.get("characters")),
+        },
         "pricing_url": PRICING_URL,
         "api_mcp_fee_usd": "0",
         "agent_token_fee_usd": "0",
