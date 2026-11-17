@@ -189,3 +189,16 @@ async def test_character_dates_survive_filtering_and_paging(tmp_path):
             {"character_id": row["id"], "name": row["name"], "created": row["created"], "updated": row["updated"]}
         ]
     assert second["next_offset"] is None
+
+
+@pytest.mark.parametrize("value", [{"timestamp": "bad"}, ["bad"], 123, True])
+async def test_character_dates_normalize_non_string_provider_values(tmp_path, value):
+    api = FakeAPI()
+
+    async def characters():
+        return [{"id": "c1", "name": "Alex", "created": value, "updated": value}]
+
+    api.characters = characters
+    result = await Operations(api, tmp_path).characters()
+    assert result["characters"][0]["created"] is None
+    assert result["characters"][0]["updated"] is None

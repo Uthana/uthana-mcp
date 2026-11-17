@@ -650,8 +650,8 @@ class Operations:
                 {
                     "character_id": identifier(row["id"]),
                     "name": row.get("name"),
-                    "created": row.get("created"),
-                    "updated": row.get("updated"),
+                    "created": row.get("created") if isinstance(row.get("created"), str) else None,
+                    "updated": row.get("updated") if isinstance(row.get("updated"), str) else None,
                 }
                 for row in page
             ],
