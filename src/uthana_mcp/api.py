@@ -6,14 +6,24 @@ This layer applies explicit environment configuration and conservative, redacted
 
 import hashlib
 import math
+from typing import TypedDict
 
 import httpx
 from uthana import Org, StitchInput, StitchResult, TtmJobModelType, Uthana
+from uthana.controlled_locomotion import ControlledLocomotionPlan
 from uthana.types import CharacterPreviewResult, UthanaError
 
 from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
 from .validation import UTHANA_DOMAIN, AssetRecord, asset_record, identifier, motion_metadata, normalize_job
+
+
+class ControlledLocomotionSubmission(TypedDict):
+    job_id: str
+    provider_status: str | None
+    character_id: str
+    model: str
+    next_action: str
 
 
 class StitchAPIResult(StitchResult):
@@ -207,6 +217,30 @@ class UthanaAPI:
             "character_id": character_id,
             "name": result.name,
             "match_score": None if score is None or not math.isfinite(score) else round(score, 4),
+        }
+
+    async def controlled_locomotion_options(self) -> dict[str, object]:
+        return await self._call(
+            self.client.motions.get_controlled_locomotion_options,
+            read_only=True,
+            resource="controlled_locomotion_options",
+        )
+
+    async def controlled_locomotion(
+        self, *, character_id: str, plan: ControlledLocomotionPlan
+    ) -> ControlledLocomotionSubmission:
+        job = await self._call(
+            self.client.motions.create_controlled_locomotion,
+            character_id,
+            plan=plan,
+            mutation_field="create_controlled_locomotion_job",
+        )
+        return {
+            "job_id": identifier(job["id"]),
+            "provider_status": job.get("status"),
+            "character_id": character_id,
+            "model": "controlled-locomotion-1",
+            "next_action": "Poll get_job with this job_id; do not submit again while pending.",
         }
 
     async def locomotion_styles(self):

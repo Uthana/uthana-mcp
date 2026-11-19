@@ -3,7 +3,7 @@
 import json
 import math
 import re
-from typing import Literal, TypedDict, get_args
+from typing import Literal, NotRequired, TypedDict, get_args
 
 TAR = "cXi2eAP19XwQ"
 UTHANA_DOMAIN = "uthana.com"
@@ -43,6 +43,72 @@ def object_value(value):
     return value
 
 
+class ControlledJobResult(TypedDict):
+    job_id: str
+    provider_status: str
+    state: str
+    motion_id: str | None
+    terminal: bool
+    poll_after_seconds: int | None
+    credits_used: None
+    next_action: str | None
+    generation_status: str | None
+    measurements: NotRequired[dict[str, float | bool]]
+
+
+def _normalize_controlled_job(*, job_id: str, provider_status: str, result: object) -> ControlledJobResult:
+    """Expose only confirmed saved IDs; constraint failure is terminal, not an unknown success."""
+    is_terminal = provider_status in {"FINISHED", "FAILED", "CANCELLED", "CANCELED"}
+    normalized: ControlledJobResult = {
+        "job_id": job_id,
+        "provider_status": provider_status,
+        "state": "unresolved" if provider_status == "FINISHED" else "failed" if is_terminal else "pending",
+        "motion_id": None,
+        "terminal": is_terminal,
+        "poll_after_seconds": None if is_terminal else 15,
+        "credits_used": None,
+        "next_action": None,
+        "generation_status": None,
+    }
+    if provider_status == "FINISHED" and isinstance(result, dict):
+        outcome = result.get("status")
+        if outcome == "constraints_not_met" and "motion_id" in result and result["motion_id"] is None:
+            normalized.update(
+                state="failed",
+                generation_status=outcome,
+                next_action="No animation was saved because the path constraints were not met. "
+                "Review the plan; submit a revised request only within the user's authorized scope and budget.",
+            )
+        elif outcome == "succeeded":
+            try:
+                motion_id = identifier(result.get("motion_id"))
+            except ValueError:
+                pass
+            else:
+                normalized.update(state="complete", motion_id=motion_id, generation_status=outcome)
+        measurements = result.get("measurements")
+        if isinstance(measurements, dict):
+            fields = (
+                "duration_seconds",
+                "path_length_m",
+                "actual_distance_m",
+                "max_path_error_m",
+                "endpoint_error_m",
+                "final_second_drift_m",
+            )
+            has_measurements = all(
+                type(measurements.get(key)) in {int, float}
+                and (type(measurements[key]) is int or math.isfinite(measurements[key]))
+                and measurements[key] >= 0
+                for key in fields
+            )
+            if has_measurements and type(measurements.get("has_stopped")) is bool:
+                normalized["measurements"] = {key: measurements[key] for key in (*fields, "has_stopped")}
+    if normalized["state"] == "unresolved":
+        normalized["next_action"] = "Inspect the existing job; do not regenerate"
+    return normalized
+
+
 def normalize_job(job: dict) -> dict:
     job_id = identifier(job.get("id"))
     status = job.get("status")
@@ -51,10 +117,15 @@ def normalize_job(job: dict) -> dict:
     result = object_value(job.get("result"))
     # Unwrap only known job envelopes; never mistake arbitrary nested character IDs for motions.
     for _ in range(4):
+        if job.get("model") == "controlled-locomotion-1" and isinstance(result, dict) and result.get("exc") is not None:
+            result = None
+            break
         if isinstance(result, dict) and "result" in result:
             result = object_value(result["result"])
         else:
             break
+    if job.get("model") == "controlled-locomotion-1":
+        return _normalize_controlled_job(job_id=job_id, provider_status=status, result=result)
     motion_id = None
     if isinstance(result, dict):
         motion_id = result.get("motion_id") or result.get("id")

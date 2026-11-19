@@ -69,6 +69,7 @@ def receipt_billing(operation, args):
         "generate_v2": "text-to-motion-2.0",
         "library_search": "library-search-1.0",
         "locomotion": "locomotion-1.0",
+        "controlled_locomotion": "locomotion-1.0",
         "video": args.get("model"),
         "character_from_image": "character-gen-1.0",
         "character_from_prompt": "character-gen-1.0",

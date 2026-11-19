@@ -129,8 +129,13 @@ OPERATIONS = [
     _op(
         "controlled_locomotion",
         "Path-controlled locomotion",
-        status="planned",
-        summary="Locomotion that follows a supplied path or steering input. Not available in this release.",
+        status="available",
+        summary="Path-controlled animation with pace changes. Requires an enabled backend; read options first.",
+        tools=["get_controlled_locomotion_options", "generate_controlled_locomotion"],
+        models=["locomotion-1.0"],
+        limits=["Server-gated; discovery reports enablement", "Fixed-origin waypoints; slowing is required"],
+        access=PRICED,
+        docs=f"{DOCS}/capabilities/controlled-locomotion",
     ),
     _op(
         "loop",
