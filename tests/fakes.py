@@ -48,6 +48,14 @@ class FakeAPI:
     async def close(self):
         pass
 
+    async def controlled_locomotion_options(self):
+        self.calls.append(("controlled_options", {}))
+        return {"enabled": False, "supported_character_ids": ["cXi2eAP19XwQ"], "styles": ["neutral_male_a"]}
+
+    async def controlled_locomotion(self, **args):
+        self.calls.append(("controlled_locomotion", args))
+        return {"job_id": "job1", "character_id": args["character_id"], "model": "controlled-locomotion-1"}
+
     async def generate(self, **args):
         self.calls.append(("generate", args))
         return {"job_id": "job1", "character_id": args["character_id"]}
