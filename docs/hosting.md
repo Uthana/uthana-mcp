@@ -11,7 +11,7 @@ verified identity contains a stable subject, organization and scopes (`mcp:read`
 Never trust user or organization IDs supplied in tool arguments or session headers.
 All tools and file routes authenticate on every request. Discovery is public.
 
-The backend enforces admission and billing limits for billable generation jobs.
+The hosted adapter allows up to 10 active HTTP requests per user within an organization, excluding idle MCP event streams. At the limit, it returns HTTP 429 with `Retry-After: 10`; wait for active calls or file transfers to finish. The backend separately enforces admission and billing limits for billable generation jobs.
 
 Hosted tools preserve the local workflows, but replace `file_path` with `input_file`:
 

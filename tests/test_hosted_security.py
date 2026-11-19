@@ -197,9 +197,8 @@ def test_issuer_with_path_remains_supported(tmp_path):
         assert response.json()["authorization_servers"] == ["https://issuer.example.test/realm"]
 
 
-@pytest.mark.parametrize("path", ["/mcp", "/files"])
-async def test_http_requests_do_not_limit_concurrent_tool_calls(tmp_path: Path, path: str) -> None:
-    started, release = asyncio.Event(), asyncio.Event()
+async def test_idle_mcp_streams_do_not_consume_request_slots(tmp_path: Path) -> None:
+    started = asyncio.Event()
     count = 0
 
     async def authenticate(request: Request) -> Identity | None:
@@ -211,10 +210,8 @@ async def test_http_requests_do_not_limit_concurrent_tool_calls(tmp_path: Path, 
         nonlocal count
         if request.method == "GET":
             count += 1
-            if count == 8:
+            if count == 12:
                 started.set()
-            if path == "/files":
-                await release.wait()
         return FakeAPI()
 
     app = create_app(
@@ -226,25 +223,79 @@ async def test_http_requests_do_not_limit_concurrent_tool_calls(tmp_path: Path, 
     )
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=ORIGIN) as client:
-            active = [asyncio.create_task(client.get(path, headers=HEADERS)) for _ in range(8)]
+            streams = [asyncio.create_task(client.get("/mcp", headers=HEADERS)) for _ in range(12)]
             try:
                 await asyncio.wait_for(started.wait(), 5)
-                assert all(not request.done() for request in active)
-                assert (await client.get(path)).status_code == 401
+                assert all(not stream.done() for stream in streams)
+                assert (await client.get("/mcp")).status_code == 401
                 response = await client.post(
                     "/mcp", headers=HEADERS, json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
                 )
                 assert response.status_code == 200
                 assert response.json()["result"]["tools"]
             finally:
+                for stream in streams:
+                    stream.cancel()
+                await asyncio.gather(*streams, return_exceptions=True)
+
+
+async def test_ten_active_requests_limit_logs_and_recovers(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    started, release = asyncio.Event(), asyncio.Event()
+    stream_started = asyncio.Event()
+    count = 0
+
+    async def authenticate(request: Request) -> Identity:
+        user = "other" if request.headers.get("Authorization") == "Bearer other" else "user"
+        return Identity(user, "org", frozenset({"mcp:read"}))
+
+    async def api_factory(request: Request, identity: Identity) -> FakeAPI:
+        nonlocal count
+        if request.url.path == "/mcp":
+            stream_started.set()
+        if identity.subject == "user" and request.url.path == "/files":
+            count += 1
+            if count == 10:
+                started.set()
+            await release.wait()
+        return FakeAPI()
+
+    app = create_app(
+        origin=ORIGIN,
+        directory=tmp_path,
+        issuer="https://issuer.example.test",
+        authenticate=authenticate,
+        api_factory=api_factory,
+    )
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=ORIGIN) as client:
+            active = [asyncio.create_task(client.get("/files", headers=HEADERS)) for _ in range(10)]
+            stream = None
+            try:
+                await asyncio.wait_for(started.wait(), 5)
+                rejected = await client.get("/files?token=must-not-log", headers=HEADERS)
+                assert rejected.status_code == 429
+                assert rejected.headers["retry-after"] == "10"
+                assert "Idle MCP streams do not count" in rejected.json()["error"]
+                assert "not a generation-job limit" in rejected.json()["error"]
+                assert count == 10
+                assert f"request_id={rejected.headers['x-request-id']}" in caplog.text
+                assert f"account={Identity('user', 'org', frozenset()).scope}" in caplog.text
+                assert "organization=org" in caplog.text
+                assert "active_requests=10" in caplog.text
+                assert "active_methods=" in caplog.text
+                assert "must-not-log" not in caplog.text
+                assert (await client.get("/files", headers={"Authorization": "Bearer other"})).status_code == 200
+                stream = asyncio.create_task(client.get("/mcp", headers=HEADERS))
+                await asyncio.wait_for(stream_started.wait(), 5)
+                assert not stream.done()
+            finally:
                 release.set()
-                if path == "/mcp":
-                    for request in active:
-                        request.cancel()
-                    await asyncio.gather(*active, return_exceptions=True)
-                else:
-                    responses = await asyncio.gather(*active)
-                    assert all(response.status_code == 200 for response in responses)
+                if stream is not None:
+                    stream.cancel()
+                    await asyncio.gather(stream, return_exceptions=True)
+                responses = await asyncio.gather(*active)
+            assert all(response.status_code == 200 for response in responses)
+            assert (await client.get("/files", headers=HEADERS)).status_code == 200
 
 
 def test_deep_anonymous_json_cannot_bypass_authentication(tmp_path):
