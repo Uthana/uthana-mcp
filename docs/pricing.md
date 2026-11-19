@@ -10,7 +10,7 @@ Uthana charges for creating motion and characters. Looking things up, estimating
 | Text-to-Motion 2.0 | `generate_motion_v2` | $0.03 / s | Seconds of generated motion |
 | Video-to-Motion 2.0 / 2.1 | `generate_motion_from_video` | $0.05 / s | Seconds of generated motion, usually about the length of the video clip |
 | Video-to-Motion 3.0 (default) | `generate_motion_from_video` | $0.06 / s | Seconds of generated motion |
-| Locomotion 1.0 | `generate_locomotion` | $0.02 / s | Seconds of generated motion; length follows strides, not a requested duration |
+| Locomotion 1.0 | `generate_locomotion`, `generate_controlled_locomotion` | $0.02 / s | Seconds of generated motion; cycle length follows strides, path length follows waypoints and pace with slowing |
 | Stitching and looping 2.0 | `stitch`, `create_looped_motion` | $0.01 / s | Seconds of the new motion, including transition frames |
 | Auto-rigging | `upload_character` when Uthana auto-rigs a mesh that has no rig (`auto_rig=true`) | $0.15 / rig | Charged only when auto-rigging runs; choosing `rerig_target` during auto-rig adds nothing |
 | Character generation | `create_character_from_image`, `create_character_from_prompt` | $0.75 / character | One charge per finished character |

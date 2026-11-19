@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .api import UthanaAPI
 from .capabilities import account_eligibility, catalog
 from .config import Config
+from .controlled_locomotion import PathPlan
 from .errors import APIError
 from .operations import Operations
 from .stitching import MotionStep
@@ -302,6 +303,30 @@ def create_server(
         return await ops().library_search(request_id, prompt, character_id=character_id)
 
     @tool(annotations=READ)
+    async def get_controlled_locomotion_options() -> dict[str, Any]:
+        """Read the configured server's enabled flag, supported characters/styles, units and limits.
+        This never submits work. A missing query means the backend does not expose this capability.
+        """
+        return await read_result(ops().api.controlled_locomotion_options())
+
+    @tool(annotations=WRITE)
+    async def generate_controlled_locomotion(
+        request_id: Annotated[Id, Field(description="Durable request key; reuse only for identical arguments.")],
+        character_id: Annotated[
+            Id, Field(description="Supported character ID from get_controlled_locomotion_options.")
+        ],
+        plan: Annotated[PathPlan, Field(description="Fixed-origin waypoints and pace changes; discover limits first.")],
+    ) -> dict[str, Any]:
+        """Generate a saved animation following fixed-origin waypoints and pace changes by path progress.
+        Discover options first; the backend must be enabled. Coordinates are metres or character heights;
+        speeds are metres/second. Start at (0,0), head forward initially and allow slowing for turns/stopping.
+        Timing is approximate. Returns a job ID: poll get_job until terminal. A constraints_not_met result has
+        no saved motion. Only a succeeded motion_id can be presented using get_preview and download_motion.
+        Reuse the request ID to recover submission; never repeat an unknown-outcome paid request.
+        """
+        return await ops().controlled_locomotion(request_id, character_id=character_id, plan=plan.model_dump())
+
+    @tool(annotations=READ)
     async def list_locomotion_styles() -> dict[str, Any]:
         "List the available locomotion styles."
         return await ops().locomotion_styles()
@@ -373,7 +398,7 @@ def create_server(
             Id, Field(description="Existing job ID returned by generation; a motion ID is not a job ID.")
         ],
     ) -> dict[str, Any]:
-        "Read an existing generation job. A finished job without a motion ID remains unresolved."
+        "Read a generation job. Controlled path constraint failures are terminal without a saved motion; other finished jobs without an ID remain unresolved."
         return await read_result(ops().api.job(job_id))
 
     @tool(annotations=READ)

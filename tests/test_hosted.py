@@ -68,9 +68,9 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
         assert denied.status_code == 403
         result = rpc(client, "tools/list").json()
         tools = {row["name"]: row for row in result["result"]["tools"]}
-        assert len(tools) == 36
+        assert len(tools) == 38
 
-        assert len(tools) == 36
+        assert len(tools) == 38
 
         for name in ["generate_motion_from_video", "upload_character", "create_character_from_image", "save_motion"]:
             assert "input_file" in tools[name]["inputSchema"]["properties"]
@@ -246,9 +246,9 @@ async def test_native_mcp_http_client_discovery_and_replay(tmp_path):
             async with streamable_http_client(ORIGIN + "/mcp", http_client=http) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    assert len((await session.list_tools()).tools) == 36
+                    assert len((await session.list_tools()).tools) == 38
 
-                    assert len((await session.list_tools()).tools) == 36
+                    assert len((await session.list_tools()).tools) == 38
 
                     args = {"request_id": "native-http-once", "prompt": "walk", "duration_seconds": 4}
                     first = await session.call_tool("generate_motion", args)
@@ -522,3 +522,29 @@ def test_hosted_asset_lifecycle_requires_write_scope_and_owner(tmp_path: Path) -
         )
         model = tool(client, "download_character", {"character_id": "tar1"}, user="read-only")
         assert model["structuredContent"]["download_url"].startswith(ORIGIN + "/files/artifacts/")
+
+
+def test_controlled_locomotion_requires_write_scope_and_preserves_identity(tmp_path):
+    apis = {}
+    args = {
+        "request_id": "controlled-once",
+        "character_id": "cXi2eAP19XwQ",
+        "plan": {
+            "points": [{"right": 0, "forward": 0}, {"right": 0, "forward": 3}],
+            "pace_changes": [{"path_fraction": 0, "speed_mps": 0.8}],
+            "allow_slowing": True,
+        },
+    }
+    with TestClient(app_for(tmp_path, apis), base_url=ORIGIN) as client:
+        options = tool(client, "get_controlled_locomotion_options", {}, user="read-only")
+        assert options["structuredContent"]["enabled"] is False
+        rejected = tool(client, "generate_controlled_locomotion", args, user="read-only")
+        assert rejected["isError"]
+        assert apis["read-only"].calls == [("controlled_options", {})]
+        first = tool(client, "generate_controlled_locomotion", args)
+        assert first["structuredContent"]["job_id"] == "job1"
+        replay = tool(client, "generate_controlled_locomotion", args, user="user1-rotated")
+        assert replay["structuredContent"]["replayed"]
+        foreign = tool(client, "get_request_status", {"request_id": "controlled-once"}, user="user2")
+        assert foreign["structuredContent"]["state"] == "not_found"
+        assert len(apis["user1"].calls) == 1

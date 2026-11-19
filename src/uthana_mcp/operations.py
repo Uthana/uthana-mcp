@@ -14,6 +14,11 @@ from typing import NotRequired, TypedDict
 import httpx
 from PIL import Image
 from uthana import TtmJobModelType
+from uthana.controlled_locomotion import (
+    SUPPORTED_CHARACTERS,
+    ControlledLocomotionPlan,
+    normalize_controlled_locomotion_plan,
+)
 
 from .assets import AssetLifecycle
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
@@ -58,6 +63,11 @@ def robot_trajectory_summary(data: bytes) -> RobotTrajectorySummary:
             "Robot export had no Frame header or trajectory rows and was not saved", category="invalid_response"
         )
     return {"frame_count": len(rows), "columns": columns}
+
+
+class ControlledLocomotionArgs(TypedDict):
+    character_id: str
+    plan: ControlledLocomotionPlan
 
 
 class TtmGenerationArgs(TypedDict):
@@ -135,6 +145,17 @@ class Operations:
             }
 
         return await self.store.mutation(request_id, "library_search", args, invoke)
+
+    async def controlled_locomotion(self, request_id: str, *, character_id: str, plan: object) -> dict:
+        if character_id not in SUPPORTED_CHARACTERS:
+            raise ValueError("character_id must be a supported controlled locomotion character")
+        args: ControlledLocomotionArgs = {
+            "character_id": identifier(character_id),
+            "plan": normalize_controlled_locomotion_plan(plan),
+        }
+        return await self.store.mutation(
+            request_id, "controlled_locomotion", args, lambda: self.api.controlled_locomotion(**args)
+        )
 
     async def locomotion_styles(self):
         styles = await self.api.locomotion_styles()

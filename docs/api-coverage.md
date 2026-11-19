@@ -1,6 +1,6 @@
 # API coverage
 
-The MCP exposes 35 local tools and 36 hosted tools; the hosted server adds `get_artifact_download`.
+The MCP exposes 37 local tools and 38 hosted tools; the hosted server adds `get_artifact_download`.
 
 Agents can ask the server directly: `get_capabilities` and the `uthana://capabilities` resource return a read-only catalog of every reviewed Uthana operation with its status (`available`, `platform_only`, `planned`, `not_offered`), models, limits, required access, documentation link, this server's version, environment and registered tools, plus optional account eligibility for priced models. The catalog lives in `src/uthana_mcp/capabilities.py`; update it with any tool change (a test fails if a tool is missing from it).
 
@@ -11,6 +11,7 @@ Agents can ask the server directly: `get_capabilities` and the `uthana://capabil
 | Video-to-motion (V2M) 2.0/2.1/3.0 | Selected-file upload and job polling | 128 MiB input limit |
 | Text-to-motion V1 | Not a tool by design; listed as `platform_only` | Offered in the web app and API; use V2 or V3 here |
 | Locomotion | Styles and cycle generation | Duration follows strides |
+| Path-controlled locomotion | Live options, path submission, job polling and saved-motion preview/export | Requires enabled backend; fixed-origin waypoints, slowing and supported characters/styles |
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |
 | Character from image | Image preparation and generation | PNG/JPEG, 16 MiB, 16 megapixels, one frame |
 | Character from prompt | Preview images, then finalize one preview | A preview can be finalized by only one request ID |

@@ -45,6 +45,7 @@ REJECTIONS = {
 
 
 READ_FAILURES = {
+    "unavailable": "This backend does not expose controlled locomotion discovery. Do not submit generation; use an enabled compatible backend.",
     "not_found": "Motion, character, or job not found. Verify the ID.",
     "authentication": "Uthana could not authenticate this read request. Check the API key for the configured Uthana environment.",
     "permission": "Uthana denied this read request. Check account and asset permissions.",
@@ -76,6 +77,18 @@ def graphql_error(result, mutation_field=None, *, read_only=False, resource=None
     if read_only:
         rows = errors if isinstance(errors, list) else []
         data = result.get("data")
+        is_missing_options_query = (
+            resource == "controlled_locomotion_options"
+            and bool(rows)
+            and all(
+                isinstance(error, dict)
+                and isinstance(error.get("message"), str)
+                and error["message"].startswith('Cannot query field "controlled_locomotion_options" on type ')
+                for error in rows
+            )
+        )
+        if is_missing_options_query:
+            return read_error("unavailable")
         missing = isinstance(data, dict) and resource in data and data[resource] is None
 
         def missing_error(error):
