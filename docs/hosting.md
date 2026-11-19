@@ -11,13 +11,7 @@ verified identity contains a stable subject, organization and scopes (`mcp:read`
 Never trust user or organization IDs supplied in tool arguments or session headers.
 All tools and file routes authenticate on every request. Discovery is public.
 
-The transport uses stateless JSON responses. Authenticated `GET /mcp` requests
-return HTTP 405 with `Allow: POST`; idle SSE listening connections are not opened
-or counted against the four active HTTP requests per user within an organization.
-At capacity, HTTP 429 includes `Retry-After: 10`. Wait for active calls or downloads
-to finish; cancelling generation jobs or resubmitting generations does not clear
-this connection limit. Rejections log the request ID, hashed account scope,
-organization, active request count and HTTP methods, without tokens or file URLs.
+The hosted adapter does not impose an HTTP concurrency limit. HTTP connections, including idle MCP event streams, do not count toward billable worker-job limits. The backend enforces admission and billing limits when a tool submits billable generation work; opening or closing HTTP connections does not change those limits.
 
 Hosted tools preserve the local workflows, but replace `file_path` with `input_file`:
 
