@@ -332,7 +332,14 @@ async def test_older_backend_discovery_reports_error_without_submission(tmp_path
         await api.close()
 
 
-CASES = json.loads((Path(__file__).parent / "fixtures" / "controlled_locomotion.json").read_text())
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "controlled_locomotion.json").read_text())
+CASES = [
+    dict(
+        case,
+        input={k: v for k, v in (FIXTURE["base_plan"] | case["overrides"]).items() if k not in case.get("omit", [])},
+    )
+    for case in FIXTURE["cases"]
+]
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["name"])
@@ -365,3 +372,16 @@ def test_unrelated_jobs_keep_their_existing_result_contract() -> None:
     )
     assert result["state"] == "complete" and result["motion_id"] == "legacy_motion"
     assert "generation_status" not in result
+
+
+def test_exception_envelope_cannot_report_success() -> None:
+    result = normalize_job(
+        {
+            "id": "pathjob",
+            "status": "FINISHED",
+            "model": "controlled-locomotion-1",
+            "result": {"exc": "generation failed", "result": {"status": "succeeded", "motion_id": "saved"}},
+        }
+    )
+    assert result["state"] == "unresolved"
+    assert result["motion_id"] is None

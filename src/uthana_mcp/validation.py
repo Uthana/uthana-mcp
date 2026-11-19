@@ -117,6 +117,9 @@ def normalize_job(job: dict) -> dict:
     result = object_value(job.get("result"))
     # Unwrap only known job envelopes; never mistake arbitrary nested character IDs for motions.
     for _ in range(4):
+        if job.get("model") == "controlled-locomotion-1" and isinstance(result, dict) and result.get("exc") is not None:
+            result = None
+            break
         if isinstance(result, dict) and "result" in result:
             result = object_value(result["result"])
         else:
