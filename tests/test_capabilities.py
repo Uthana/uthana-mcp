@@ -86,3 +86,11 @@ def test_hosted_catalog_reports_hosted_tools_for_read_only_users(tmp_path: Path)
         assert catalog["deployment"]["transport"] == "hosted"
         rows = {row["id"]: row for row in catalog["operations"]}
         assert rows["hosted_artifacts"]["available_here"] is True
+
+
+def test_unitree_g1_export_is_not_also_listed_as_planned() -> None:
+    export = next(row for row in OPERATIONS if row["id"] == "export_motion")
+    assert export["status"] == "available" and "download_robot_motion" in export["tools"]
+    for row in OPERATIONS:
+        if row["status"] != "available":
+            assert "G1" not in row["name"] and "unitree-g1" not in (row["docs"] or ""), row["id"]
