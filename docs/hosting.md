@@ -11,7 +11,7 @@ verified identity contains a stable subject, organization and scopes (`mcp:read`
 Never trust user or organization IDs supplied in tool arguments or session headers.
 All tools and file routes authenticate on every request. Discovery is public.
 
-The hosted adapter does not impose an HTTP concurrency limit. HTTP connections, including idle MCP event streams, do not count toward billable worker-job limits. The backend enforces admission and billing limits when a tool submits billable generation work; opening or closing HTTP connections does not change those limits.
+The backend enforces admission and billing limits for billable generation jobs.
 
 Hosted tools preserve the local workflows, but replace `file_path` with `input_file`:
 
