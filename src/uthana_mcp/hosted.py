@@ -212,7 +212,7 @@ def create_app(
         return await runtime.files.present(metadata, download_link=runtime.download_link)
 
     http_app = server.streamable_http_app()
-    in_flight: dict[str, int] = {}
+    in_flight: dict[str, dict[str, str]] = {}
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
@@ -365,14 +365,36 @@ def create_app(
                         },
                     )
                 return await response(scope, receive, send)
-            key = identity.scope
-            if in_flight.get(key, 0) >= MAX_IN_FLIGHT_PER_USER:
+            # Stateless JSON transport has no server-to-client events to send on an idle SSE stream.
+            if request.method == "GET" and request.url.path.rstrip("/") == "/mcp":
                 return await JSONResponse(
-                    {"error": "Too many active requests for this account"},
+                    {"error": "Idle event streams are not supported; use POST for MCP requests"},
+                    status_code=405,
+                    headers={"Allow": "POST"},
+                )(scope, receive, send)
+            key = identity.scope
+            active = in_flight.setdefault(key, {})
+            if len(active) >= MAX_IN_FLIGHT_PER_USER:
+                logging.getLogger(__name__).warning(
+                    "hosted_mcp concurrency_limit request_id=%s account=%s organization=%s "
+                    "method=%s active_requests=%s active_methods=%s",
+                    request_id,
+                    key,
+                    identity.organization,
+                    request.method,
+                    len(active),
+                    list(active.values()),
+                )
+                return await JSONResponse(
+                    {
+                        "error": "Too many active HTTP requests (open connections) for this user in this organization. "
+                        "Wait for calls or downloads to finish. This limit does not count generation jobs; "
+                        "do not resubmit generations to clear it."
+                    },
                     status_code=429,
                     headers={"Retry-After": "10"},
                 )(scope, receive, send)
-            in_flight[key] = in_flight.get(key, 0) + 1
+            active[request_id] = request.method
             api = None
             token = None
             try:
@@ -395,8 +417,8 @@ def create_app(
             finally:
                 if token is not None:
                     _CURRENT.reset(token)
-                in_flight[key] -= 1
-                if not in_flight[key]:
+                del active[request_id]
+                if not active:
                     del in_flight[key]
                 if api is not None:
                     await api.close()

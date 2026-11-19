@@ -2,6 +2,7 @@
 
 import asyncio
 import socket
+from pathlib import Path
 
 import httpx
 import pytest
@@ -195,7 +196,27 @@ def test_issuer_with_path_remains_supported(tmp_path):
         assert response.json()["authorization_servers"] == ["https://issuer.example.test/realm"]
 
 
-async def test_concurrency_limit_recovers_after_requests_complete(tmp_path):
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+async def test_idle_mcp_streams_do_not_consume_request_slots(tmp_path: Path, path: str) -> None:
+    apis = {}
+    app = app_for(tmp_path, apis)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=ORIGIN) as client:
+            responses = await asyncio.wait_for(
+                asyncio.gather(*(client.get(path, headers=HEADERS) for _ in range(8))), timeout=5
+            )
+            assert all(response.status_code == 405 for response in responses)
+            assert all(response.headers["allow"] == "POST" for response in responses)
+            assert not apis
+            assert (await client.get(path)).status_code == 401
+            response = await client.post(
+                "/mcp", headers=HEADERS, json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+            )
+            assert response.status_code == 200
+            assert response.json()["result"]["tools"]
+
+
+async def test_concurrency_limit_recovers_after_requests_complete(tmp_path, caplog):
     started, release = asyncio.Event(), asyncio.Event()
     count = 0
 
@@ -222,7 +243,18 @@ async def test_concurrency_limit_recovers_after_requests_complete(tmp_path):
             active = [asyncio.create_task(client.get("/files")) for _ in range(4)]
             try:
                 await asyncio.wait_for(started.wait(), 5)
-                assert (await client.get("/files")).status_code == 429
+                rejected = await client.get("/files?token=must-not-log")
+                assert rejected.status_code == 429
+                assert rejected.headers["retry-after"] == "10"
+                assert "open connections" in rejected.json()["error"]
+                assert "generation jobs" in rejected.json()["error"]
+                assert f"account={Identity('user', 'org', frozenset()).scope}" in caplog.text
+                assert "organization=org" in caplog.text
+                assert f"request_id={rejected.headers['x-request-id']}" in caplog.text
+                assert "active_requests=4" in caplog.text
+                assert "active_methods=['GET', 'GET', 'GET', 'GET']" in caplog.text
+                assert "must-not-log" not in caplog.text
+                assert (await client.get("/mcp")).status_code == 405
                 assert count == 4
             finally:
                 release.set()
