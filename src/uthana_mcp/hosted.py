@@ -35,7 +35,7 @@ from .hosted_files import Files, InputFile
 from .operations import MAX_UPLOAD_BYTES, Operations
 from .server import create_server
 
-MAX_IN_FLIGHT_PER_USER = 4
+MAX_IN_FLIGHT_PER_USER = 10
 MAX_PROTOCOL_REQUEST_BYTES = 4 * 1024 * 1024
 _CURRENT: ContextVar["Runtime"] = ContextVar("uthana_hosted_runtime")
 
@@ -212,7 +212,7 @@ def create_app(
         return await runtime.files.present(metadata, download_link=runtime.download_link)
 
     http_app = server.streamable_http_app()
-    in_flight: dict[str, int] = {}
+    in_flight: dict[str, dict[str, str]] = {}
 
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
@@ -366,13 +366,30 @@ def create_app(
                     )
                 return await response(scope, receive, send)
             key = identity.scope
-            if in_flight.get(key, 0) >= MAX_IN_FLIGHT_PER_USER:
-                return await JSONResponse(
-                    {"error": "Too many active requests for this account"},
-                    status_code=429,
-                    headers={"Retry-After": "10"},
-                )(scope, receive, send)
-            in_flight[key] = in_flight.get(key, 0) + 1
+            is_idle_stream = request.method == "GET" and request.url.path.rstrip("/") == "/mcp"
+            active = None if is_idle_stream else in_flight.setdefault(key, {})
+            if active is not None:
+                if len(active) >= MAX_IN_FLIGHT_PER_USER:
+                    logging.getLogger(__name__).warning(
+                        "hosted_mcp concurrency_limit request_id=%s account=%s organization=%s "
+                        "method=%s active_requests=%s active_methods=%s",
+                        request_id,
+                        key,
+                        identity.organization,
+                        request.method,
+                        len(active),
+                        list(active.values()),
+                    )
+                    return await JSONResponse(
+                        {
+                            "error": "Too many active HTTP requests for this user in this organization. "
+                            "Wait for active calls or file transfers to finish. Idle MCP streams do not count. "
+                            "This is not a generation-job limit; do not resubmit generations to clear it."
+                        },
+                        status_code=429,
+                        headers={"Retry-After": "10"},
+                    )(scope, receive, send)
+                active[request_id] = request.method
             api = None
             token = None
             try:
@@ -395,9 +412,10 @@ def create_app(
             finally:
                 if token is not None:
                     _CURRENT.reset(token)
-                in_flight[key] -= 1
-                if not in_flight[key]:
-                    del in_flight[key]
+                if active is not None:
+                    del active[request_id]
+                    if not active:
+                        del in_flight[key]
                 if api is not None:
                     await api.close()
 
