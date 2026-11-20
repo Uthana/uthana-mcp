@@ -17,7 +17,7 @@ Do not commit API keys, `.env` files, or generated private state.
 
 ## Releasing
 
-Like the Uthana Python client, releases start with a version bump in a PR. Use `uv version --no-sync 0.1.1` to update `pyproject.toml` and `uv.lock`, then commit both. This uses uv's built-in command instead of a separate version script.
+Like the Uthana Python client, releases start with a version bump in a PR. Use `uv version --no-sync 0.1.1` to update `pyproject.toml` and `uv.lock`, then commit both. This uses uv's built-in command instead of a separate version script. The README is the PyPI description, so its repository links are absolute and pinned to the release tag; update them in the same PR. Follow the [release checklist](docs/release-checklist.md) for the public pages to check before and after a release.
 
 On merge to `main`, `.github/workflows/release.yml` checks whether that version exists on PyPI, runs verification, builds a fresh sdist and wheel, publishes through PyPI Trusted Publishing (OIDC), and creates `vX.Y.Z` plus a GitHub release. Configure the trusted publisher for **uthana-mcp**, repository **Uthana/uthana-mcp**, workflow **release.yml**. An already-published version is skipped; a failed PyPI lookup stops the release.
 

@@ -18,7 +18,7 @@ def ops_for(tmp_path):
 
 async def test_share_defaults_to_tar_and_the_full_motion(tmp_path):
     api, ops = ops_for(tmp_path)
-    result = await ops.share("motion1")
+    result = await ops.share(motion_id="motion1")
     assert api.calls == [("share", {"motion_id": "motion1", "character_id": "cXi2eAP19XwQ", "start": 0.0, "end": 1.0})]
     assert result["preview_url"] == "https://uthana.com/app/preview/cXi2eAP19XwQ/motion1"
     assert result["image_url"].endswith("/share.png")
@@ -29,13 +29,13 @@ async def test_share_defaults_to_tar_and_the_full_motion(tmp_path):
 async def test_share_window_in_seconds_becomes_duration_fractions(tmp_path):
     api, ops = ops_for(tmp_path)
     # motion1 is a 4-second fixture: 120 frames at 30 fps.
-    result = await ops.share("motion1", "mixamo1", 1, 3)
+    result = await ops.share(motion_id="motion1", character_id="mixamo1", start_seconds=1, end_seconds=3)
     assert api.calls[-1] == ("share", {"motion_id": "motion1", "character_id": "mixamo1", "start": 0.25, "end": 0.75})
     assert result["window_seconds"] == [1, 3]
-    partial = await ops.share("motion1", "mixamo1", end_seconds=2)
+    partial = await ops.share(motion_id="motion1", character_id="mixamo1", end_seconds=2)
     assert api.calls[-1][1]["start"] == 0.0 and api.calls[-1][1]["end"] == 0.5
     assert partial["window_seconds"] == [0, 2]
-    tail = await ops.share("motion1", "mixamo1", start_seconds=3)
+    tail = await ops.share(motion_id="motion1", character_id="mixamo1", start_seconds=3)
     assert api.calls[-1][1]["start"] == 0.75 and api.calls[-1][1]["end"] == 1.0
     assert tail["window_seconds"] == [3, 4.0]
 
@@ -44,23 +44,23 @@ async def test_share_window_in_seconds_becomes_duration_fractions(tmp_path):
 async def test_share_rejects_windows_outside_the_motion(tmp_path, start, end):
     api, ops = ops_for(tmp_path)
     with pytest.raises(ValueError):
-        await ops.share("motion1", "mixamo1", start, end)
+        await ops.share(motion_id="motion1", character_id="mixamo1", start_seconds=start, end_seconds=end)
     assert not any(name == "share" for name, _ in api.calls)
 
 
 async def test_share_rejects_bad_identifiers_before_any_request(tmp_path):
     api, ops = ops_for(tmp_path)
     with pytest.raises(ValueError):
-        await ops.share("motion/1")
+        await ops.share(motion_id="motion/1")
     with pytest.raises(ValueError):
-        await ops.share("motion1", "")
+        await ops.share(motion_id="motion1", character_id="")
     assert api.calls == []
 
 
 async def test_share_failure_propagates(tmp_path):
     _, ops = ops_for(tmp_path)
     with pytest.raises(RuntimeError, match="Share rejected"):
-        await ops.share("denied")
+        await ops.share(motion_id="denied")
 
 
 async def test_share_tool_is_public_idempotent_and_free_of_request_ids(tmp_path):
@@ -74,7 +74,7 @@ async def test_share_tool_is_public_idempotent_and_free_of_request_ids(tmp_path)
     assert "request_id" not in tool.inputSchema["properties"]
     assert set(tool.inputSchema["properties"]) == {"motion_id", "character_id", "start_seconds", "end_seconds"}
     assert "without an account" in tool.description and "stays public" in tool.description
-    assert "share_motion" in server._workflow_text() if hasattr(server, "_workflow_text") else True
+    assert "share_motion" in str(await server.read_resource("uthana://workflow"))
 
 
 async def test_api_share_sends_the_mutation_and_validates_the_link():
@@ -91,7 +91,7 @@ async def test_api_share_sends_the_mutation_and_validates_the_link():
 
     api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
     try:
-        result = await api.share("m1", "c1", 0.25, 0.5)
+        result = await api.share(motion_id="m1", character_id="c1", start=0.25, end=0.5)
     finally:
         await api.close()
     assert seen[0]["variables"] == {
@@ -106,7 +106,7 @@ async def test_api_share_sends_the_mutation_and_validates_the_link():
     assert result == {
         "motion_id": "m1",
         "character_id": "c1",
-        "preview_url": "https://uthana.com/app/preview/c1/m1?start=0.25&end=0.50",
+        "preview_url": "https://uthana.com/app/preview/c1/m1?start=0.25&end=0.5",
         "image_url": "https://uthana.com/app/share/c1/m1/share.png",
     }
 
@@ -125,7 +125,7 @@ async def test_api_share_without_a_usable_link_is_an_unknown_outcome(payload):
     )
     try:
         with pytest.raises(APIError) as error:
-            await api.share("m1", "c1", 0.0, 1.0)
+            await api.share(motion_id="m1", character_id="c1", start=0.0, end=1.0)
     finally:
         await api.close()
     assert error.value.outcome == "unknown"
@@ -139,7 +139,7 @@ async def test_api_share_link_must_point_at_the_configured_environment():
     # the guard still rejects a link for another environment if the client's base URL ever diverges.
     api = UthanaAPI("fake", "staging.uthana.com", transport=httpx.MockTransport(respond))
     try:
-        result = await api.share("m1", "c1", 0.0, 1.0)
+        result = await api.share(motion_id="m1", character_id="c1", start=0.0, end=1.0)
     finally:
         await api.close()
     assert result["preview_url"] == "https://staging.uthana.com/app/preview/c1/m1"
@@ -156,7 +156,7 @@ async def test_api_share_access_denial_without_a_typed_error_is_an_unknown_outco
     api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
     try:
         with pytest.raises(APIError) as error:
-            await api.share("m1", "c1", 0.0, 1.0)
+            await api.share(motion_id="m1", character_id="c1", start=0.0, end=1.0)
     finally:
         await api.close()
     assert error.value.outcome == "unknown" and error.value.category == "graphql_error"
@@ -175,7 +175,17 @@ async def test_api_share_typed_access_denial_is_rejected():
     api = UthanaAPI("fake", "uthana.com", transport=httpx.MockTransport(respond))
     try:
         with pytest.raises(APIError) as error:
-            await api.share("m1", "c1", 0.0, 1.0)
+            await api.share(motion_id="m1", character_id="c1", start=0.0, end=1.0)
     finally:
         await api.close()
     assert error.value.outcome == "rejected" and error.value.category == "permission"
+
+
+@pytest.mark.parametrize("field", ["start_seconds", "end_seconds"])
+@pytest.mark.parametrize("value", [True, "1", float("inf"), float("nan")])
+async def test_share_schema_rejects_coercion_before_publishing(tmp_path, field, value):
+    api, ops = ops_for(tmp_path)
+    server = create_server(ops)
+    with pytest.raises(Exception):
+        await server._tool_manager.get_tool("share_motion").run({"motion_id": "motion1", field: value})
+    assert not any(name == "share" for name, _ in api.calls)

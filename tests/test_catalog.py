@@ -168,3 +168,64 @@ async def test_usage_and_specific_eligibility_are_read_only(tmp_path):
     assert allowed["reserves_allowance"] is False and allowed["operation_cost_known"] is False
     assert [c[0] for c in api.calls] == ["usage", "download_allowed", "download_allowed"]
     assert len(list(ops.store.directory.iterdir())) == 1  # Only the SQLite store; no export artifacts.
+
+
+async def test_character_dates_survive_filtering_and_paging(tmp_path):
+    api = FakeAPI()
+    rows = [
+        {"id": "c1", "name": "Alex", "created": "2026-01-01T00:00:00Z", "updated": None},
+        {"id": "c2", "name": "Alex", "created": None, "updated": "2026-02-01T00:00:00Z"},
+    ]
+
+    async def characters():
+        return rows
+
+    api.characters = characters
+    ops = Operations(api, tmp_path)
+    first = await ops.characters(query="alex", limit=1)
+    second = await ops.characters(query="alex", offset=first["next_offset"], limit=1)
+    for result, row in [(first, rows[0]), (second, rows[1])]:
+        assert result["characters"] == [
+            {"character_id": row["id"], "name": row["name"], "created": row["created"], "updated": row["updated"]}
+        ]
+    assert second["next_offset"] is None
+
+
+@pytest.mark.parametrize("value", [{"timestamp": "bad"}, ["bad"], 123, True])
+async def test_character_dates_normalize_non_string_provider_values(tmp_path, value):
+    api = FakeAPI()
+
+    async def characters():
+        return [{"id": "c1", "name": "Alex", "created": value, "updated": value}]
+
+    api.characters = characters
+    result = await Operations(api, tmp_path).characters()
+    assert result["characters"][0]["created"] is None
+    assert result["characters"][0]["updated"] is None
+
+
+def test_usage_identifies_organization_and_subscription_without_mixing_units():
+    data = usage_data()
+    data["org"].update(id="org1", name="Studio")
+    result = usage_snapshot(data)
+    assert result["organization"] == {"id": "org1", "name": "Studio"}
+    assert result["subscription"] == {"status": "active", "download_seconds_per_month": 100, "characters": 4}
+    assert result["payg"]["balance_usd"] is None
+
+
+def test_usage_missing_identity_and_subscription_stay_unknown():
+    result = usage_snapshot({"org": {}})
+    assert result["organization"] == {"id": None, "name": None}
+    assert result["subscription"] == {"status": None, "download_seconds_per_month": None, "characters": None}
+
+
+@pytest.mark.parametrize("field,value", [("name", {}), ("id", [])])
+def test_usage_rejects_malformed_organization_identity(field, value):
+    with pytest.raises((APIError, ValueError)):
+        usage_snapshot({"org": {field: value}})
+
+
+@pytest.mark.parametrize("subscription", [[], False, ["active"], {"status": {}}, {"characters": True}])
+def test_usage_rejects_malformed_subscription(subscription):
+    with pytest.raises((APIError, ValueError)):
+        usage_snapshot({"org": {}, "subscription": subscription})

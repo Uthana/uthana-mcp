@@ -102,9 +102,9 @@ async def test_rerig_target_forwarded_in_mutation(tmp_path):
 
 
 def test_rerig_billing_policy():
-    # Converting an already-rigged character is priced as auto-rig.
+    # Converting an already-rigged character is not charged by the backend.
     rerig = receipt_billing("upload_character", {"auto_rig": False, "rerig_target": "r15"})
-    assert rerig["model"] == "autorig" and rerig["cost_status"] == "unmeasured"
+    assert rerig["model"] is None and rerig["cost_status"] == "free_by_policy"
     # Choosing a target during initial auto-rig stays a single auto-rig charge.
     both = receipt_billing("upload_character", {"auto_rig": True, "rerig_target": "ue5"})
     assert both["model"] == "autorig" and both["cost_status"] == "unmeasured"

@@ -3,41 +3,108 @@
 import hashlib
 import io
 import json
+import math
 import os
 import stat
 import time
 import warnings
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 import httpx
 from PIL import Image
+from uthana import TtmJobModelType
 
+from .assets import AssetLifecycle
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
+from .billing_history import billing_history_page, ledger_request
 from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchInput
 from .store import Store
-from .validation import TAR, identifier, number, text
+from .validation import (
+    MIN_LITE_MINI_DURATION_SECONDS,
+    MIN_TTM3_DURATION_SECONDS,
+    TAR,
+    TTM3_MODELS,
+    UTHANA_DOMAIN,
+    identifier,
+    number,
+    text,
+)
+
+MAX_SHARE_WINDOW_SECONDS = 1_000_000_000
 
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
+ROBOTS = frozenset({"unitree_g1"})
+ROBOT_EXPORT_FPS = frozenset({24, 30, 60})
+
+
+class RobotTrajectorySummary(TypedDict):
+    frame_count: int
+    columns: list[str]
+
+
+def robot_trajectory_summary(data: bytes) -> RobotTrajectorySummary:
+    """Summarize a robot CSV export: one header row, then one row per frame. The download already happened."""
+    try:
+        lines = data.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        raise APIError("Robot export was not UTF-8 CSV and was not saved", category="invalid_response") from None
+    rows = [line for line in lines[1:] if line.strip()]
+    columns = lines[0].split(",") if lines else []
+    has_frame_column = bool(columns) and columns[0] == "Frame"
+    if not has_frame_column or not rows:
+        raise APIError(
+            "Robot export had no Frame header or trajectory rows and was not saved", category="invalid_response"
+        )
+    return {"frame_count": len(rows), "columns": columns}
+
+
+class TtmGenerationArgs(TypedDict):
+    prompt: str
+    duration_seconds: float
+    character_id: str
+    model: NotRequired[TtmJobModelType]
+    fast: NotRequired[bool]
 
 
 class Operations:
     def __init__(self, api, directory, input_directory=None):
         self.api = api
         self.store = Store(Path(directory), api.scope)
+        self.assets = AssetLifecycle(api)
         self.input_directory = Path(input_directory).expanduser().resolve() if input_directory else None
 
-    async def generate(self, request_id, prompt, duration_seconds=4, character_id=TAR):
-        args = {
+    async def generate(
+        self,
+        request_id,
+        prompt,
+        duration_seconds=None,
+        character_id=TAR,
+        *,
+        model: TtmJobModelType = "text-to-motion-3.0",
+        fast: bool = False,
+    ):
+        if model not in TTM3_MODELS:
+            raise ValueError(f"model must be one of: {', '.join(TTM3_MODELS)}")
+        if type(fast) is not bool:
+            raise ValueError("fast must be a boolean")
+        minimum = MIN_TTM3_DURATION_SECONDS if model == "text-to-motion-3.0" else MIN_LITE_MINI_DURATION_SECONDS
+        duration = minimum if duration_seconds is None else duration_seconds
+        if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration):
+            raise ValueError("duration_seconds must be a finite number; omit it to use the model default")
+        args: TtmGenerationArgs = {
             "prompt": text(prompt, 1000),
-            "duration_seconds": number(duration_seconds, 4, 10),
+            "duration_seconds": duration,
             "character_id": identifier(character_id),
         }
-        # Recover historical receipts outside the current input contract through get_request_status.
-        if duration_seconds != int(duration_seconds):
-            raise ValueError("V3 duration must be a whole number of seconds from 4 to 10; it is not rounded silently")
+        # Omit the default hints so existing completed request IDs still replay.
+        if model != "text-to-motion-3.0":
+            args["model"] = model
+        if fast:
+            args["fast"] = fast
         return await self.store.mutation(request_id, "generate", args, lambda: self.api.generate(**args))
 
     async def generate_v2(self, request_id, prompt, duration_seconds=4, character_id=TAR):
@@ -51,6 +118,25 @@ class Operations:
         if abs(frames / 8 - round(frames / 8)) > 1e-8:
             raise ValueError("V2 duration must use 0.4-second increments from 4 to 10 seconds")
         return await self.store.mutation(request_id, "generate_v2", args, lambda: self.api.generate_v2(**args))
+
+    async def library_search(self, request_id: str, prompt: str, *, character_id: str = TAR) -> dict:
+        args = {"prompt": text(prompt, 1000), "character_id": identifier(character_id)}
+
+        async def invoke() -> dict:
+            result = await self.api.library_search(**args)
+            return {
+                **result,
+                "result_kind": "copied_library_match",
+                "candidates_returned": 1,
+                "search_scope": "Uthana shared motion library plus this organization's labeled motions",
+                "exhaustive": False,
+                "review_status": "unreviewed",
+                "note": "The single closest clip by description, copied into this organization as a new motion. "
+                "A weak or unrelated match is still charged and does not prove a better clip is absent. "
+                "Use get_motion for duration and get_preview to review it.",
+            }
+
+        return await self.store.mutation(request_id, "library_search", args, invoke)
 
     async def locomotion_styles(self):
         styles = await self.api.locomotion_styles()
@@ -96,7 +182,14 @@ class Operations:
         number(quantity, 0, 3600)
         return estimate_cost(await self.api.prices(), model, quantity)
 
-    async def share(self, motion_id, character_id=TAR, start_seconds=None, end_seconds=None):
+    async def share(
+        self,
+        *,
+        motion_id: str,
+        character_id: str = TAR,
+        start_seconds: float | None = None,
+        end_seconds: float | None = None,
+    ) -> dict[str, object]:
         """Create a public viewer link; an optional window in seconds becomes duration fractions."""
         identifier(motion_id)
         identifier(character_id)
@@ -104,17 +197,17 @@ class Operations:
         start, end = 0.0, 1.0
         window_seconds = None
         if has_window:
-            start_seconds = 0 if start_seconds is None else number(start_seconds, 0, 1e9)
+            start_seconds = 0 if start_seconds is None else number(start_seconds, 0, MAX_SHARE_WINDOW_SECONDS)
             source = await self.api.motion(motion_id)
             duration = source["duration_seconds"]
-            end_seconds = duration if end_seconds is None else number(end_seconds, 0, 1e9)
+            end_seconds = duration if end_seconds is None else number(end_seconds, 0, MAX_SHARE_WINDOW_SECONDS)
             if not 0 <= start_seconds < end_seconds <= duration:
                 raise ValueError(
                     f"start_seconds must be >= 0 and less than end_seconds; end_seconds must be at most {duration:.3f} seconds (received {start_seconds}, {end_seconds})"
                 )
             start, end = start_seconds / duration, end_seconds / duration
             window_seconds = [start_seconds, end_seconds]
-        result = await self.api.share(motion_id, character_id, start, end)
+        result = await self.api.share(motion_id=motion_id, character_id=character_id, start=start, end=end)
         return {
             **result,
             "window_seconds": window_seconds,
@@ -288,10 +381,10 @@ class Operations:
             ) from None
         return path.name, data, hashlib.sha256(data).hexdigest()
 
-    async def video(self, request_id, file_path, name, model="video-to-motion-2.0"):
+    async def video(self, request_id, file_path, name, model="video-to-motion-3.0"):
         text(name)
-        if model not in {"video-to-motion-2.0", "video-to-motion-2.1"}:
-            raise ValueError("Choose video-to-motion-2.0 or video-to-motion-2.1")
+        if model not in {"video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"}:
+            raise ValueError("Choose video-to-motion-2.0, video-to-motion-2.1, or video-to-motion-3.0")
         filename, data, digest = self.read_input(file_path, {".mp4", ".mov", ".webm"})
         args = {"content_sha256": digest, "filename": filename, "name": name, "model": model}
         return await self.store.mutation(request_id, "video", args, lambda: self.api.video(filename, data, name, model))
@@ -552,17 +645,17 @@ class Operations:
         return await self.verify_saved(receipt)
 
     async def stitch(self, request_id: str, options: object) -> dict:
-        options = StitchInput.model_validate(options).model_dump(exclude_none=True)
-        args = {"contract": "typed_steps", **options}
+        options = StitchInput.model_validate(options).model_dump(exclude_unset=True)
+        args = {"contract": "flat_motion_steps_v1", **options}
         if self.store.completed(request_id, "stitch"):
             return self.recovered_saved(self.store.replay(request_id, "stitch", args))
-        motion_steps = [options["steps"][0], options["steps"][2]]
+        motion_steps = [options["steps"][0], options["steps"][1]]
         sources = [await self.api.motion(step["motion_id"]) for step in motion_steps]
         for step, source in zip(motion_steps, sources):
-            selected = step["range"]
+            selected = step
             fps = source["fps"]
-            start = selected.get("start_seconds", selected.get("start_frame", 0) / fps)
-            end = selected.get("end_seconds", selected.get("end_frame", source["frame_count"] - 1) / fps)
+            start = selected.get("trim_start_seconds", selected.get("trim_start_frame", 0) / fps)
+            end = selected.get("trim_end_seconds", selected.get("trim_end_frame", source["frame_count"] - 1) / fps)
             if not start < end <= source["last_sample_seconds"]:
                 raise ValueError("Motion range must fit its native source samples")
 
@@ -592,7 +685,15 @@ class Operations:
         rows = [row for row in rows if query.casefold() in str(row.get("name", "")).casefold()]
         page = rows[offset : offset + limit]
         return {
-            "characters": [{"character_id": identifier(row["id"]), "name": row.get("name")} for row in page],
+            "characters": [
+                {
+                    "character_id": identifier(row["id"]),
+                    "name": row.get("name"),
+                    "created": row.get("created") if isinstance(row.get("created"), str) else None,
+                    "updated": row.get("updated") if isinstance(row.get("updated"), str) else None,
+                }
+                for row in page
+            ],
             "next_offset": offset + limit if offset + limit < len(rows) else None,
             "pagination": "local_bounded_catalog",
             "scanned_count": scanned,
@@ -605,6 +706,47 @@ class Operations:
 
     async def usage(self):
         return usage_snapshot(await self.api.usage())
+
+    async def billing_history(
+        self,
+        *,
+        since: str | None = None,
+        until: str | None = None,
+        entry_types: list[str] | None = None,
+        before_entry_id: str | None = None,
+        limit: int = 50,
+    ) -> dict:
+        if before_entry_id is not None:
+            identifier(before_entry_id)
+        request = ledger_request(
+            since=since, until=until, entry_types=entry_types, before_entry_id=before_entry_id, limit=limit
+        )
+        rows = await self.api.ledger(**request)
+        domain = getattr(self.api, "domain", None) or UTHANA_DOMAIN
+        return billing_history_page(rows, limit=limit, domain=domain, request=request)
+
+    async def download_character(self, character_id: str, format: str = "glb") -> dict:
+        """Save the character's own model file locally; no motion, retargeting, or download allowance."""
+        identifier(character_id)
+        if format not in {"glb", "fbx"}:
+            raise ValueError("Character format must be glb or fbx")
+        record = await self.api.asset("character", character_id)
+        data = await self.api.download_character(character_id, format)
+        signature = b"glTF" if format == "glb" else b"Kaydara FBX Binary"
+        if not data.startswith(signature):
+            raise ValueError(f"Character download did not return a {format.upper()} file")
+        return self.store.artifact(
+            data,
+            "." + format,
+            {
+                "character_id": character_id,
+                "name": record["name"],
+                "format": format,
+                "asset_kind": "character_model",
+                "includes_animation": False,
+                "billing": receipt_billing("character_download", {}),
+            },
+        )
 
     async def download_allowed(self, motion_id, character_id=TAR):
         identifier(motion_id)
@@ -778,6 +920,42 @@ class Operations:
             )
 
         result = await self.store.mutation(request_id, "download", args, invoke)
+        # Never silently charge for a replacement if the caller lost or modified their cached file.
+        self.store.read_artifact(result["artifact_id"])
+        return result
+
+    async def download_robot(
+        self, request_id: str, motion_id: str, *, character_id: str = TAR, robot: str = "unitree_g1", fps: int = 30
+    ) -> dict:
+        identifier(motion_id)
+        identifier(character_id)
+        has_supported_robot = robot in ROBOTS
+        has_supported_fps = type(fps) is int and fps in ROBOT_EXPORT_FPS
+        if not has_supported_robot or not has_supported_fps:
+            raise ValueError("Choose robot unitree_g1 and 24/30/60 FPS")
+        args = {"motion_id": motion_id, "character_id": character_id, "robot": robot, "fps": fps}
+        if self.store.completed(request_id, "robot_download"):
+            result = self.store.replay(request_id, "robot_download", args)
+            self.store.read_artifact(result["artifact_id"])
+            return result
+
+        async def invoke():
+            data = await self.api.download_robot(**args)
+            summary = robot_trajectory_summary(data)
+            return self.store.artifact(
+                data,
+                ".csv",
+                {
+                    **args,
+                    **summary,
+                    "duration_seconds": summary["frame_count"] / fps,
+                    "review_status": "unreviewed",
+                    "asset_kind": "robot_trajectory_export",
+                    "creates_new_motion": False,
+                },
+            )
+
+        result = await self.store.mutation(request_id, "robot_download", args, invoke)
         # Never silently charge for a replacement if the caller lost or modified their cached file.
         self.store.read_artifact(result["artifact_id"])
         return result

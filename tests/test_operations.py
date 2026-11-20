@@ -81,7 +81,7 @@ async def test_state_is_not_shared_between_credentials(tmp_path):
     assert is_private(first.path)
 
 
-@pytest.mark.parametrize("duration", [float("nan"), float("inf"), True, 3, 11])
+@pytest.mark.parametrize("duration", [float("nan"), float("inf"), float("-inf"), True, "4"])
 async def test_invalid_generation_never_submits(setup, duration):
     api, ops, _ = setup
     with pytest.raises(ValueError):
@@ -173,13 +173,14 @@ async def test_unsupported_exports_do_not_download(setup, kwargs):
     assert not api.calls
 
 
-async def test_video_upload_and_two_mixamo_retargets(setup):
+@pytest.mark.parametrize("model", ["video-to-motion-2.0", "video-to-motion-2.1", "video-to-motion-3.0"])
+async def test_video_upload_and_two_mixamo_retargets(setup, model):
     api, ops, inputs = setup
     video = inputs / "walk.mp4"
     video.write_bytes(b"fixture-video")
-    result = await ops.video("video1", str(video), "Walk", "video-to-motion-2.1")
+    result = await ops.video("video1", str(video), "Walk", model)
     assert result["job_id"] == "videojob1"
-    await ops.video("video1", str(video), "Walk", "video-to-motion-2.1")
+    await ops.video("video1", str(video), "Walk", model)
     for index in (1, 2):
         character = inputs / f"character{index}.fbx"
         character.write_bytes(f"rigged-fixture-{index}".encode())
@@ -421,4 +422,48 @@ async def test_saved_verification_history_survives_restart_and_metadata_outage(s
         original_receipt.pop(key)
         current_receipt.pop(key)
     assert current_receipt == original_receipt
+    assert len(api.calls) == 1
+
+
+async def test_robot_export_summarizes_csv_and_replays_without_redownload(setup):
+    api, ops, _ = setup
+    result = await ops.download_robot("robot1", "motion1", character_id="c43tbGks3crJ", fps=60)
+    assert result["robot"] == "unitree_g1" and result["fps"] == 60
+    assert result["frame_count"] == 3 and result["duration_seconds"] == 0.05
+    assert result["columns"] == ["Frame", "root_translateX", "left_knee_joint_dof"]
+    assert result["asset_kind"] == "robot_trajectory_export" and result["creates_new_motion"] is False
+    assert result["billing"]["cost_status"] == "free_by_policy"
+    assert result["local_path"].endswith(".csv")
+    assert Path(result["local_path"]).read_bytes() == api.robot_csv
+    replay = await ops.download_robot("robot1", "motion1", character_id="c43tbGks3crJ", fps=60)
+    assert replay["artifact_id"] == result["artifact_id"]
+    assert api.calls == [
+        ("robot_download", {"motion_id": "motion1", "character_id": "c43tbGks3crJ", "robot": "unitree_g1", "fps": 60})
+    ]
+    with pytest.raises(ValueError, match="different arguments"):
+        await ops.download_robot("robot1", "motion1", character_id="c43tbGks3crJ", fps=30)
+    Path(result["local_path"]).unlink()
+    with pytest.raises(FileNotFoundError):
+        await ops.download_robot("robot1", "motion1", character_id="c43tbGks3crJ", fps=60)
+    assert len(api.calls) == 1
+
+
+@pytest.mark.parametrize("kwargs", [{"fps": 25}, {"fps": True}, {"fps": 30.0}, {"robot": "h1"}])
+async def test_invalid_robot_exports_never_download(setup, kwargs):
+    api, ops, _ = setup
+    with pytest.raises(ValueError, match="unitree_g1"):
+        await ops.download_robot("robot-invalid", "motion1", **kwargs)
+    assert not api.calls
+
+
+@pytest.mark.parametrize(
+    "body", [b"", b"message\nNo GPU available in this dev environment\n", b"Frame,root_x\n", b"\xff\xfe"]
+)
+async def test_robot_export_without_trajectory_rows_is_not_saved(setup, body):
+    api, ops, _ = setup
+    api.robot_csv = body
+    with pytest.raises(RuntimeError, match="was not saved.*get_request_status"):
+        await ops.download_robot("robot-bad", "motion1")
+    assert not list(ops.store.directory.glob("*.csv"))
+    assert ops.store.get_request("robot-bad")["state"] == "unknown"
     assert len(api.calls) == 1
