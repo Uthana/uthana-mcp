@@ -19,7 +19,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "uthana>=0.8.3,<0.9",
+    "uthana>=0.9.0,<0.10",
     "mcp==1.30.0",
     "httpx==0.28.1",
     "starlette==1.9.0",
