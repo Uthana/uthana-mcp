@@ -73,15 +73,15 @@ OPERATIONS = [
     ),
     _op(
         "text_to_motion_3",
-        "Text-to-motion 3.0: Regular, Lite and Mini",
+        "Text-to-motion 3.0: 3.0, 3.0 Lite and 3.0 Mini",
         status="available",
         tools=["generate_motion", "get_job"],
         docs=f"{DOCS}/capabilities/text-to-motion",
         access=PRICED,
-        summary="Choose Regular, Lite or Mini with an independent fast hint. Regular includes finger animation. Returns a job.",
+        summary="Choose 3.0 or 3.0 Lite ($0.10/s) or 3.0 Mini ($0.075/s). 3.0 includes finger animation. Returns a job.",
         models=["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"],
         limits=[
-            "Backend rounds and clamps duration: Regular 4-10 seconds; Lite/Mini 5-10 seconds",
+            "Backend rounds and clamps duration: 3.0 4-10 seconds (default 4); 3.0 Lite and 3.0 Mini 5-10 seconds (default 5), shorter requests raised to 5 seconds; estimates use the adjusted duration, the final charge the motion actually generated",
             "Prompt up to 1000 characters",
         ],
     ),
