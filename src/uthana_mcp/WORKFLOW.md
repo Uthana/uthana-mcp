@@ -41,14 +41,14 @@ Preserve the requested action and respect a chosen model. Otherwise, start with 
 
 | User need | Starting point | Expected inference time |
 | --- | --- | --- |
-| General motion generation, compound actions, or a requested performance style or expressive quality | TTM V3, `generate_motion` | Roughly 1-2 minutes |
-| Acrobatics or inverted motion, including a cartwheel or flip, even when described as one action | TTM V3, `generate_motion` | Roughly 1-2 minutes |
+| General motion generation, compound actions, or a requested performance style or expressive quality | TTM V3, `generate_motion` | About 2-4 minutes for Text-to-Motion 3.0, about 1 minute for 3.0 Lite or 3.0 Mini |
+| Acrobatics or inverted motion, including a cartwheel or flip, even when described as one action | TTM V3, `generate_motion` | About 2-4 minutes for Text-to-Motion 3.0, about 1 minute for 3.0 Lite or 3.0 Mini |
 | A quick placeholder, previsualization (previz), or a basic walk, turn, run, or jump where speed matters more than detail | Text-to-motion V2 (TTM V2), `generate_motion_v2` | Around 5 seconds |
 | A straightforward loopable walk/run cycle using an available locomotion style | `generate_locomotion`; select a style from `list_locomotion_styles` | Depends on the request; no fixed estimate here |
 
-`generate_motion` defaults to Regular (`text-to-motion-3.0`); `model` also accepts `text-to-motion-3.0-lite` and `text-to-motion-3.0-mini`. `fast` is an independent optional hint. Omitted duration defaults to 4 seconds for Regular or 5 for Lite/Mini; the backend rounds explicit durations to whole seconds and clamps them to the selected text model's supported range (4-10 for Regular, 5-10 for Lite/Mini). For example, Mini with four seconds is raised to five rather than rejected.
+`generate_motion` defaults to Text-to-Motion 3.0 (`text-to-motion-3.0`, $0.10 per second, 4-10 seconds, default 4) unless a model is specified. The Uthana web app defaults to 3.0 Lite, and direct API requests require a model. `model` also accepts 3.0 Lite (`text-to-motion-3.0-lite`, $0.10 per second) and 3.0 Mini (`text-to-motion-3.0-mini`, $0.075 per second); both default to 5 seconds. The backend rounds explicit durations to whole seconds and clamps them to the model's range. Lite and Mini support requested durations of 5-10 seconds; shorter requests are raised to 5 seconds rather than rejected. Estimates use the adjusted duration; the final charge is based on the motion actually generated.
 
-V1 and V2 do not generate finger animation; Regular V3 does. Choose Regular V3 when finger motion matters, including for a placeholder or previz that needs animated fingers.
+V1 and V2 do not generate finger animation; Text-to-Motion 3.0 does. Choose Text-to-Motion 3.0 (not 3.0 Lite or 3.0 Mini) when finger motion matters, including for a placeholder or previz that needs animated fingers.
 
 V1 and V2 are the fast options for basic motions and placeholders; V1 is offered in the Uthana web app and API but intentionally has no generation tool in this MCP. A V1 pricing entry does not make it callable. A successful response can still miss the requested action, so inspect the result before calling it suitable.
 

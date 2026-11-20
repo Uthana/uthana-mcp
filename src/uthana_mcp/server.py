@@ -235,19 +235,28 @@ def create_server(
         duration_seconds: Annotated[
             Annotated[float, Field(strict=True, allow_inf_nan=False)] | None,
             Field(
-                description="Seconds, rounded and clamped by the backend to the model range. Omit for the model default (4 or 5)."
+                description="Seconds, rounded and clamped by the backend: 4-10 for 3.0 (default 4), 5-10 for 3.0 Lite and 3.0 Mini (default 5). Shorter Lite or Mini requests are raised to 5; the final charge follows the motion actually generated."
             ),
         ] = None,
         character_id: Annotated[Id, Field(description="Target character ID; defaults to Tar when omitted.")] = TAR,
-        model: Annotated[Ttm3Model, Field(description="TTM 3 model: Regular, Lite, or Mini.")] = "text-to-motion-3.0",
+        model: Annotated[
+            Ttm3Model,
+            Field(
+                description="text-to-motion-3.0 (3.0, $0.10/s), text-to-motion-3.0-lite (3.0 Lite, $0.10/s), or text-to-motion-3.0-mini (3.0 Mini, $0.075/s)."
+            ),
+        ] = "text-to-motion-3.0",
         fast: Annotated[
-            bool, Field(strict=True, description="Independent speed hint; does not select a model.")
+            bool,
+            Field(strict=True, description="Leave unset for normal use. This parameter does not select Lite or Mini."),
         ] = False,
     ) -> dict[str, Any]:
         """Generate with text-to-motion V3, the usual starting point unless a fast basic placeholder is wanted.
         Prefer V3 for compound actions, performance style, expressive motion, and acrobatics or inversions
-        such as cartwheels, even when they are a single action. Inference typically takes roughly 1-2 minutes,
-        with longer waits possible. Regular includes finger animation. Returns a job ID; poll get_job.
+        such as cartwheels, even when they are a single action. Inference typically takes about 2-4 minutes for
+        Text-to-Motion 3.0, about 1 minute for 3.0 Lite or 3.0 Mini, with longer waits possible. 3.0 is 4-10 seconds
+        (default 4); Lite and Mini are 5-10 seconds (default 5), and a shorter request is raised to 5 seconds.
+        Estimates use the adjusted duration; the final charge is based on the motion actually generated.
+        3.0 includes finger animation. Returns a job ID; poll get_job.
         See workflow model-selection guidance.
         """
         return await ops().generate(request_id, prompt, duration_seconds, character_id, model=model, fast=fast)
