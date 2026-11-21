@@ -95,3 +95,12 @@ def test_robot_export_is_available_without_a_conflicting_planned_entry() -> None
     planned = next(row for row in OPERATIONS if row["id"] == "export_other_formats")
     assert planned["name"] == "USD/USDZ export"
     assert planned["status"] == "planned"
+
+
+async def test_job_discovery_schema_has_read_only_category_filter(tmp_path: Path) -> None:
+    server = local_server(tmp_path)
+    tool = next(tool for tool in await server.list_tools() if tool.name == "list_jobs")
+    assert tool.annotations.readOnlyHint is True
+    options = tool.inputSchema["properties"]["method"]["anyOf"]
+    assert options[0]["enum"] == ["TextToMotion", "VideoToMotion", "Other"]
+    assert options[1]["type"] == "null"

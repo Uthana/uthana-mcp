@@ -68,9 +68,9 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
         assert denied.status_code == 403
         result = rpc(client, "tools/list").json()
         tools = {row["name"]: row for row in result["result"]["tools"]}
-        assert len(tools) == 36
+        assert len(tools) == 37
 
-        assert len(tools) == 36
+        assert len(tools) == 37
 
         for name in ["generate_motion_from_video", "upload_character", "create_character_from_image", "save_motion"]:
             assert "input_file" in tools[name]["inputSchema"]["properties"]
@@ -246,9 +246,9 @@ async def test_native_mcp_http_client_discovery_and_replay(tmp_path):
             async with streamable_http_client(ORIGIN + "/mcp", http_client=http) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
-                    assert len((await session.list_tools()).tools) == 36
+                    assert len((await session.list_tools()).tools) == 37
 
-                    assert len((await session.list_tools()).tools) == 36
+                    assert len((await session.list_tools()).tools) == 37
 
                     args = {"request_id": "native-http-once", "prompt": "walk", "duration_seconds": 4}
                     first = await session.call_tool("generate_motion", args)

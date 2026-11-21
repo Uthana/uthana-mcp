@@ -295,7 +295,7 @@ OPERATIONS = [
         "Jobs and request recovery",
         status="available",
         summary="Poll a job and read the local receipt for an interrupted request.",
-        tools=["get_job", "get_request_status"],
+        tools=["list_jobs", "get_job", "get_request_status"],
         access=READ,
     ),
     _op(
