@@ -1,11 +1,14 @@
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fakes import FakeAPI
+from uthana.modules import org as sdk_org
 
-from uthana_mcp.api import APIError
+from uthana_mcp.api import APIError, UthanaAPI
 from uthana_mcp.billing_history import billing_history_page, ledger_request
 from uthana_mcp.operations import Operations
 
@@ -310,3 +313,40 @@ async def test_invalid_continuation_windows_never_call_api(tmp_path: Path, filte
     with pytest.raises(ValueError):
         await Operations(api, tmp_path).billing_history(before_entry_id="pl5", **filters)
     assert api.calls == []
+
+
+async def test_real_sdk_accepts_mcp_bounds_and_continuation(
+    fixed_clock: list[datetime], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class SDKDatetime(datetime):
+        @classmethod
+        def now(cls, tz: timezone | None = None) -> datetime:
+            return (fixed_clock[0] + timedelta(microseconds=1)).astimezone(tz)
+
+    monkeypatch.setattr(sdk_org.datetime, "datetime", SDKDatetime)
+    calls = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        assert "payg_ledger" in body["query"] and "mutation" not in body["query"]
+        calls.append(body["variables"])
+        cutoff = fixed_clock[0] - timedelta(days=7)
+        assert cutoff <= datetime.fromisoformat(body["variables"]["since"]) <= cutoff + timedelta(microseconds=1)
+        return httpx.Response(200, json={"data": {"payg_ledger": ROWS[:2] if len(calls) == 1 else ROWS[1:2]}})
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        ops = Operations(api, tmp_path)
+        first = await ops.billing_history(limit=1)
+        fixed_clock[0] += timedelta(seconds=3)
+        second = await ops.billing_history(
+            since=first["filters"]["since"],
+            until=first["filters"]["until"],
+            before_entry_id=first["next_before_entry_id"],
+            limit=1,
+        )
+        assert calls[1]["until"] == calls[0]["until"]
+        assert calls[1]["before_id"] == "pl5"
+        assert len(calls) == 2 and second["entries"][0]["entry_id"] == "pl4"
+    finally:
+        await api.close()
