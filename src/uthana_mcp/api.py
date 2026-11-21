@@ -113,15 +113,16 @@ class UthanaAPI:
                     category="rate_limit" if status == 429 else "http_error",
                     http_status=status,
                 ) from None
-            too_large = error.kind in {"response_too_large", "uncertain"}
-            message = (
-                "Uthana response exceeded the configured size limit"
-                if too_large
-                else "Uthana returned an invalid API response"
-            )
+            is_response_too_large = error.kind == "response_too_large"
+            if is_response_too_large:
+                message = "Uthana response exceeded the configured size limit"
+            elif error.kind == "uncertain":
+                message = "Uthana did not confirm the result. Inspect existing work before submitting again."
+            else:
+                message = "Uthana returned an invalid API response"
             raise APIError(
                 message,
-                category="response_too_large" if too_large else "provider_error",
+                category="response_too_large" if is_response_too_large else "provider_error",
                 outcome="not_applicable" if read_only else "unknown",
             ) from None
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
@@ -439,7 +440,7 @@ class UthanaAPI:
         except APIError as error:
             if error.category == "response_too_large":
                 raise APIError(
-                    "Character catalog exceeds 16 MiB. The API has no upstream pagination; "
+                    "Character catalog exceeds 16 MiB. This listing reads an unpaged catalog; "
                     "smaller limit values cannot reduce this response. Contact Uthana support.",
                     category="catalog_too_large",
                     outcome="not_applicable",
