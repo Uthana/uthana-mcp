@@ -494,8 +494,8 @@ def create_server(
     ) -> dict[str, Any]:
         """Upload a selected local MP4/MOV/WebM and submit video-to-motion (V2M). Returns a job ID to poll.
 
-        Maximum file size: 200 MiB. The API limits organizations without an active card to 50 MiB,
-        except contracts; check get_usage.video_upload_max_bytes first.
+        Maximum file size: 200 MiB. Organizations without an active payment method or agreement are limited to 50 MiB.
+        Check get_usage.video_upload_max_bytes first.
         """
         return await ops().video(request_id, file_path, name, model)
 

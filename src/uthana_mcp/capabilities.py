@@ -111,7 +111,7 @@ OPERATIONS = [
         tools=["generate_motion_from_video", "get_job"],
         limits=[
             "MP4, MOV or WebM",
-            "Up to 200 MiB; 50 MiB without an active card, except contracts",
+            "Up to 200 MiB; 50 MiB without an active payment method or agreement",
             "Check get_usage.video_upload_max_bytes",
         ],
         docs=f"{DOCS}/capabilities/video-to-motion",

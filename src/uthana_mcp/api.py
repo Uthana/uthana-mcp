@@ -338,8 +338,7 @@ class UthanaAPI:
         if limit is not None and len(content) > limit:
             raise APIError(
                 f"Your organization can upload videos up to {limit / (1024 * 1024):g} MiB. "
-                "Choose a smaller video. Organizations without an active card are limited to 50 MiB; "
-                "contract organizations are exempt from that lower limit.",
+                "Choose a smaller video. Organizations without an active payment method or agreement are limited to 50 MiB.",
                 outcome="rejected",
             )
         job = await self._call(
