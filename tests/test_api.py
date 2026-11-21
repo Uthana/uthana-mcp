@@ -266,6 +266,8 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
                 assert "payg_total_usd" in query
                 assert "email" not in query and "users" not in query
                 return httpx.Response(200, json={"data": {"org": {"payg_enabled": True}}})
+            if "name" in query and "motion_download_secs_per_month" in query:
+                return httpx.Response(200, json={"data": {"org": {"id": "o1", "name": "Studio"}}})
             assert "motion_download_allowed(motion_id: $motion_id, character_id: $character_id)" in query
             assert body["variables"] == {"motion_id": "m1", "character_id": "c1"}
             return httpx.Response(
@@ -288,7 +290,7 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
         assert (await api.usage())["org"]["payg_enabled"] is True
         assert (await api.download_allowed("m1", "c1"))["allowed"] is False
         await api.download("m1", "c1", "fbx", 30, True, True, False, 0.5, True)
-        assert len(seen) == 4
+        assert len(seen) == 5
     finally:
         await api.close()
 
@@ -476,3 +478,83 @@ async def test_character_inspection_rejects_missing_or_invalid_records(row):
             await api.character("c1")
     finally:
         await api.close()
+
+
+async def test_usage_combines_published_sdk_usage_and_identity_reads():
+    queries = []
+
+    def respond(request):
+        query = json.loads(request.content)["query"]
+        queries.append(query)
+        data = (
+            {"org": {"payg_enabled": True, "payg_total_usd": "12.50"}, "subscription": None}
+            if "query Usage" in query
+            else {"org": {"id": "org1", "name": "Studio"}}
+        )
+        return httpx.Response(200, json={"data": data})
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        data = await api.usage()
+    finally:
+        await api.close()
+    assert data["org"] == {"id": "org1", "name": "Studio", "payg_enabled": True, "payg_total_usd": "12.50"}
+    assert len(queries) == 2 and all("mutation" not in query for query in queries)
+
+
+@pytest.mark.parametrize("failure", ["timeout", 403, 500, "malformed"])
+async def test_usage_preserves_balances_when_optional_identity_is_unavailable(failure: str | int) -> None:
+    queries = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        query = json.loads(request.content)["query"]
+        queries.append(query)
+        if "query Usage" in query:
+            return httpx.Response(200, json={"data": {"org": {"payg_enabled": True, "payg_total_usd": "12.50"}}})
+        if failure == "timeout":
+            raise httpx.ReadTimeout("Identity lookup timed out")
+        if failure == "malformed":
+            return httpx.Response(200, json={"data": {"org": {"id": []}}})
+        return httpx.Response(failure, json={"error": "Identity unavailable"})
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        data = await api.usage()
+    finally:
+        await api.close()
+    assert data["org"] == {"payg_enabled": True, "payg_total_usd": "12.50", "id": None, "name": None}
+    assert len(queries) == 2 and all("mutation" not in query for query in queries)
+
+
+async def test_usage_does_not_hide_unexpected_identity_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def broken_identity() -> None:
+        raise RuntimeError("Unexpected bug")
+
+    api = UthanaAPI(
+        "fake", transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": {"org": {}}}))
+    )
+    monkeypatch.setattr(api, "org", broken_identity)
+    try:
+        with pytest.raises(RuntimeError, match="Unexpected bug"):
+            await api.usage()
+    finally:
+        await api.close()
+
+
+@pytest.mark.parametrize("body", [b"secret-provider-detail", b'{"data":null}'])
+async def test_uncertain_sdk_mutation_results_are_not_misreported_as_size_errors(body: bytes) -> None:
+    requests = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, content=body)
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(APIError) as error:
+            await api.generate("walk", 4, "character1")
+    finally:
+        await api.close()
+    assert error.value.outcome == "unknown" and error.value.category == "provider_error"
+    assert "confirm" in str(error.value) and "size" not in str(error.value) and "secret" not in str(error.value)
+    assert len(requests) == 1

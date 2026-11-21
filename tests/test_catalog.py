@@ -202,3 +202,30 @@ async def test_character_dates_normalize_non_string_provider_values(tmp_path, va
     result = await Operations(api, tmp_path).characters()
     assert result["characters"][0]["created"] is None
     assert result["characters"][0]["updated"] is None
+
+
+def test_usage_identifies_organization_and_subscription_without_mixing_units():
+    data = usage_data()
+    data["org"].update(id="org1", name="Studio")
+    result = usage_snapshot(data)
+    assert result["organization"] == {"id": "org1", "name": "Studio"}
+    assert result["subscription"] == {"status": "active", "download_seconds_per_month": 100, "characters": 4}
+    assert result["payg"]["balance_usd"] is None
+
+
+def test_usage_missing_identity_and_subscription_stay_unknown():
+    result = usage_snapshot({"org": {}})
+    assert result["organization"] == {"id": None, "name": None}
+    assert result["subscription"] == {"status": None, "download_seconds_per_month": None, "characters": None}
+
+
+@pytest.mark.parametrize("field,value", [("name", {}), ("id", [])])
+def test_usage_rejects_malformed_organization_identity(field, value):
+    with pytest.raises((APIError, ValueError)):
+        usage_snapshot({"org": {field: value}})
+
+
+@pytest.mark.parametrize("subscription", [[], False, ["active"], {"status": {}}, {"characters": True}])
+def test_usage_rejects_malformed_subscription(subscription):
+    with pytest.raises((APIError, ValueError)):
+        usage_snapshot({"org": {}, "subscription": subscription})
