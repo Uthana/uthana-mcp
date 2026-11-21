@@ -4,6 +4,7 @@ The client owns API documents, multipart handling, routes, and HTTP transport.
 This layer applies explicit environment configuration and conservative, redacted MCP outcomes.
 """
 
+import asyncio
 import hashlib
 import math
 
@@ -322,10 +323,19 @@ class UthanaAPI:
     async def video(self, filename, content, name, model):
         try:
             limit = await self.video_upload_limit()
-        except APIError:
+        except asyncio.CancelledError:
             raise APIError(
-                "Could not check your video upload limit. No video was submitted; try the limit check again.",
+                "Video upload cancelled while checking its limit. No video was submitted.",
+                category="cancelled",
                 outcome="rejected",
+            ) from None
+        except APIError as error:
+            raise APIError(
+                f"Could not check your video upload limit. No video was submitted. {error}",
+                category=error.category,
+                outcome="rejected",
+                http_status=error.http_status,
+                upstream_summary=error.upstream_summary,
             ) from None
         if limit is not None and len(content) > limit:
             raise APIError(
