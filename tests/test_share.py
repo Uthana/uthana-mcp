@@ -129,6 +129,7 @@ async def test_api_share_without_a_usable_link_is_an_unknown_outcome(payload):
     finally:
         await api.close()
     assert error.value.outcome == "unknown"
+    assert "use Share" in str(error.value) and "saved request" not in str(error.value)
 
 
 async def test_api_share_link_must_point_at_the_configured_environment():
@@ -160,6 +161,7 @@ async def test_api_share_access_denial_without_a_typed_error_is_an_unknown_outco
     finally:
         await api.close()
     assert error.value.outcome == "unknown" and error.value.category == "graphql_error"
+    assert "use Share" in str(error.value) and "saved request" not in str(error.value)
 
 
 async def test_api_share_typed_access_denial_is_rejected():
@@ -189,3 +191,31 @@ async def test_share_schema_rejects_coercion_before_publishing(tmp_path, field, 
     with pytest.raises(Exception):
         await server._tool_manager.get_tool("share_motion").run({"motion_id": "motion1", field: value})
     assert not any(name == "share" for name, _ in api.calls)
+
+
+@pytest.mark.parametrize("failure", ["timeout", "invalid_json", "invalid_envelope", "http_error"])
+async def test_unknown_share_results_have_operation_specific_recovery(failure: str) -> None:
+    requests = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if failure == "timeout":
+            raise httpx.ReadTimeout("private-provider-detail")
+        if failure == "invalid_json":
+            return httpx.Response(200, content=b"private-provider-detail")
+        if failure == "http_error":
+            return httpx.Response(500, content=b"private-provider-detail")
+        return httpx.Response(200, json={"data": None})
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(APIError) as error:
+            await api.share(motion_id="m1", character_id="c1", start=0.0, end=1.0)
+    finally:
+        await api.close()
+    assert error.value.outcome == "unknown"
+    assert "use Share" in str(error.value) and "Repeating this same share request is free" in str(error.value)
+    assert "saved request" not in str(error.value) and "private-provider-detail" not in str(error.value)
+    assert len(requests) == 1
+    if failure == "http_error":
+        assert error.value.category == "http_error" and error.value.http_status == 500

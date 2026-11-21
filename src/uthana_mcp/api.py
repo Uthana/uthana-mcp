@@ -21,6 +21,11 @@ class StitchAPIResult(StitchResult):
     character_id: str
 
 
+SHARE_RECOVERY_MESSAGE = (
+    "The share link was not confirmed. Open the motion in Uthana and use Share to check or create it. "
+    "Repeating this same share request is free and creates no new motion."
+)
+
 MAX_ROBOT_EXPORT_BYTES = 64 * 1024 * 1024
 
 
@@ -271,21 +276,32 @@ class UthanaAPI:
 
     async def share(self, *, motion_id: str, character_id: str, start: float, end: float) -> dict[str, str]:
         """Publish a motion-on-character viewer page; the returned link opens without an account."""
-        link = await self._call(
-            self.client.motions.share,
-            character_id,
-            motion_id,
-            start=start,
-            end=end,
-            mutation_field="create_share_link",
-        )
+        try:
+            link = await self._call(
+                self.client.motions.share,
+                character_id,
+                motion_id,
+                start=start,
+                end=end,
+                mutation_field="create_share_link",
+            )
+        except APIError as error:
+            if error.outcome != "unknown":
+                raise
+            raise APIError(
+                SHARE_RECOVERY_MESSAGE,
+                category=error.category,
+                outcome="unknown",
+                http_status=error.http_status,
+                upstream_summary=error.upstream_summary,
+            ) from None
         preview_url = link.get("preview_url") if isinstance(link, dict) else None
         image_url = link.get("png_url") if isinstance(link, dict) else None
         expected_prefix = f"https://{self.domain}/app/preview/"
         has_viewer_url = isinstance(preview_url, str) and preview_url.startswith(expected_prefix)
         has_image_url = isinstance(image_url, str) and image_url.startswith("https://")
         if not has_viewer_url or not has_image_url:
-            raise APIError("Uthana returned an invalid share link", outcome="unknown")
+            raise APIError(SHARE_RECOVERY_MESSAGE, outcome="unknown")
         return {
             "motion_id": identifier(motion_id),
             "character_id": identifier(character_id),
