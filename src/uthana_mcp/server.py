@@ -882,7 +882,7 @@ def create_server(
         since: Annotated[
             str | None,
             Field(
-                description="ISO 8601 start, inclusive, within the last 7 days; defaults to 7 days ago. A time without offset is UTC."
+                description="ISO 8601 start, inclusive; defaults to 7 days ago. Must be within the last 7 days on the first page; continuation requests clamp older starts to the current cutoff. A time without offset is UTC."
             ),
         ] = None,
         until: Annotated[
@@ -898,7 +898,7 @@ def create_server(
         before_entry_id: Annotated[
             Id | None,
             Field(
-                description="next_before_entry_id from the previous page, to read more entries within the last 7 days."
+                description="next_before_entry_id from the previous page. Reuse its returned date and type filters; entries that age past 7 days are excluded."
             ),
         ] = None,
         limit: Annotated[

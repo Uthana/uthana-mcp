@@ -60,6 +60,7 @@ MAX_PAGE = 100
 HISTORY_DAYS = 7
 NOTES = [
     "Billing history is limited to the last 7 days. Use the API directly or the web account page for older history.",
+    "For the next page, reuse the returned filters and next_before_entry_id. The lower time bound advances with the 7-day cutoff; entries that age out are excluded. This is not a fixed snapshot.",
     "Amounts are recorded USD ledger entries, not estimates. Estimates from estimate_model_cost are never stored here.",
     "amount_usd is signed: charges are negative, payments and free credit positive, adjustments either way.",
     "balance_before_usd and balance_after_usd are the total spendable balance (free credit plus purchased balance). Charges use free credit first.",
@@ -97,6 +98,8 @@ def ledger_request(
     cutoff = now - timedelta(days=HISTORY_DAYS)
     start = parse_time("since", since) or cutoff
     end = parse_time("until", until) or now
+    if before_entry_id is not None:
+        start = max(start, cutoff)
     for name, value in (("since", start), ("until", end)):
         if value < cutoff or value > now:
             raise ValueError(f"{name} must be within the last 7 days. Use the API or web for older history.")
