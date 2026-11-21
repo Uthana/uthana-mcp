@@ -139,7 +139,7 @@ async def test_character_upload_alone_uses_360_second_timeout_and_requests_warni
         result = await api.upload_character("rig.fbx", b"offline fixture", "Rig", False)
         await api.video("walk.mp4", b"offline fixture", "Walk", "video-to-motion-2.0")
         await api.characters()
-        assert [timeout["read"] for timeout in seen] == [180, 360, 180, 180]
+        assert [timeout["read"] for timeout in seen] == [180, 360, 180, 180, 180]
         assert all(timeout["connect"] == 15 for timeout in seen)
         assert result == {
             "character_id": "character1",
