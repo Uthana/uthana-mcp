@@ -908,8 +908,8 @@ def create_server(
         ] = None,
     ) -> dict[str, Any]:
         (
-            "Create a PUBLIC viewer link for one motion on one character: anyone with the URL can open the 3D viewer "
-            "without an account, and it stays public. The owner already sees the motion while logged in; call this only "
+            "Create a shareable link that gives anyone with the link read access to the motion and character. "
+            "They can open the 3D viewer without an account, and the link stays public. Call this only "
             "when the user asks to show the result to someone outside their organization or to Uthana support. "
             "Free; repeating it is harmless."
         )

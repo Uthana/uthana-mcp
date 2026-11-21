@@ -275,7 +275,7 @@ class UthanaAPI:
         return result
 
     async def share(self, *, motion_id: str, character_id: str, start: float, end: float) -> dict[str, str]:
-        """Publish a motion-on-character viewer page; the returned link opens without an account."""
+        """Create a link granting anyone with it read access to the motion and character without an account."""
         try:
             link = await self._call(
                 self.client.motions.share,

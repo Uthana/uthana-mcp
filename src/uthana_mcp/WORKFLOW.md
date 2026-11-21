@@ -100,7 +100,7 @@ These tools need no `request_id`. Each reports its outcome (`renamed`, `unchange
 
 ## Share a result
 
-`share_motion` publishes one motion on one character as a viewer page at `https://<environment>/app/preview/<character_id>/<motion_id>`. Anyone with that URL can open the 3D viewer without an account, and the page stays public; there is no tool to unpublish it. The owner already sees the motion in the app while logged in, so the link exists for people outside the organization: a teammate without access, a client, a reviewer, or Uthana support when troubleshooting. Offer it after a review when the user wants to show the result to someone else; do not publish on your own initiative. An optional window in seconds narrows what the page plays and leaves the motion unchanged. The call is free, needs no `request_id`, and can be repeated safely.
+`share_motion` creates a shareable link that gives anyone with the link read access to the motion and character in a viewer page at `https://<environment>/app/preview/<character_id>/<motion_id>`. Anyone with that URL can open the 3D viewer without an account, and the page stays public; there is no tool to unpublish it. The owner already sees the motion in the app while logged in, so the link exists for people outside the organization: a teammate without access, a client, a reviewer, or Uthana support when troubleshooting. Offer it after a review when the user wants to show the result to someone else; do not publish on your own initiative. An optional window in seconds narrows what the page plays and leaves the motion unchanged. The call is free, needs no `request_id`, and can be repeated safely.
 
 ## Upload and create characters
 

@@ -25,7 +25,7 @@ Agents can ask the server directly: `get_capabilities` and the `uthana://capabil
 | Robot export | Unitree G1 joint trajectory CSV at 24/30/60 FPS | One robot; playback and balance require separate verification |
 | Billing reads | Model estimate, balance/rates, allowances, export eligibility, recorded PAYG ledger (`get_billing_history`) | No purchase, recharge, auto top-up or spending-limit change; invoices and receipts stay on the account page |
 | Asset management | Rename, soft-delete and restore one character or motion your organization owns; download a character's own model | Built-in, example and other organizations' assets are refused; delete takes only the selected ID; deleted assets are not listed, so restore needs the ID; no deletion of uploaded source files or cached exports |
-| Share links | `share_motion` publishes a public viewer page on a chosen character | Public until asset deletion; no unpublish tool; explicit sharing intent required |
+| Share links | `share_motion` creates a link giving anyone with it read access to the motion and character | Public until asset deletion; no unpublish tool; explicit sharing intent required |
 | Recovery | Durable local receipts and cached export verification | No upstream cancel or automatic ambiguous-request resubmission |
 
 The MCP does not yet cover every Uthana API capability. Library browsing, similarity-to-motion search, general scene editing, bulk operations, source-file/cache deletion, billing administration, and raw API execution are outside this surface; `get_capabilities` reports each as planned or not offered. A price entry or public API example does not imply a corresponding execution tool.

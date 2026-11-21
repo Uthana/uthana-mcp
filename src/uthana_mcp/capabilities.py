@@ -268,8 +268,8 @@ OPERATIONS = [
         "Public share links for motions",
         status="available",
         tools=["share_motion"],
-        summary="Publish a motion on a character for viewers outside your organization. Sharing must be intentional; the link is public.",
-        access="Write access to the motion and character",
+        summary="Creates a shareable link that gives anyone with the link read access to the motion and character. Share only when the user asks.",
+        access="Anyone with the link can view the motion and character without an account; hosted connections need mcp:write to create the link.",
     ),
     _op(
         "batch",

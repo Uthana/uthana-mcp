@@ -190,7 +190,7 @@ class Operations:
         start_seconds: float | None = None,
         end_seconds: float | None = None,
     ) -> dict[str, object]:
-        """Create a public viewer link; an optional window in seconds becomes duration fractions."""
+        """Give link recipients read access to the motion and character; convert a seconds window to fractions."""
         identifier(motion_id)
         identifier(character_id)
         has_window = start_seconds is not None or end_seconds is not None
@@ -213,7 +213,8 @@ class Operations:
             "window_seconds": window_seconds,
             "access": "public",
             "note": (
-                "Anyone with preview_url can open the 3D viewer without an account, and the link stays public. "
+                "Anyone with preview_url has read access to the motion and character in the 3D viewer "
+                "without an account, and the link stays public. "
                 "The owner already sees this motion while logged in; share the link only when the user asked to show "
                 "the result to someone else. Repeating this call is harmless."
             ),

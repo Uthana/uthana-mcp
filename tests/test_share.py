@@ -24,6 +24,7 @@ async def test_share_defaults_to_tar_and_the_full_motion(tmp_path):
     assert result["image_url"].endswith("/share.png")
     assert result["window_seconds"] is None and result["access"] == "public"
     assert "without an account" in result["note"] and "stays public" in result["note"]
+    assert "read access to the motion and character" in result["note"]
 
 
 async def test_share_window_in_seconds_becomes_duration_fractions(tmp_path):
@@ -74,6 +75,7 @@ async def test_share_tool_is_public_idempotent_and_free_of_request_ids(tmp_path)
     assert "request_id" not in tool.inputSchema["properties"]
     assert set(tool.inputSchema["properties"]) == {"motion_id", "character_id", "start_seconds", "end_seconds"}
     assert "without an account" in tool.description and "stays public" in tool.description
+    assert "read access to the motion and character" in tool.description
     assert "share_motion" in str(await server.read_resource("uthana://workflow"))
 
 
