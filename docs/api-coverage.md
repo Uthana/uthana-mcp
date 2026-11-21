@@ -8,7 +8,7 @@ Agents can ask the server directly: `get_capabilities` and the `uthana://capabil
 | --- | --- | --- |
 | Capability discovery | `get_capabilities`, `uthana://capabilities` | Reviewed catalog, not a live platform probe; account rates read at call time |
 | Text-to-motion V2/V3 | Generate, poll V3, inspect | V2/V3 duration limits appear in tool schemas |
-| Video-to-motion (V2M) 2.0/2.1/3.0 | Selected-file upload and job polling | 128 MiB input limit |
+| Video-to-motion (V2M) 2.0/2.1/3.0 | Selected-file upload and job polling | 200 MiB input limit |
 | Text-to-motion V1 | Not a tool by design; listed as `platform_only` | Offered in the web app and API; use V2 or V3 here |
 | Locomotion | Styles and cycle generation | Duration follows strides |
 | Character upload / auto-rig | FBX/GLB and warning results | Synchronous; recovery may require catalog inspection |

@@ -1,5 +1,11 @@
 """Redacted upstream errors with conservative submission outcomes."""
 
+import asyncio
+
+
+class UnsubmittedCancellation(asyncio.CancelledError):
+    """Cancellation before an upstream mutation could have been submitted."""
+
 
 class APIError(RuntimeError):
     def __init__(
