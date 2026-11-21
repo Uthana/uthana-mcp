@@ -9,7 +9,7 @@ import math
 
 import httpx
 from uthana import Org, StitchInput, StitchResult, TtmJobModelType, Uthana
-from uthana.types import CharacterPreviewResult, UthanaError
+from uthana.types import AssetOrder, AssetSource, CharacterPage, CharacterPreviewResult, MotionPage, UthanaError
 
 from .attribution import MCPTransport
 from .errors import APIError, graphql_error, read_error
@@ -48,18 +48,6 @@ class UthanaAPI:
         if access_token is not None and not scope:
             raise ValueError("Hosted authentication requires a stable verified identity scope")
         self.scope = scope or hashlib.sha256((self.domain + ":" + key).encode()).hexdigest()
-        # The current API has no upstream character pagination. Isolate its
-        # larger, bounded catalog response from all mutation/metadata limits.
-        self.catalog_client = Uthana(
-            key,
-            access_token=access_token,
-            domain=self.domain,
-            timeout=httpx.Timeout(180, connect=15),
-            telemetry=False,
-            trust_env=False,
-            transport=transport,
-            max_response_bytes=16 * 1024 * 1024,
-        )
         response_limit = 2 * 1024 * 1024
         self.client = Uthana(
             key,
@@ -75,7 +63,6 @@ class UthanaAPI:
 
     async def close(self):
         self.client.close()
-        self.catalog_client.close()
         await self.mcp_transport.shutdown()
 
     async def _call(self, function, *args, read_only=False, mutation_field=None, resource=None, **kwargs):
@@ -478,18 +465,24 @@ class UthanaAPI:
         )
         return {"motion_id": identifier(result["id"]), "character_id": character_id}
 
-    async def characters(self):
-        try:
-            return await self._call(self.catalog_client.characters.list, read_only=True)
-        except APIError as error:
-            if error.category == "response_too_large":
-                raise APIError(
-                    "Character catalog exceeds 16 MiB. This listing reads an unpaged catalog; "
-                    "smaller limit values cannot reduce this response. Contact Uthana support.",
-                    category="catalog_too_large",
-                    outcome="not_applicable",
-                ) from None
-            raise
+    async def characters(
+        self,
+        *,
+        query: str = "",
+        source: AssetSource = "all",
+        order: AssetOrder = "created_desc",
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> CharacterPage:
+        return await self._call(
+            self.client.characters.list_paged,
+            query=query,
+            source=source,
+            order=order,
+            limit=limit,
+            cursor=cursor,
+            read_only=True,
+        )
 
     async def org(self) -> Org:
         """Read the current organization without caching its changing allowances."""
@@ -569,8 +562,26 @@ class UthanaAPI:
             read_only=True,
         )
 
-    async def motion_catalog(self):
-        return await self._call(self.client.motions.catalog, read_only=True)
+    async def motions_page(
+        self,
+        *,
+        query: str = "",
+        source: AssetSource = "all",
+        order: AssetOrder = "created_desc",
+        limit: int = 20,
+        cursor: str | None = None,
+        method: str | None = None,
+    ) -> MotionPage:
+        return await self._call(
+            self.client.motions.list_paged,
+            query=query,
+            source=source,
+            order=order,
+            limit=limit,
+            cursor=cursor,
+            method=method,
+            read_only=True,
+        )
 
     async def usage(self):
         data = await self._call(self.client.org.get_usage, read_only=True)

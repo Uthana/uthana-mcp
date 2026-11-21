@@ -8,82 +8,6 @@ from uthana_mcp.catalog import usage_snapshot
 from uthana_mcp.operations import Operations
 
 
-def motion(id, name, org="org1", method="TextToMotion"):
-    return {"id": id, "org_id": org, "name": name, "tags": {"Method": method}}
-
-
-async def test_name_search_origin_filters_and_pagination(tmp_path):
-    api = FakeAPI()
-    rows = [
-        motion("m1", "Slow WALK"),
-        motion("m2", "Walk fast"),
-        motion("m3", "walk slow example", "public", "Mocap"),
-        motion("m1", "Slow WALK"),
-    ]
-
-    async def catalog():
-        return {"org": {"id": "org1"}, "motions": rows}
-
-    api.motion_catalog = catalog
-    ops = Operations(api, tmp_path)
-    first = await ops.motions("walk SLOW", limit=1)
-    assert first["motions"][0]["motion_id"] == "m1"
-    assert first["motions"][0]["source"] == "organization"
-    assert first["matched_in_available_window"] == 2 and first["scanned_count"] == 3
-    second = await ops.motions("walk SLOW", offset=first["next_offset"], limit=1)
-    assert second["motions"][0]["source"] == "uthana_example" and second["next_offset"] is None
-    own = await ops.motions("walk", source="organization")
-    assert [r["motion_id"] for r in own["motions"]] == ["m1", "m2"]
-    examples = await ops.motions(source="examples", method="mocap")
-    assert [r["motion_id"] for r in examples["motions"]] == ["m3"]
-    assert (await ops.motions(method="VideoToMotion"))["motions"] == []
-    empty = await ops.motions("unavailable")
-    assert empty["motions"] == [] and empty["full_library_searched"] is False
-    assert "No semantic search" in empty["scope_note"]
-
-
-async def test_window_limit_reported_before_filters(tmp_path):
-    api = FakeAPI()
-
-    async def catalog():
-        return {"org": {"id": "org1"}, "motions": [motion(f"m{i}", "Jump") for i in range(1000)]}
-
-    api.motion_catalog = catalog
-    result = await Operations(api, tmp_path).motions("missing")
-    assert result["motions"] == [] and result["organization_window_may_be_truncated"] is True
-    assert result["next_offset"] is None and result["scanned_count"] == 1000
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        {"query": "x" * 201},
-        {"source": "all_shared"},
-        {"offset": -1},
-        {"offset": True},
-        {"limit": 101},
-        {"limit": False},
-        {"method": " "},
-    ],
-)
-async def test_invalid_catalog_arguments_never_call_provider(tmp_path, kwargs):
-    api = FakeAPI()
-    with pytest.raises(ValueError):
-        await Operations(api, tmp_path).motions(**kwargs)
-    assert api.calls == []
-
-
-async def test_missing_org_does_not_mislabel_motions_as_examples(tmp_path):
-    api = FakeAPI()
-
-    async def catalog():
-        return {"org": None, "motions": [motion("m1", "Walk")]}
-
-    api.motion_catalog = catalog
-    with pytest.raises(APIError, match="organization unavailable"):
-        await Operations(api, tmp_path).motions()
-
-
 def usage_data():
     return {
         "org": {
@@ -168,40 +92,6 @@ async def test_usage_and_specific_eligibility_are_read_only(tmp_path):
     assert allowed["reserves_allowance"] is False and allowed["operation_cost_known"] is False
     assert [c[0] for c in api.calls] == ["usage", "download_allowed", "download_allowed"]
     assert len(list(ops.store.directory.iterdir())) == 1  # Only the SQLite store; no export artifacts.
-
-
-async def test_character_dates_survive_filtering_and_paging(tmp_path):
-    api = FakeAPI()
-    rows = [
-        {"id": "c1", "name": "Alex", "created": "2026-01-01T00:00:00Z", "updated": None},
-        {"id": "c2", "name": "Alex", "created": None, "updated": "2026-02-01T00:00:00Z"},
-    ]
-
-    async def characters():
-        return rows
-
-    api.characters = characters
-    ops = Operations(api, tmp_path)
-    first = await ops.characters(query="alex", limit=1)
-    second = await ops.characters(query="alex", offset=first["next_offset"], limit=1)
-    for result, row in [(first, rows[0]), (second, rows[1])]:
-        assert result["characters"] == [
-            {"character_id": row["id"], "name": row["name"], "created": row["created"], "updated": row["updated"]}
-        ]
-    assert second["next_offset"] is None
-
-
-@pytest.mark.parametrize("value", [{"timestamp": "bad"}, ["bad"], 123, True])
-async def test_character_dates_normalize_non_string_provider_values(tmp_path, value):
-    api = FakeAPI()
-
-    async def characters():
-        return [{"id": "c1", "name": "Alex", "created": value, "updated": value}]
-
-    api.characters = characters
-    result = await Operations(api, tmp_path).characters()
-    assert result["characters"][0]["created"] is None
-    assert result["characters"][0]["updated"] is None
 
 
 def test_usage_identifies_organization_and_subscription_without_mixing_units():

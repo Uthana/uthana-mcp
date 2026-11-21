@@ -109,8 +109,9 @@ class FakeAPI:
         self.calls.append(("download_character", {"character_id": character_id, "format": format}))
         return b"glTF\x02\x00\x00\x00offline" if format == "glb" else b"Kaydara FBX Binary  \x00offline"
 
-    async def characters(self):
-        return [{"id": "mixamo1", "name": "First"}, {"id": "mixamo2", "name": "Second"}]
+    async def characters(self, **options):
+        self.calls.append(("characters", options))
+        return {"items": [{"id": "mixamo1", "name": "First", "created": "2026-11-20T12:00:00Z"}], "next_cursor": None}
 
     async def upload_character(
         self, filename, content, name, auto_rig, front_facing=True, include_fingers=True, rerig_target=None
@@ -185,14 +186,19 @@ class FakeAPI:
         self.motions["saved1"] = native("saved1")
         return {"motion_id": "saved1"}
 
-    async def motion_catalog(self):
-        self.calls.append(("motion_catalog", {}))
+    async def motions_page(self, **options):
+        self.calls.append(("motions_page", options))
         return {
-            "org": {"id": "org1"},
-            "motions": [
-                {"id": "motion1", "org_id": "org1", "name": "Walking slowly", "tags": {"Method": "TextToMotion"}},
-                {"id": "example1", "org_id": "shared", "name": "Walking example", "tags": {"Method": "Mocap"}},
+            "items": [
+                {
+                    "id": "motion1",
+                    "org_id": "org1",
+                    "name": "Walking slowly",
+                    "created": "2026-11-20T12:00:00Z",
+                    "tags": {"Method": "TextToMotion"},
+                }
             ],
+            "next_cursor": "next-motion-page",
         }
 
     async def ledger(self, **filters: Any) -> Any:
