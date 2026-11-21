@@ -398,6 +398,15 @@ def create_server(
         return await read_result(ops().api.job(job_id))
 
     @tool(annotations=READ)
+    async def get_character(
+        character_id: Annotated[Id, Field(description="Existing accessible Uthana character ID.")],
+    ) -> dict[str, Any]:
+        """Inspect a character's name, record dates, and owning organization without downloading its model.
+        Source distinguishes this organization from other accessible characters; visibility does not grant edit rights.
+        """
+        return await read_result(ops().api.character(character_id))
+
+    @tool(annotations=READ)
     async def get_motion(motion_id: Annotated[Id, Field(description="Existing Uthana motion ID.")]) -> dict[str, Any]:
         "Read a motion's native metadata: FPS, frame count, duration, and source-file ID and SHA-256. Does not download the asset."
         return await read_result(ops().api.motion(motion_id))

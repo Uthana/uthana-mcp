@@ -191,7 +191,7 @@ OPERATIONS = [
         "List characters and recent motions",
         status="available",
         summary="Name filters over the account's characters and up to 1000 recent organization motions plus examples.",
-        tools=["list_characters", "list_motions", "get_motion"],
+        tools=["list_characters", "get_character", "list_motions", "get_motion"],
         limits=["Not a full or semantic library search", "Character catalog read is capped at 16 MiB"],
         docs=f"{DOCS}/capabilities/asset-management",
         access=READ,
