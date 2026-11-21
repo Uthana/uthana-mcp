@@ -701,8 +701,10 @@ class Operations:
         method: str | None = None,
     ) -> dict[str, object]:
         options = MotionBrowseInput(query=query, source=source, order=order, limit=limit, cursor=cursor, method=method)
-        if options.method is not None and not options.method.strip():
-            raise ValueError("method must be a nonempty method name")
+        if options.method is not None:
+            options.method = options.method.strip()
+            if not options.method:
+                raise ValueError("method must be a nonempty method name")
         return asset_page(await self.api.motions_page(**options.model_dump()), kind="motion", limit=options.limit)
 
     async def usage(self):

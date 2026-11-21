@@ -140,6 +140,13 @@ async def test_direct_operation_validation_precedes_network(tmp_path: Path, kind
     assert api.calls == []
 
 
+async def test_method_whitespace_is_normalized_before_sdk_call(tmp_path: Path) -> None:
+    api = FakeAPI()
+    await Operations(api, tmp_path).motions(method=" TextToMotion ", cursor="next")
+    assert api.calls[-1][1]["method"] == "TextToMotion"
+    assert api.calls[-1][1]["cursor"] == "next"
+
+
 async def test_empty_method_is_rejected_before_network(tmp_path: Path) -> None:
     api = FakeAPI()
     with pytest.raises(ValueError, match="method"):
