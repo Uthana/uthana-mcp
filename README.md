@@ -124,6 +124,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `get_billing_history` | Recorded PAYG charges, payments, free credit and adjustments, newest first |
 | `check_download_allowed` | Current export eligibility |
 | `save_motion` | Register host-edited animated GLTF JSON |
+| `share_motion` | Publish a motion-on-character viewer link for people outside your organization |
 | `download_motion` | Retargeted FBX/GLB/BVH with export options |
 | `download_robot_motion` | Unitree G1 robot joint trajectory as CSV |
 | `download_character` | The character's own GLB/FBX model, without animation |

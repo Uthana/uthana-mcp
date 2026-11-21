@@ -230,6 +230,17 @@ class FakeAPI:
             "payg_prices": [],
         }
 
+    async def share(self, *, motion_id: str, character_id: str, start: float, end: float) -> dict[str, str]:
+        self.calls.append(("share", {"motion_id": motion_id, "character_id": character_id, "start": start, "end": end}))
+        if motion_id == "denied":
+            raise RuntimeError("Share rejected")
+        return {
+            "motion_id": motion_id,
+            "character_id": character_id,
+            "preview_url": f"https://uthana.com/app/preview/{character_id}/{motion_id}",
+            "image_url": f"https://uthana.com/app/share/{character_id}/{motion_id}/share.png",
+        }
+
     async def download_allowed(self, motion_id, character_id):
         self.calls.append(("download_allowed", {"motion_id": motion_id, "character_id": character_id}))
         return {"allowed": motion_id != "denied", "reason": "Offline fixture eligibility"}

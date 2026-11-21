@@ -266,8 +266,10 @@ OPERATIONS = [
     _op(
         "share_links",
         "Public share links for motions",
-        status="planned",
-        summary="Not available in this release. Owners can view motions in the Uthana web app.",
+        status="available",
+        tools=["share_motion"],
+        summary="Creates a shareable link that gives anyone with the link read access to the motion and character. Share only when the user asks.",
+        access="Anyone with the link can view the motion and character without an account; hosted connections need mcp:write to create the link.",
     ),
     _op(
         "batch",

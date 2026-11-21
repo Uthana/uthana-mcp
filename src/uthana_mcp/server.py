@@ -27,6 +27,8 @@ Id = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 Name = Annotated[str, Field(min_length=1, max_length=200)]
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+# Publishing a share link is a free, repeatable mutation that creates no new asset.
+SHARE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 # Lifecycle changes set a state, so repeating one reports the current state instead of changing more.
 CHANGE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True)
 RESTORE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
@@ -879,6 +881,41 @@ def create_server(
     ) -> dict[str, Any]:
         "Check current export eligibility for one motion and character without downloading or reserving allowance. Eligibility may change before export."
         return await ops().download_allowed(motion_id, character_id)
+
+    @tool(annotations=SHARE)
+    async def share_motion(
+        motion_id: Annotated[Id, Field(description="Existing Uthana motion ID to publish.")],
+        character_id: Annotated[
+            Id, Field(description="Character the viewer page shows the motion on; defaults to Tar when omitted.")
+        ] = TAR,
+        start_seconds: Annotated[
+            float | None,
+            Field(
+                description="Optional playback window start in seconds; narrows what the page plays without changing the motion.",
+                strict=True,
+                allow_inf_nan=False,
+                ge=0,
+            ),
+        ] = None,
+        end_seconds: Annotated[
+            float | None,
+            Field(
+                description="Optional playback window end in seconds, greater than start_seconds and at most the motion duration.",
+                strict=True,
+                allow_inf_nan=False,
+                gt=0,
+            ),
+        ] = None,
+    ) -> dict[str, Any]:
+        (
+            "Create a shareable link that gives anyone with the link read access to the motion and character. "
+            "They can open the 3D viewer without an account, and the link stays public. Call this only "
+            "when the user asks to show the result to someone outside their organization or to Uthana support. "
+            "Free; repeating it is harmless."
+        )
+        return await ops().share(
+            motion_id=motion_id, character_id=character_id, start_seconds=start_seconds, end_seconds=end_seconds
+        )
 
     @tool(annotations=WRITE)
     async def save_motion(
