@@ -13,7 +13,7 @@ from uthana import Org, StitchInput, StitchResult, TtmJobModelType, Uthana
 from uthana.types import AssetOrder, AssetSource, CharacterPage, CharacterPreviewResult, MotionPage, UthanaError
 
 from .attribution import MCPTransport
-from .errors import APIError, graphql_error, read_error
+from .errors import APIError, UnsubmittedCancellation, graphql_error, read_error
 from .validation import UTHANA_DOMAIN, AssetRecord, asset_record, identifier, motion_metadata, normalize_job
 
 
@@ -324,10 +324,8 @@ class UthanaAPI:
         try:
             limit = await self.video_upload_limit()
         except asyncio.CancelledError:
-            raise APIError(
-                "Video upload cancelled while checking its limit. No video was submitted.",
-                category="cancelled",
-                outcome="rejected",
+            raise UnsubmittedCancellation(
+                "Video upload cancelled while checking its limit. No video was submitted."
             ) from None
         except APIError as error:
             raise APIError(

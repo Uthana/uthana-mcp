@@ -87,9 +87,8 @@ async def test_cancelled_preflight_can_retry_same_receipt(tmp_path: Path) -> Non
     api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
     ops = Operations(api, tmp_path / "state", input_directory=tmp_path)
     try:
-        with pytest.raises(APIError) as error:
+        with pytest.raises(asyncio.CancelledError):
             await ops.video("video-request", str(source), "Clip")
-        assert error.value.category == "cancelled"
         assert ops.recover_request("video-request")["state"] == "rejected"
         assert submissions == 0
         await ops.video("video-request", str(source), "Clip")
