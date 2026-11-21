@@ -15,7 +15,7 @@ MAX_PAGE_SIZE = 100
 MAX_CURSOR_LENGTH = 8192
 
 
-class CharacterBrowseInput(BaseModel):
+class AssetBrowseInput(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     query: str = Field(default="", max_length=200)
@@ -25,7 +25,7 @@ class CharacterBrowseInput(BaseModel):
     cursor: str | None = Field(default=None, min_length=1, max_length=MAX_CURSOR_LENGTH)
 
 
-class MotionBrowseInput(CharacterBrowseInput):
+class MotionBrowseInput(AssetBrowseInput):
     method: str | None = Field(default=None, min_length=1, max_length=100)
 
 

@@ -19,7 +19,7 @@ from uthana.types import AssetOrder, AssetSource
 from .assets import AssetLifecycle
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .billing_history import billing_history_page, ledger_request
-from .catalog import CharacterBrowseInput, MotionBrowseInput, asset_page, usage_snapshot
+from .catalog import AssetBrowseInput, MotionBrowseInput, asset_page, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchInput
@@ -687,7 +687,7 @@ class Operations:
         limit: int = 20,
         cursor: str | None = None,
     ) -> dict[str, object]:
-        options = CharacterBrowseInput(query=query, source=source, order=order, limit=limit, cursor=cursor)
+        options = AssetBrowseInput(query=query, source=source, order=order, limit=limit, cursor=cursor)
         return asset_page(await self.api.characters(**options.model_dump()), kind="character", limit=options.limit)
 
     async def motions(
