@@ -28,7 +28,7 @@ Name = Annotated[str, Field(min_length=1, max_length=200)]
 READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
 # Publishing a share link is a free, repeatable mutation that creates no new asset.
-PUBLISH = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
+SHARE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 # Lifecycle changes set a state, so repeating one reports the current state instead of changing more.
 CHANGE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True)
 RESTORE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True)
@@ -882,7 +882,7 @@ def create_server(
         "Check current export eligibility for one motion and character without downloading or reserving allowance. Eligibility may change before export."
         return await ops().download_allowed(motion_id, character_id)
 
-    @tool(annotations=PUBLISH)
+    @tool(annotations=SHARE)
     async def share_motion(
         motion_id: Annotated[Id, Field(description="Existing Uthana motion ID to publish.")],
         character_id: Annotated[
