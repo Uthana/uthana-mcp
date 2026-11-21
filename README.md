@@ -121,7 +121,7 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `list_motions` | Recent motion name search and source filters |
 | `copy_best_library_motion` | Charged library search: copies the single closest library clip into your organization |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
-| `get_billing_history` | Recorded PAYG charges, payments, free credit and adjustments, newest first |
+| `get_billing_history` | Recorded PAYG charges, payments, free credit and adjustments from the last 7 days, newest first |
 | `check_download_allowed` | Current export eligibility |
 | `save_motion` | Register host-edited animated GLTF JSON |
 | `share_motion` | Publish a motion-on-character viewer link for people outside your organization |

@@ -305,7 +305,7 @@ OPERATIONS = [
         "Read billing history",
         docs=f"{DOCS}/pricing",
         status="available",
-        summary="Read recorded PAYG charges, payments, free credit and adjustments with paging and time/type filters.",
+        summary="Read recorded PAYG charges, payments, free credit and adjustments from the last 7 days with paging and time/type filters.",
         tools=["get_billing_history"],
         access=READ,
     ),

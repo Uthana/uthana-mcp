@@ -846,11 +846,14 @@ def create_server(
         since: Annotated[
             str | None,
             Field(
-                description="Optional ISO 8601 start, inclusive, such as 2026-11-01T00:00:00Z; a time without offset is UTC."
+                description="ISO 8601 start, inclusive, within the last 7 days; defaults to 7 days ago. A time without offset is UTC."
             ),
         ] = None,
         until: Annotated[
-            str | None, Field(description="Optional ISO 8601 end, exclusive; must be later than since.")
+            str | None,
+            Field(
+                description="ISO 8601 end, exclusive, within the last 7 days; defaults to now and must be later than since."
+            ),
         ] = None,
         entry_types: Annotated[
             list[Literal["charge", "payment", "free_credit", "adjustment"]] | None,
@@ -858,17 +861,19 @@ def create_server(
         ] = None,
         before_entry_id: Annotated[
             Id | None,
-            Field(description="next_before_entry_id from the previous page, to read older entries."),
+            Field(
+                description="next_before_entry_id from the previous page, to read more entries within the last 7 days."
+            ),
         ] = None,
         limit: Annotated[
             Annotated[int, Field(ge=1, le=100)], Field(description="Maximum entries per page, integer 1-100.")
         ] = 50,
     ) -> dict[str, Any]:
         (
-            "Read the organization's recorded pay-as-you-go (PAYG) ledger, newest first: charges with model, quantity, "
+            "Read the organization's recorded pay-as-you-go (PAYG) ledger from the last 7 days, newest first: charges with model, quantity, "
             "unit price, the motion or character charged (asset_id) and its processing job (job_id), plus payments, free credit and staff adjustments, "
             "with signed USD amounts and balances. Read-only. Use it to reconcile what a workflow cost; "
-            "invoices and receipts are on the returned account page."
+            "older history, invoices and receipts are on the returned account page."
         )
         return await ops().billing_history(
             since=since, until=until, entry_types=entry_types, before_entry_id=before_entry_id, limit=limit
