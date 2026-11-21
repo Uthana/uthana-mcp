@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,20 @@ from fakes import FakeAPI
 from uthana_mcp.api import APIError
 from uthana_mcp.billing_history import billing_history_page, ledger_request
 from uthana_mcp.operations import Operations
+
+
+@pytest.fixture(autouse=True)
+def fixed_clock(monkeypatch: pytest.MonkeyPatch) -> list[datetime]:
+    clock = [datetime(2026, 11, 5, tzinfo=timezone.utc)]
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz: timezone | None = None) -> datetime:
+            return clock[0].astimezone(tz)
+
+    monkeypatch.setattr("uthana_mcp.billing_history.datetime", FixedDatetime)
+    return clock
+
 
 ROWS = [
     {
@@ -97,7 +112,7 @@ def test_entries_are_labeled_signed_and_linked() -> None:
 
 def test_paging_reports_the_cursor_and_trims_the_probe_row() -> None:
     request = ledger_request(limit=2)
-    assert request == {"limit": 3}
+    assert request == {"limit": 3, "since": "2026-10-29T00:00:00+00:00", "until": "2026-11-05T00:00:00+00:00"}
     page = billing_history_page(ROWS[:3], limit=2, domain="staging.uthana.com", request=request)
     assert [e["entry_id"] for e in page["entries"]] == ["pl5", "pl4"]
     assert page["has_more"] is True and page["next_before_entry_id"] == "pl4"
@@ -152,7 +167,12 @@ async def test_operation_passes_filters_to_the_client(tmp_path: Path) -> None:
 
     api.ledger = ledger
     page = await Operations(api, tmp_path).billing_history(entry_types=["charge"], limit=1)
-    assert seen == {"limit": 2, "types": ["debit"]}
+    assert seen == {
+        "limit": 2,
+        "types": ["debit"],
+        "since": "2026-10-29T00:00:00+00:00",
+        "until": "2026-11-05T00:00:00+00:00",
+    }
     assert page["has_more"] is True and page["filters"]["entry_types"] == ["charge"]
 
 
@@ -206,3 +226,87 @@ def test_missing_balances_stay_null() -> None:
 def test_malformed_balances_are_rejected(value: Any) -> None:
     with pytest.raises(APIError):
         billing_history_page([{**ROWS[0], "balance_before": value}], limit=1, domain="uthana.com", request={"limit": 2})
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {"since": "2026-10-28T23:59:59.999Z"},
+        {"until": "2026-10-28T23:59:59.999Z"},
+        {"since": "2026-11-05T00:00:00.001Z"},
+        {"until": "2026-11-05T00:00:00.001Z"},
+        {"since": "2026-11-04", "until": "2026-11-04"},
+    ],
+)
+async def test_invalid_window_never_calls_api(filters: dict, tmp_path: Path) -> None:
+    api = FakeAPI()
+    with pytest.raises(ValueError):
+        await Operations(api, tmp_path).billing_history(**filters)
+    assert api.calls == []
+
+
+def test_paging_and_null_bounds_keep_the_recent_window() -> None:
+    request = ledger_request(before_entry_id="old-entry", since=None, until=None)
+    assert request["since"] == "2026-10-29T00:00:00+00:00"
+    assert request["until"] == "2026-11-05T00:00:00+00:00"
+    assert request["before_id"] == "old-entry"
+    assert ledger_request(since="2026-10-28T16:00:00-08:00")["since"] == "2026-10-28T16:00:00-08:00"
+
+
+@pytest.mark.parametrize("elapsed", [timedelta(microseconds=1), timedelta(seconds=3), timedelta(minutes=10)])
+async def test_returned_window_can_be_reused_after_clock_advances(
+    fixed_clock: list[datetime], tmp_path: Path, elapsed: timedelta
+) -> None:
+    api = FakeAPI()
+    calls = []
+
+    async def ledger(**kwargs: Any) -> list[dict]:
+        calls.append(kwargs)
+        return ROWS[:2] if len(calls) == 1 else ROWS[1:2]
+
+    api.ledger = ledger
+    ops = Operations(api, tmp_path)
+    first = await ops.billing_history(entry_types=["charge"], limit=1)
+    fixed_clock[0] += elapsed
+    second = await ops.billing_history(
+        since=first["filters"]["since"],
+        until=first["filters"]["until"],
+        entry_types=first["filters"]["entry_types"],
+        before_entry_id=first["next_before_entry_id"],
+        limit=1,
+    )
+    expected_start = (fixed_clock[0] - timedelta(days=7)).isoformat()
+    assert calls[1] == {
+        "since": expected_start,
+        "until": calls[0]["until"],
+        "types": ["debit"],
+        "before_id": "pl5",
+        "limit": 2,
+    }
+    assert second["filters"]["since"] == expected_start
+    assert second["filters"]["until"] == first["filters"]["until"]
+    assert second["entries"][0]["entry_id"] == "pl4"
+    assert second["has_more"] is False and second["next_before_entry_id"] is None
+    assert "not a fixed snapshot" in " ".join(second["notes"])
+
+
+async def test_continuation_cannot_expand_the_allowed_history(tmp_path: Path) -> None:
+    api = FakeAPI()
+    await Operations(api, tmp_path).billing_history(since="2000-01-01", before_entry_id="old-entry")
+    assert api.calls[0][1]["since"] == "2026-10-29T00:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {"since": "2026-11-05T00:00:01Z"},
+        {"until": "2026-11-05T00:00:01Z"},
+        {"until": "2026-10-28T23:59:59Z"},
+        {"since": "2026-11-04", "until": "2026-11-03"},
+    ],
+)
+async def test_invalid_continuation_windows_never_call_api(tmp_path: Path, filters: dict) -> None:
+    api = FakeAPI()
+    with pytest.raises(ValueError):
+        await Operations(api, tmp_path).billing_history(before_entry_id="pl5", **filters)
+    assert api.calls == []

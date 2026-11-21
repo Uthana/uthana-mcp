@@ -1,6 +1,6 @@
 """Read-only PAYG billing history: label backend ledger rows for reconciliation."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import NotRequired, TypedDict
 
@@ -57,7 +57,10 @@ LABELS = {
 ASSET_TYPES = ("motion", "character")
 PAYMENT_SOURCES = {"pi": "checkout", "inv": "invoice", "ar": "auto_top_up"}
 MAX_PAGE = 100
+HISTORY_DAYS = 7
 NOTES = [
+    "Billing history is limited to the last 7 days. Use the API directly or the web account page for older history.",
+    "For the next page, reuse the returned filters and next_before_entry_id. The lower time bound advances with the 7-day cutoff; entries that age out are excluded. This is not a fixed snapshot.",
     "Amounts are recorded USD ledger entries, not estimates. Estimates from estimate_model_cost are never stored here.",
     "amount_usd is signed: charges are negative, payments and free credit positive, adjustments either way.",
     "balance_before_usd and balance_after_usd are the total spendable balance (free credit plus purchased balance). Charges use free credit first.",
@@ -91,8 +94,16 @@ def ledger_request(
     """Validate tool arguments and return client keyword arguments (asking for one extra row)."""
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_PAGE:
         raise ValueError(f"limit must be an integer from 1 to {MAX_PAGE}.")
-    start, end = parse_time("since", since), parse_time("until", until)
-    if start and end and start >= end:
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=HISTORY_DAYS)
+    start = parse_time("since", since) or cutoff
+    end = parse_time("until", until) or now
+    if before_entry_id is not None:
+        start = max(start, cutoff)
+    for name, value in (("since", start), ("until", end)):
+        if value < cutoff or value > now:
+            raise ValueError(f"{name} must be within the last 7 days. Use the API or web for older history.")
+    if start >= end:
         raise ValueError("since must be earlier than until.")
     types = None
     if entry_types is not None:
