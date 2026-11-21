@@ -109,7 +109,11 @@ OPERATIONS = [
         "Video-to-motion 2.0 / 2.1 / 3.0",
         status="available",
         tools=["generate_motion_from_video", "get_job"],
-        limits=["MP4, MOV or WebM", "Up to 128 MiB"],
+        limits=[
+            "MP4, MOV or WebM",
+            "Up to 200 MiB; 50 MiB without an active card, except contracts",
+            "Check get_usage.video_upload_max_bytes",
+        ],
         docs=f"{DOCS}/capabilities/video-to-motion",
         access=PRICED,
         summary="Motion capture from a selected video; 3.0 by default, 2.0 or 2.1 on request. Returns a job.",

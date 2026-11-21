@@ -128,6 +128,8 @@ async def test_character_upload_alone_uses_360_second_timeout_and_requests_warni
             )
         if "create_video_to_motion(" in content:
             return httpx.Response(200, json={"data": {"create_video_to_motion": {"job": {"id": "job1"}}}})
+        if "upload_limits" in json.loads(content)["query"]:
+            return httpx.Response(200, json={"data": {"org": {"upload_limits": None}}})
         assert "characters_paged(" in json.loads(content)["query"]
         return httpx.Response(200, json={"data": {"characters_paged": {"items": [], "next_cursor": None}}})
 

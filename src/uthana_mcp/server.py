@@ -344,7 +344,7 @@ def create_server(
         ] = "neutral_male_a",
         travel_angle: Annotated[
             Annotated[float, Field(ge=-180, le=180, strict=True)],
-            Field(description="Travel direction in degrees, -180 to 180: 0 forward, 90 right, -90 left, 180 backward."),
+            Field(description="Travel direction in degrees, -180 to 180: 0 forward, 90 left, -90 right, 180 backward."),
         ] = 0,
     ) -> dict[str, Any]:
         "Generate walk/run cycles meant to loop. Returns a motion ID directly; inspect the duration and loop seam."
@@ -492,7 +492,11 @@ def create_server(
             Field(description="Model identifier from the listed enum. Defaults to video-to-motion-3.0."),
         ] = "video-to-motion-3.0",
     ) -> dict[str, Any]:
-        "Upload a selected local MP4/MOV/WebM and submit video-to-motion (V2M). Returns a job ID to poll. Maximum file size: 128 MiB."
+        """Upload a selected local MP4/MOV/WebM and submit video-to-motion (V2M). Returns a job ID to poll.
+
+        Maximum file size: 200 MiB. The API limits organizations without an active card to 50 MiB,
+        except contracts; check get_usage.video_upload_max_bytes first.
+        """
         return await ops().video(request_id, file_path, name, model)
 
     @tool(annotations=WRITE)
