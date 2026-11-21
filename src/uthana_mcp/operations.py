@@ -14,11 +14,12 @@ from typing import NotRequired, TypedDict
 import httpx
 from PIL import Image
 from uthana import TtmJobModelType
+from uthana.types import AssetOrder, AssetSource
 
 from .assets import AssetLifecycle
 from .billing import PUBLISHED_MODELS, estimate_cost, receipt_billing
 from .billing_history import billing_history_page, ledger_request
-from .catalog import catalog_filters, motion_page, page_bounds, usage_snapshot
+from .catalog import CharacterBrowseInput, MotionBrowseInput, asset_page, usage_snapshot
 from .errors import APIError
 from .safe_open import open_nofollow
 from .stitching import StitchInput
@@ -677,33 +678,32 @@ class Operations:
         receipt = await self.store.mutation(request_id, "stitch", args, invoke)
         return await self.verify_saved(receipt)
 
-    async def characters(self, offset=0, limit=50, query=""):
-        if not isinstance(query, str) or len(query) > 200:
-            raise ValueError("query must be text of at most 200 characters")
-        page_bounds(offset, limit)
-        rows = await self.api.characters()
-        scanned = len(rows)
-        rows = [row for row in rows if query.casefold() in str(row.get("name", "")).casefold()]
-        page = rows[offset : offset + limit]
-        return {
-            "characters": [
-                {
-                    "character_id": identifier(row["id"]),
-                    "name": row.get("name"),
-                    "created": row.get("created") if isinstance(row.get("created"), str) else None,
-                    "updated": row.get("updated") if isinstance(row.get("updated"), str) else None,
-                }
-                for row in page
-            ],
-            "next_offset": offset + limit if offset + limit < len(rows) else None,
-            "pagination": "local_bounded_catalog",
-            "scanned_count": scanned,
-            "scope_note": "The API returns a full catalog capped at 16 MiB. Name filtering and paging occur locally; concurrent changes can shift offsets.",
-        }
+    async def characters(
+        self,
+        *,
+        query: str = "",
+        source: AssetSource = "all",
+        order: AssetOrder = "created_desc",
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> dict[str, object]:
+        options = CharacterBrowseInput(query=query, source=source, order=order, limit=limit, cursor=cursor)
+        return asset_page(await self.api.characters(**options.model_dump()), kind="character", limit=options.limit)
 
-    async def motions(self, query="", source="available", method=None, offset=0, limit=20):
-        catalog_filters(query, source, method, offset, limit)
-        return motion_page(await self.api.motion_catalog(), query, source, method, offset, limit)
+    async def motions(
+        self,
+        *,
+        query: str = "",
+        source: AssetSource = "all",
+        order: AssetOrder = "created_desc",
+        limit: int = 20,
+        cursor: str | None = None,
+        method: str | None = None,
+    ) -> dict[str, object]:
+        options = MotionBrowseInput(query=query, source=source, order=order, limit=limit, cursor=cursor, method=method)
+        if options.method is not None and not options.method.strip():
+            raise ValueError("method must be a nonempty method name")
+        return asset_page(await self.api.motions_page(**options.model_dump()), kind="motion", limit=options.limit)
 
     async def usage(self):
         return usage_snapshot(await self.api.usage())

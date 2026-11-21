@@ -117,8 +117,8 @@ Restart your host, then ask it to read Uthana’s workflow, check account access
 | `create_character_from_prompt` | Rig the preview you chose |
 | `create_looped_motion` | Closed or open loop of an existing motion |
 | `stitch` | Join two motion objects with server preparation |
-| `list_characters` | Character name filter and result pages |
-| `list_motions` | Recent motion name search and source filters |
+| `list_characters` | Character names and dates; newest-first browsing, sorting and cursor pages |
+| `list_motions` | Motion names and dates; newest-first browsing, sorting and cursor pages |
 | `copy_best_library_motion` | Charged library search: copies the single closest library clip into your organization |
 | `get_usage` | Pay-as-you-go balance, rates, and allowances |
 | `get_billing_history` | Recorded PAYG charges, payments, free credit and adjustments, newest first |

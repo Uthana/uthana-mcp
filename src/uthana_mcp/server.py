@@ -14,9 +14,11 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ImageContent, TextContent, ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
+from uthana.types import AssetOrder, AssetSource
 
 from .api import UthanaAPI
 from .capabilities import account_eligibility, catalog
+from .catalog import MAX_CURSOR_LENGTH, MAX_PAGE_SIZE
 from .config import Config
 from .errors import APIError
 from .operations import Operations
@@ -719,58 +721,92 @@ def create_server(
 
     @tool(annotations=READ)
     async def list_characters(
-        offset: Annotated[
-            Annotated[int, Field(ge=0)],
-            Field(description="Zero-based offset into the filtered result window; integer at least 0."),
-        ] = 0,
-        limit: Annotated[
-            Annotated[int, Field(ge=1, le=100)], Field(description="Maximum returned items, integer 1-100.")
-        ] = 50,
         query: Annotated[
-            Annotated[str, Field(max_length=200)],
+            str,
             Field(
-                description="Case-insensitive name search, at most 200 characters; empty lists all items in scope. Matches a contiguous substring, useful for inspecting a failed upload by name."
+                strict=True,
+                max_length=200,
+                description="Name search; every word must occur in the name. Omit to browse all names.",
             ),
         ] = "",
+        source: Annotated[
+            AssetSource,
+            Field(
+                description="all includes accessible characters; mine selects your organization's characters, including teammates'; uthana selects Uthana examples."
+            ),
+        ] = "all",
+        order: Annotated[
+            AssetOrder,
+            Field(description="created_desc: newest first; created_asc: oldest first; name_asc: A-Z; name_desc: Z-A."),
+        ] = "created_desc",
+        limit: Annotated[
+            int, Field(strict=True, ge=1, le=MAX_PAGE_SIZE, description="Maximum items per page, 1-100.")
+        ] = 20,
+        cursor: Annotated[
+            str | None,
+            Field(
+                strict=True,
+                min_length=1,
+                max_length=MAX_CURSOR_LENGTH,
+                description="Pass next_cursor unchanged with the same query, source and order. Omit for the first page.",
+            ),
+        ] = None,
     ) -> dict[str, Any]:
-        """Find accessible characters by name with IDs and available record creation/update timestamps.
-        Filtering and paging are local over a
-        catalog capped at 16 MiB because the API has no upstream pagination. Reducing limit does not reduce the
-        upstream response.
+        """Browse characters with names, IDs and creation/update dates, newest first by default.
+        For your latest characters, use source=mine and order=created_desc. Reads one server page;
+        next_cursor=null means the end. Dates describe records, not a separate upload event.
         """
-        return await read_result(ops().characters(offset, limit, query))
+        return await read_result(ops().characters(query=query, source=source, order=order, limit=limit, cursor=cursor))
 
     @tool(annotations=READ)
     async def list_motions(
         query: Annotated[
-            Annotated[str, Field(max_length=200)],
+            str,
             Field(
-                description="Case-insensitive name search, at most 200 characters; empty lists all items in scope. Each query word must occur in the name."
+                strict=True,
+                max_length=200,
+                description="Name search; every word must occur in the name. Omit to browse all names.",
             ),
         ] = "",
         source: Annotated[
-            Literal["available", "organization", "examples"],
+            AssetSource,
             Field(
-                description="available combines organization motions and Uthana examples; organization or examples restricts the source."
+                description="all includes accessible motions; mine selects your organization's motions, including teammates'; uthana selects Uthana examples."
             ),
-        ] = "available",
-        method: Annotated[
-            Annotated[str, Field(min_length=1, max_length=100)] | None,
-            Field(description="Optional exact Method tag filter, 1-100 characters; omit for all methods."),
-        ] = None,
-        offset: Annotated[
-            Annotated[int, Field(ge=0)],
-            Field(description="Zero-based offset into the filtered result window; integer at least 0."),
-        ] = 0,
+        ] = "all",
+        order: Annotated[
+            AssetOrder,
+            Field(description="created_desc: newest first; created_asc: oldest first; name_asc: A-Z; name_desc: Z-A."),
+        ] = "created_desc",
         limit: Annotated[
-            Annotated[int, Field(ge=1, le=100)], Field(description="Maximum returned items, integer 1-100.")
+            int, Field(strict=True, ge=1, le=MAX_PAGE_SIZE, description="Maximum items per page, 1-100.")
         ] = 20,
+        cursor: Annotated[
+            str | None,
+            Field(
+                strict=True,
+                min_length=1,
+                max_length=MAX_CURSOR_LENGTH,
+                description="Pass next_cursor unchanged with the same query, source, order and method. Omit for the first page.",
+            ),
+        ] = None,
+        method: Annotated[
+            str | None,
+            Field(
+                strict=True,
+                min_length=1,
+                max_length=100,
+                description="Optional exact Method tag filter; omit for all methods.",
+            ),
+        ] = None,
     ) -> dict[str, Any]:
-        """Find recent motions by name. Searches up to 1000 organization motions plus API-provided examples,
-        labeled by source. Offsets page this filtered window; a motion may still exist outside it.
-        Does not search the shared library; see copy_best_library_motion.
+        """Browse motions with names, IDs and creation/update dates, newest first by default.
+        For your latest motions, use source=mine and order=created_desc. Reads one server page,
+        including older history; next_cursor=null means the end. Does not search the shared library.
         """
-        return await ops().motions(query, source, method, offset, limit)
+        return await read_result(
+            ops().motions(query=query, source=source, order=order, limit=limit, cursor=cursor, method=method)
+        )
 
     @tool(annotations=READ)
     async def download_character(

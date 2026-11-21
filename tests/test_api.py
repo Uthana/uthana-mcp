@@ -19,7 +19,7 @@ async def test_hosted_token_is_trimmed_by_sdk(token):
     api = UthanaAPI(None, access_token=token, scope="verified-identity", transport=httpx.MockTransport(respond))
     try:
         await api.prices()
-        await api.catalog_client._graphql("{ org { payg_prices { id } } }")
+        await api.client._graphql("{ org { payg_prices { id } } }")
     finally:
         await api.close()
     assert seen == ["Bearer delegated-token", "Bearer delegated-token"]
@@ -255,11 +255,9 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
             body = json.loads(request.content)
             query = body["query"]
             assert query.lstrip().startswith("query") and "mutation" not in query
-            if "MotionCatalog" in query:
-                assert 'motions(app_ids: ["motion_viewer"])' in query
-                assert "org { id }" in query and "id org_id name created tags" in query
+            if "motions_paged" in query:
                 assert "label_search" not in query
-                return httpx.Response(200, json={"data": {"org": {"id": "o1"}, "motions": []}})
+                return httpx.Response(200, json={"data": {"motions_paged": {"items": [], "next_cursor": None}}})
             if "Usage" in query:
                 assert "subscription { status secs_per_month characters }" in query
                 assert "payg_prices { model_key billing_unit unit_price }" in query
@@ -286,7 +284,7 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
 
     api = UthanaAPI("fake", domain, transport=httpx.MockTransport(respond))
     try:
-        assert (await api.motion_catalog())["motions"] == []
+        assert (await api.motions_page())["items"] == []
         assert (await api.usage())["org"]["payg_enabled"] is True
         assert (await api.download_allowed("m1", "c1"))["allowed"] is False
         await api.download("m1", "c1", "fbx", 30, True, True, False, 0.5, True)

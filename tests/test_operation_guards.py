@@ -105,5 +105,5 @@ async def test_stitch_step_and_character_query_limits(setup):
     _api, ops, _inputs = setup
     with pytest.raises(ValueError):
         await ops.stitch("stitch1", {"character_id": "c1", "steps": []})
-    with pytest.raises(ValueError, match="query must be text"):
+    with pytest.raises(ValueError, match="query"):
         await ops.characters(query="x" * 201)
