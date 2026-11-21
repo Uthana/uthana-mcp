@@ -539,3 +539,22 @@ async def test_usage_does_not_hide_unexpected_identity_errors(monkeypatch: pytes
             await api.usage()
     finally:
         await api.close()
+
+
+@pytest.mark.parametrize("body", [b"secret-provider-detail", b'{"data":null}'])
+async def test_uncertain_sdk_mutation_results_are_not_misreported_as_size_errors(body: bytes) -> None:
+    requests = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, content=body)
+
+    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(APIError) as error:
+            await api.generate("walk", 4, "character1")
+    finally:
+        await api.close()
+    assert error.value.outcome == "unknown" and error.value.category == "provider_error"
+    assert "confirm" in str(error.value) and "size" not in str(error.value) and "secret" not in str(error.value)
+    assert len(requests) == 1
