@@ -23,48 +23,6 @@ from uthana_mcp.operations import Operations
 from uthana_mcp.server import with_progress
 
 
-async def test_large_catalog_filter_pagination_and_separate_read_cap(tmp_path):
-    rows = [{"id": f"c{i}", "name": "Other" + "x" * 180} for i in range(16000)]
-    rows.extend([{"id": "hero1", "name": "Rigged Hero"}, {"id": "hero2", "name": "RIGGED Hero Two"}])
-    calls = []
-
-    def respond(request):
-        calls.append(json.loads(request.content))
-        return httpx.Response(200, json={"data": {"characters": rows}})
-
-    api = UthanaAPI("fake", transport=httpx.MockTransport(respond))
-    try:
-        ops = Operations(api, tmp_path)
-        result = await ops.characters(limit=1, query="rigged hero")
-        assert result["characters"] == [
-            {"character_id": "hero1", "name": "Rigged Hero", "created": None, "updated": None}
-        ]
-        assert result["scanned_count"] == 16002 and result["pagination"] == "local_bounded_catalog"
-        assert result["next_offset"] == 1
-        assert (await ops.characters(offset=1, limit=1, query="rigged hero"))["next_offset"] is None
-        assert (await ops.characters(query="absent"))["characters"] == []
-        assert len(calls) == 3
-        # Increasing the catalog ceiling must not enlarge normal metadata/mutation responses.
-        with pytest.raises(APIError, match="size limit") as caught:
-            await api.usage()
-        assert caught.value.category == "response_too_large"
-    finally:
-        await api.close()
-
-
-async def test_catalog_over_16_mib_has_actionable_error(tmp_path):
-    api = UthanaAPI(
-        "fake", transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"x" * (16 * 1024 * 1024 + 1)))
-    )
-    try:
-        with pytest.raises(APIError, match="smaller limit values cannot reduce") as caught:
-            await Operations(api, tmp_path).characters(limit=1)
-        assert caught.value.category == "catalog_too_large"
-        assert caught.value.outcome == "not_applicable"
-    finally:
-        await api.close()
-
-
 @pytest.mark.parametrize(
     "resource,kind,message",
     [

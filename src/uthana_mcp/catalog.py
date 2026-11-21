@@ -2,85 +2,78 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from typing import Literal, NotRequired, TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field
+from uthana.types import AssetOrder, AssetSource
 
 from .api import APIError
 from .billing import PRICING_URL, PUBLISHED_MODELS
 from .validation import identifier, number
 
-
-def page_bounds(offset, limit):
-    if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
-        raise ValueError("offset must be a nonnegative integer")
-    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
-        raise ValueError("limit must be 1–100")
+MAX_PAGE_SIZE = 100
+MAX_CURSOR_LENGTH = 8192
 
 
-def catalog_filters(query, source, method, offset, limit):
-    page_bounds(offset, limit)
-    if not isinstance(query, str) or len(query) > 200:
-        raise ValueError("query must be at most 200 characters")
-    if source not in {"available", "organization", "examples"}:
-        raise ValueError("source must be available, organization, or examples")
-    if method is not None and (not isinstance(method, str) or not method.strip() or len(method) > 100):
-        raise ValueError("method must be a nonempty method name of at most 100 characters")
+class AssetBrowseInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    query: str = Field(default="", max_length=200)
+    source: AssetSource = "all"
+    order: AssetOrder = "created_desc"
+    limit: int = Field(default=20, ge=1, le=MAX_PAGE_SIZE)
+    cursor: str | None = Field(default=None, min_length=1, max_length=MAX_CURSOR_LENGTH)
 
 
-def motion_page(data, query, source, method, offset, limit):
-    org = data.get("org")
-    rows = data.get("motions")
-    if not isinstance(org, dict) or not org.get("id") or not isinstance(rows, list):
-        raise APIError("Motion catalog or organization unavailable")
-    org_id = identifier(org["id"])
-    tokens = query.casefold().split()
-    results, seen = [], set()
-    organization_count = 0
+class MotionBrowseInput(AssetBrowseInput):
+    method: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class AssetSummary(TypedDict):
+    name: str | None
+    created: str | None
+    updated: str | None
+    org_id: str | None
+    character_id: NotRequired[str]
+    motion_id: NotRequired[str]
+    method: NotRequired[str | None]
+
+
+def asset_page(data: object, *, kind: Literal["character", "motion"], limit: int) -> dict[str, object]:
+    """Validate one SDK page without filtering, sorting or changing its continuation cursor."""
+    message = f"Uthana returned an invalid {kind} page. Retry the read or contact Uthana support."
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list) or "next_cursor" not in data:
+        raise APIError(message, outcome="not_applicable")
+    rows = data["items"]
+    cursor = data["next_cursor"]
+    if (
+        len(rows) > limit
+        or cursor is not None
+        and (not isinstance(cursor, str) or not cursor or len(cursor) > MAX_CURSOR_LENGTH)
+    ):
+        raise APIError(message, outcome="not_applicable")
+    items: list[AssetSummary] = []
     for row in rows:
-        motion_id = identifier(row["id"])
-        if motion_id in seen:
-            continue
-        seen.add(motion_id)
-        is_own = identifier(row["org_id"]) == org_id
-        organization_count += int(is_own)
-        name = row.get("name")
-        if not isinstance(name, str):
-            raise APIError("Motion catalog returned an invalid name")
-        tags = row.get("tags") or {}
-        method_name = tags.get("Method") if isinstance(tags, dict) else None
-        if not isinstance(method_name, str):
-            method_name = None
-        excluded_example = source == "organization" and not is_own
-        excluded_organization_motion = source == "examples" and is_own
-        if excluded_example or excluded_organization_motion:
-            continue
-        if method is not None and (method_name or "").casefold() != method.strip().casefold():
-            continue
-        if not all(token in name.casefold() for token in tokens):
-            continue
-        results.append(
-            {
-                "motion_id": motion_id,
-                "name": name,
-                "created": row.get("created"),
-                "method": method_name,
-                "source": "organization" if is_own else "uthana_example",
-            }
-        )
-    return {
-        "motions": results[offset : offset + limit],
-        "next_offset": offset + limit if offset + limit < len(results) else None,
-        "matched_in_available_window": len(results),
-        "scanned_count": len(seen),
-        "query": query,
-        "source": source,
-        "method": method,
-        "search_kind": "case_insensitive_name_tokens",
-        "organization_window_may_be_truncated": organization_count >= 1000,
-        "full_library_searched": False,
-        "scope_note": "Up to 1000 recent organization motions plus examples supplied by the API. "
-        "No semantic search, full shared-library search, or older-history pagination here; "
-        "copy_best_library_motion runs the charged library search. "
-        "Offsets page this filtered window; concurrent library changes may move results.",
-    }
+        if not isinstance(row, dict):
+            raise APIError(message, outcome="not_applicable")
+        try:
+            asset_id = identifier(row.get("id"))
+            org_id = identifier(row["org_id"]) if row.get("org_id") is not None else None
+        except ValueError:
+            raise APIError(message, outcome="not_applicable") from None
+        name, created, updated = row.get("name"), row.get("created"), row.get("updated")
+        if any(value is not None and not isinstance(value, str) for value in (name, created, updated)):
+            raise APIError(message, outcome="not_applicable")
+        item: AssetSummary = {"name": name, "created": created, "updated": updated, "org_id": org_id}
+        if kind == "character":
+            item["character_id"] = asset_id
+        else:
+            item["motion_id"] = asset_id
+            tags = row.get("tags")
+            method = tags.get("Method") if isinstance(tags, dict) else None
+            item["method"] = method if isinstance(method, str) else None
+        items.append(item)
+    return {kind + "s": items, "next_cursor": cursor}
 
 
 def optional_number(value):

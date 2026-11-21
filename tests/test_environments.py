@@ -98,7 +98,6 @@ async def test_overridden_domain_routes_through_sdk_and_reports_origin(monkeypat
     try:
         assert api.scope != production.scope
         assert str(api.client.base_url) == f"https://{domain}"
-        assert str(api.catalog_client.base_url) == f"https://{domain}"
         await api.generate("Walk", 4, TAR)
         assert seen == [("https", domain)]
         monkeypatch.setenv("UTHANA_DOMAIN", domain)

@@ -188,11 +188,14 @@ OPERATIONS = [
     ),
     _op(
         "find_assets",
-        "List characters and recent motions",
+        "Browse characters and motions",
         status="available",
-        summary="Name filters over the account's characters and up to 1000 recent organization motions plus examples.",
+        summary="Browse names, IDs and creation/update dates with server pagination, name search and sorting. Defaults to newest first; use source=mine for your organization's latest assets.",
         tools=["list_characters", "get_character", "list_motions", "get_motion"],
-        limits=["Not a full or semantic library search", "Character catalog read is capped at 16 MiB"],
+        limits=[
+            "1-100 items per page; continue with next_cursor and unchanged filters",
+            "Not semantic or shared-library search",
+        ],
         docs=f"{DOCS}/capabilities/asset-management",
         access=READ,
     ),

@@ -17,8 +17,8 @@ Agents can ask the server directly: `get_capabilities` and the `uthana://capabil
 | Existing-motion loop | Simplified loop preview API | Contract may change |
 | Two-clip stitching | `stitch` accepts two flat motion steps with server sampling and alignment | Requires the flat-contract backend and Python client 0.8.0; see [stitching](stitching.md) |
 | Native motion edits | Trim and register edited GLTF | Custom pose editing belongs to host tools |
-| Character listing | Name filter and result pages | Local filtering over a 16 MiB catalog; no upstream pagination |
-| Motion search | Recent organization names and examples | Up to 1000 organization motions, not full library search |
+| Character listing | Names, IDs and creation/update dates; source and name filters | Server cursor pages, 1-100 items; newest/oldest or A-Z/Z-A sorting |
+| Motion search | Names, IDs and creation/update dates; source, name and Method filters | Server cursor pages including older history; newest/oldest or A-Z/Z-A sorting; not semantic/library search |
 | Library search | `copy_best_library_motion` copies the single closest shared-library or organization clip | Charged as library-search-1.0; one result, no candidate list, paging, or similarity-to-motion search |
 | Inspection | Metadata, APNG/WebM, decoded APNG frames | Visual review belongs to the host |
 | Export | Retargeted FBX/GLB/BVH, mesh, FPS, speed, torso, in-place, Roblox | Destination import requires separate verification |

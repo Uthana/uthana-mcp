@@ -93,8 +93,8 @@ async def test_real_stdio_discovery_and_generation_trim_review_export(tmp_path):
             speed = tools["download_motion"].inputSchema["properties"]["speed_multiplier"]
             assert speed["exclusiveMinimum"] == 0 and speed["maximum"] == 2
             catalog_result = structured(await client.call_tool("list_motions", {"query": "WALK", "limit": 1}))
-            assert catalog_result["motions"][0]["source"] == "organization"
-            assert catalog_result["next_offset"] == 1 and not catalog_result["full_library_searched"]
+            assert catalog_result["motions"][0]["org_id"] == "org1"
+            assert catalog_result["next_cursor"] == "next-motion-page"
             usage = structured(await client.call_tool("get_usage", {}))
             assert usage["monthly_downloads"]["remaining"] == 15
             eligibility = structured(await client.call_tool("check_download_allowed", {"motion_id": "denied"}))

@@ -15,7 +15,7 @@ from uthana_mcp.operations import Operations
         ("job", ("job1",)),
         ("motion", ("motion1",)),
         ("characters", ()),
-        ("motion_catalog", ()),
+        ("motions_page", ()),
         ("prices", ()),
         ("locomotion_styles", ()),
         ("download_allowed", ("motion1", "character1")),
