@@ -31,7 +31,7 @@ When the user asks what Uthana can do from this connection, call `get_capabiliti
 
 `copy_best_library_motion` is Uthana's library search. It searches the shared motion library plus the organization's labeled motions by meaning, picks the single closest clip, and copies it into the organization as a new motion. It is charged (`library-search-1.0`, per second of the returned clip) even when the match is weak, and it returns one motion, not a list of candidates to browse. There is no free library browse, candidate preview, paging, or similar-to-this-motion search. Use it only when the user wants an existing library motion and accepts the charge; estimate with `estimate_model_cost`. Review the result with previews before calling it suitable. A poor match does not prove the library lacks a better clip; say so rather than claiming absence.
 
-`list_characters` filters character names by a case-insensitive substring and pages the matches. The API has no upstream paging arguments: the server reads a catalog capped at 16 MiB and returns the requested slice. A smaller `limit` does not reduce that read. Results include the scanned count and scope. If the catalog exceeds the cap, contact Uthana support for a paginated API.
+`list_characters` returns names, IDs, and available `created`/`updated` timestamps. These are record timestamps, not a separate upload time; identical uploads can reuse an existing record. Missing timestamps remain unknown. It filters character names by a case-insensitive substring and pages the matches. The API has no upstream paging arguments: the server reads a catalog capped at 16 MiB and returns the requested slice. A smaller `limit` does not reduce that read. Results include the scanned count and scope. If the catalog exceeds the cap, contact Uthana support for a paginated API.
 
 ## Generate and review
 
@@ -39,20 +39,20 @@ Preserve the requested action and respect a chosen model. Otherwise, start with 
 
 | User need | Starting point | Expected inference time |
 | --- | --- | --- |
-| General motion generation, compound actions, or a requested performance style or expressive quality | TTM V3, `generate_motion` | Roughly 1-2 minutes |
-| Acrobatics or inverted motion, including a cartwheel or flip, even when described as one action | TTM V3, `generate_motion` | Roughly 1-2 minutes |
+| General motion generation, compound actions, or a requested performance style or expressive quality | TTM V3, `generate_motion` | About 2-4 minutes for Text-to-Motion 3.0, about 1 minute for 3.0 Lite or 3.0 Mini |
+| Acrobatics or inverted motion, including a cartwheel or flip, even when described as one action | TTM V3, `generate_motion` | About 2-4 minutes for Text-to-Motion 3.0, about 1 minute for 3.0 Lite or 3.0 Mini |
 | A quick placeholder, previsualization (previz), or a basic walk, turn, run, or jump where speed matters more than detail | Text-to-motion V2 (TTM V2), `generate_motion_v2` | Around 5 seconds |
 | A straightforward loopable walk/run cycle using an available locomotion style | `generate_locomotion`; select a style from `list_locomotion_styles` | Depends on the request; no fixed estimate here |
 
-`generate_motion` defaults to Regular (`text-to-motion-3.0`); `model` also accepts `text-to-motion-3.0-lite` and `text-to-motion-3.0-mini`. `fast` is an independent optional hint. Omitted duration defaults to 4 seconds for Regular or 5 for Lite/Mini; the backend rounds explicit durations to whole seconds and clamps them to the video model's supported range (4-10 for Regular, 5-10 for Lite/Mini). For example, Mini with four seconds is raised to five rather than rejected.
+`generate_motion` defaults to Text-to-Motion 3.0 (`text-to-motion-3.0`, $0.10 per second, 4-10 seconds, default 4) unless a model is specified. The Uthana web app defaults to 3.0 Lite, and direct API requests require a model. `model` also accepts 3.0 Lite (`text-to-motion-3.0-lite`, $0.10 per second) and 3.0 Mini (`text-to-motion-3.0-mini`, $0.075 per second); both default to 5 seconds. The backend rounds explicit durations to whole seconds and clamps them to the model's range. Lite and Mini support requested durations of 5-10 seconds; shorter requests are raised to 5 seconds rather than rejected. Estimates use the adjusted duration; the final charge is based on the motion actually generated.
 
-V1 and V2 do not generate finger animation; Regular V3 does. Choose Regular V3 when finger motion matters, including for a placeholder or previz that needs animated fingers.
+V1 and V2 do not generate finger animation; Text-to-Motion 3.0 does. Choose Text-to-Motion 3.0 (not 3.0 Lite or 3.0 Mini) when finger motion matters, including for a placeholder or previz that needs animated fingers.
 
 V1 and V2 are the fast options for basic motions and placeholders; V1 is offered in the Uthana web app and API but intentionally has no generation tool in this MCP. A V1 pricing entry does not make it callable. A successful response can still miss the requested action, so inspect the result before calling it suitable.
 
 These inference times are approximate expectations, not guarantees, generated motion durations, or timeout settings. Queueing and service conditions can make calls take longer. Briefly explain the speed/quality tradeoff when choosing a model. Do not silently replace a requested model or a styled/complex motion with a faster basic result. If a requested model is unsuitable, explain the limitation.
 
-Text generation defaults to Tar and four seconds. V2 accepts 4-10 seconds in 0.4-second increments; V3 accepts whole seconds from 4 to 10. Both accept at most 1000 prompt characters. Explain incompatible inputs instead of silently changing the motion or model.
+Text generation defaults to Tar. V2 defaults to four seconds and accepts 4-10 seconds in 0.4-second increments. V3 uses the model-specific defaults and backend duration normalization described above. Both accept at most 1000 prompt characters. Explain effective duration adjustments; never silently substitute a different motion or model.
 
 V3 and video-to-motion (V2M) return job IDs; poll `get_job` about every 15 seconds. A finished job without a motion ID remains unresolved. V2 and locomotion return motion IDs directly. Locomotion duration follows strides and contacts rather than a requested number of seconds. Its speed is measured on the standard-height UE5 reference mannequin (Manny); taller or shorter characters scale accordingly.
 

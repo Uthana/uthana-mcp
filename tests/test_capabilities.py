@@ -86,3 +86,12 @@ def test_hosted_catalog_reports_hosted_tools_for_read_only_users(tmp_path: Path)
         assert catalog["deployment"]["transport"] == "hosted"
         rows = {row["id"]: row for row in catalog["operations"]}
         assert rows["hosted_artifacts"]["available_here"] is True
+
+
+def test_robot_export_is_available_without_a_conflicting_planned_entry() -> None:
+    export = next(row for row in OPERATIONS if row["id"] == "export_motion")
+    assert export["status"] == "available"
+    assert "download_robot_motion" in export["tools"]
+    planned = next(row for row in OPERATIONS if row["id"] == "export_other_formats")
+    assert planned["name"] == "USD/USDZ export"
+    assert planned["status"] == "planned"

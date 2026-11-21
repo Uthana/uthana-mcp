@@ -168,3 +168,37 @@ async def test_usage_and_specific_eligibility_are_read_only(tmp_path):
     assert allowed["reserves_allowance"] is False and allowed["operation_cost_known"] is False
     assert [c[0] for c in api.calls] == ["usage", "download_allowed", "download_allowed"]
     assert len(list(ops.store.directory.iterdir())) == 1  # Only the SQLite store; no export artifacts.
+
+
+async def test_character_dates_survive_filtering_and_paging(tmp_path):
+    api = FakeAPI()
+    rows = [
+        {"id": "c1", "name": "Alex", "created": "2026-01-01T00:00:00Z", "updated": None},
+        {"id": "c2", "name": "Alex", "created": None, "updated": "2026-02-01T00:00:00Z"},
+    ]
+
+    async def characters():
+        return rows
+
+    api.characters = characters
+    ops = Operations(api, tmp_path)
+    first = await ops.characters(query="alex", limit=1)
+    second = await ops.characters(query="alex", offset=first["next_offset"], limit=1)
+    for result, row in [(first, rows[0]), (second, rows[1])]:
+        assert result["characters"] == [
+            {"character_id": row["id"], "name": row["name"], "created": row["created"], "updated": row["updated"]}
+        ]
+    assert second["next_offset"] is None
+
+
+@pytest.mark.parametrize("value", [{"timestamp": "bad"}, ["bad"], 123, True])
+async def test_character_dates_normalize_non_string_provider_values(tmp_path, value):
+    api = FakeAPI()
+
+    async def characters():
+        return [{"id": "c1", "name": "Alex", "created": value, "updated": value}]
+
+    api.characters = characters
+    result = await Operations(api, tmp_path).characters()
+    assert result["characters"][0]["created"] is None
+    assert result["characters"][0]["updated"] is None
