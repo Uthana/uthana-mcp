@@ -113,7 +113,11 @@ class UthanaAPI:
                     category="rate_limit" if status == 429 else "http_error",
                     http_status=status,
                 ) from None
-            is_response_too_large = error.kind == "response_too_large"
+            # SDK 0.9 also uses uncertain for mutation byte limits; retain its explicit limit diagnostic.
+            is_response_too_large = error.kind == "response_too_large" or (
+                error.kind == "uncertain"
+                and error.message.startswith("Mutation response exceeded the configured byte limit")
+            )
             if is_response_too_large:
                 message = "Uthana response exceeded the configured size limit"
             elif error.kind == "uncertain":
