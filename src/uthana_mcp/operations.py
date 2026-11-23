@@ -37,7 +37,7 @@ from .validation import (
 
 MAX_SHARE_WINDOW_SECONDS = 1_000_000_000
 
-MAX_UPLOAD_BYTES = 128 * 1024 * 1024
+MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 ROBOTS = frozenset({"unitree_g1"})
 ROBOT_EXPORT_FPS = frozenset({24, 30, 60})
 

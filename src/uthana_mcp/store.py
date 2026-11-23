@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .artifact_io import read_artifact_bytes
 from .billing import receipt_billing
-from .errors import APIError
+from .errors import APIError, UnsubmittedCancellation
 from .fingerprints import fingerprint, matches
 from .validation import identifier
 
@@ -198,10 +198,12 @@ class Store:
             }
             encoded = json.dumps(result, allow_nan=False)
         except (Exception, asyncio.CancelledError) as exc:
-            error = (
-                exc
-                if isinstance(exc, APIError)
-                else APIError(
+            if isinstance(exc, APIError):
+                error = exc
+            elif isinstance(exc, UnsubmittedCancellation):
+                error = APIError(str(exc), category="interrupted", outcome="rejected")
+            else:
+                error = APIError(
                     (
                         "Submission was interrupted; upstream work may continue."
                         if isinstance(exc, asyncio.CancelledError)
@@ -209,7 +211,6 @@ class Store:
                     ),
                     category="interrupted" if isinstance(exc, asyncio.CancelledError) else "unconfirmed",
                 )
-            )
             state = "rejected" if error.outcome == "rejected" else "unknown"
             logging.getLogger(__name__).warning(
                 "mutation_outcome tenant=%s request_id=%s operation=%s state=%s category=%s",

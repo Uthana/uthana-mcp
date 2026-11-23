@@ -4,6 +4,7 @@ The client owns API documents, multipart handling, routes, and HTTP transport.
 This layer applies explicit environment configuration and conservative, redacted MCP outcomes.
 """
 
+import asyncio
 import hashlib
 import math
 
@@ -12,7 +13,7 @@ from uthana import Org, StitchInput, StitchResult, TtmJobModelType, Uthana
 from uthana.types import AssetOrder, AssetSource, CharacterPage, CharacterPreviewResult, MotionPage, UthanaError
 
 from .attribution import MCPTransport
-from .errors import APIError, graphql_error, read_error
+from .errors import APIError, UnsubmittedCancellation, graphql_error, read_error
 from .validation import UTHANA_DOMAIN, AssetRecord, asset_record, identifier, motion_metadata, normalize_job
 
 
@@ -302,13 +303,51 @@ class UthanaAPI:
         )
         return {"motion_id": identifier(motion["id"])}
 
+    async def video_upload_limit(self) -> int | None:
+        # Read the public field directly so this works with the currently published SDK.
+        policies: object = await self._call(
+            self.client._graphql, "query { org { upload_limits } }", path="org.upload_limits", read_only=True
+        )
+        if policies is None:
+            return None
+        if not isinstance(policies, list):
+            raise APIError("Video upload limit unavailable", outcome="not_applicable")
+        for policy in policies:
+            if isinstance(policy, dict) and policy.get("category") == "video":
+                limit = policy.get("max_bytes")
+                if limit is None or (type(limit) is int and limit > 0):
+                    return limit
+                raise APIError("Invalid video upload limit", outcome="not_applicable")
+        return None
+
     async def video(self, filename, content, name, model):
+        try:
+            limit = await self.video_upload_limit()
+        except asyncio.CancelledError:
+            raise UnsubmittedCancellation(
+                "Video upload cancelled while checking its limit. No video was submitted."
+            ) from None
+        except APIError as error:
+            raise APIError(
+                f"Could not check your video upload limit. No video was submitted. {error}",
+                category=error.category,
+                outcome="rejected",
+                http_status=error.http_status,
+                upstream_summary=error.upstream_summary,
+            ) from None
+        if limit is not None and len(content) > limit:
+            raise APIError(
+                f"Your organization can upload videos up to {limit / (1024 * 1024):g} MiB. "
+                "Choose a smaller video. Organizations without an active payment method or agreement are limited to 50 MiB.",
+                outcome="rejected",
+            )
         job = await self._call(
             self.client.vtm.create_from_bytes,
             filename,
             content,
             motion_name=name,
             model=model,
+            max_bytes=200 * 1024 * 1024,
             mutation_field="create_video_to_motion",
         )
         return {"job_id": identifier(job["id"]), "provider_status": job.get("status"), "model": model}
@@ -592,10 +631,15 @@ class UthanaAPI:
             org = await self.org()
         except APIError:
             org = None
+        try:
+            video_limit = await self.video_upload_limit()
+        except APIError:
+            video_limit = None
         return {
             **data,
             "org": {
                 **data["org"],
+                "video_upload_max_bytes": video_limit,
                 "id": org["id"] if org is not None else None,
                 "name": org.get("name") if org is not None else None,
             },

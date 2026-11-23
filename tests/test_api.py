@@ -191,6 +191,8 @@ async def test_multipart_upload_and_save_contracts(auto_rig, domain):
             assert '"include_fingers": true' in content
             return httpx.Response(200, json={"data": {"create_character": {"character": {"id": "character1"}}}})
         body = json.loads(content)
+        if "upload_limits" in body["query"]:
+            return httpx.Response(200, json={"data": {"org": {"upload_limits": None}}})
         assert body["variables"] == {
             "gltf": "{}",
             "motionName": "Saved",
@@ -266,6 +268,8 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
                 return httpx.Response(200, json={"data": {"org": {"payg_enabled": True}}})
             if "name" in query and "motion_download_secs_per_month" in query:
                 return httpx.Response(200, json={"data": {"org": {"id": "o1", "name": "Studio"}}})
+            if "upload_limits" in query:
+                return httpx.Response(200, json={"data": {"org": {"upload_limits": None}}})
             assert "motion_download_allowed(motion_id: $motion_id, character_id: $character_id)" in query
             assert body["variables"] == {"motion_id": "m1", "character_id": "c1"}
             return httpx.Response(
@@ -288,7 +292,7 @@ async def test_catalog_usage_eligibility_and_export_effects_contracts(domain):
         assert (await api.usage())["org"]["payg_enabled"] is True
         assert (await api.download_allowed("m1", "c1"))["allowed"] is False
         await api.download("m1", "c1", "fbx", 30, True, True, False, 0.5, True)
-        assert len(seen) == 5
+        assert len(seen) == 6
     finally:
         await api.close()
 
@@ -496,8 +500,14 @@ async def test_usage_combines_published_sdk_usage_and_identity_reads():
         data = await api.usage()
     finally:
         await api.close()
-    assert data["org"] == {"id": "org1", "name": "Studio", "payg_enabled": True, "payg_total_usd": "12.50"}
-    assert len(queries) == 2 and all("mutation" not in query for query in queries)
+    assert data["org"] == {
+        "video_upload_max_bytes": None,
+        "id": "org1",
+        "name": "Studio",
+        "payg_enabled": True,
+        "payg_total_usd": "12.50",
+    }
+    assert len(queries) == 3 and all("mutation" not in query for query in queries)
 
 
 @pytest.mark.parametrize("failure", ["timeout", 403, 500, "malformed"])
@@ -520,8 +530,14 @@ async def test_usage_preserves_balances_when_optional_identity_is_unavailable(fa
         data = await api.usage()
     finally:
         await api.close()
-    assert data["org"] == {"payg_enabled": True, "payg_total_usd": "12.50", "id": None, "name": None}
-    assert len(queries) == 2 and all("mutation" not in query for query in queries)
+    assert data["org"] == {
+        "video_upload_max_bytes": None,
+        "payg_enabled": True,
+        "payg_total_usd": "12.50",
+        "id": None,
+        "name": None,
+    }
+    assert len(queries) == 3 and all("mutation" not in query for query in queries)
 
 
 async def test_usage_does_not_hide_unexpected_identity_errors(monkeypatch: pytest.MonkeyPatch) -> None:

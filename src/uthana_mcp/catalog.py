@@ -133,6 +133,7 @@ def usage_snapshot(data):
             "download_seconds_per_month": optional_number(subscription.get("secs_per_month")),
             "characters": optional_number(subscription.get("characters")),
         },
+        "video_upload_max_bytes": org.get("video_upload_max_bytes"),
         "pricing_url": PRICING_URL,
         "api_mcp_fee_usd": "0",
         "agent_token_fee_usd": "0",

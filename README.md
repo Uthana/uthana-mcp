@@ -220,3 +220,5 @@ A confirmed `job_limit_exceeded` HTTP 429 response is reported as `category="rat
 ## License
 
 The MCP connector code is licensed under [Apache-2.0](https://github.com/Uthana/uthana-mcp/blob/v0.5.0/LICENSE). The bundled Tar character is separately licensed under the [Tar Demo Asset License](https://github.com/Uthana/uthana-mcp/blob/v0.5.0/examples/tar/LICENSE.md) for testing, evaluation, tutorials, and demos, including commercial evaluation. Tar is not licensed for production games, asset-pack redistribution, AI training, or publication of appearance changes. [Tar usage guide](https://github.com/Uthana/uthana-mcp/blob/v0.5.0/examples/tar/README.md).
+
+Locomotion directions are relative to the character: `travel_angle=0` moves forward, `90` left, `-90` right, and `180` backward.
