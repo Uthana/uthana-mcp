@@ -17,6 +17,7 @@ from starlette.testclient import TestClient
 import uthana_mcp.hosted_files as hosted_files
 from uthana_mcp.hosted import Files, Identity, InputFile, create_app
 from uthana_mcp.operations import Operations
+from uthana_mcp.server import create_server
 
 ORIGIN = "https://mcp.example.test"
 HEADERS = {"Authorization": "Bearer user1", "Accept": "application/json, text/event-stream"}
@@ -59,7 +60,7 @@ def tool(client, name, args, *, user="user1"):
     return response.json()["result"]
 
 
-def test_discovery_auth_origin_and_remote_schema(tmp_path):
+async def test_discovery_auth_origin_and_remote_schema(tmp_path):
     with TestClient(app_for(tmp_path, {}), base_url=ORIGIN) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/.well-known/oauth-protected-resource/mcp").json()["resource"] == ORIGIN + "/mcp"
@@ -74,6 +75,15 @@ def test_discovery_auth_origin_and_remote_schema(tmp_path):
             assert "input_file" in tools[name]["inputSchema"]["properties"]
             assert "file_path" not in tools[name]["inputSchema"]["properties"]
             assert tools[name]["_meta"]["openai/fileParams"] == ["input_file"]
+            assert f"{ORIGIN}/files" in tools[name]["description"]
+            assert "cannot read local paths or arbitrary share links" in tools[name]["description"]
+            assert "Upload a selected local" not in tools[name]["description"]
+
+    local_tools = {tool.name: tool for tool in await create_server().list_tools()}
+    video = local_tools["generate_motion_from_video"]
+    assert "file_path" in video.inputSchema["properties"]
+    assert "input_file" not in video.inputSchema["properties"]
+    assert f"{ORIGIN}/files" not in video.description
 
 
 def test_http_replay_survives_token_context_and_app_restart(tmp_path):

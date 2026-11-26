@@ -83,7 +83,7 @@ def _requires_write_permission(annotations: ToolAnnotations | None) -> bool:
 
 
 def transform_tool(
-    function: Callable[..., Any], annotations: ToolAnnotations | None
+    function: Callable[..., Any], annotations: ToolAnnotations | None, *, origin: str
 ) -> tuple[Callable[..., Any], dict]:
     signature = inspect.signature(function)
     has_input_file = "file_path" in signature.parameters
@@ -105,6 +105,15 @@ def transform_tool(
 
     invoke.__signature__ = signature.replace(parameters=parameters)
     invoke.__doc__ = (function.__doc__ or "").replace("file_path", "input_file").replace("local file", "uploaded file")
+    if has_input_file:
+        description = invoke.__doc__.replace("Upload a selected local ", "Use an uploaded ")
+        invoke.__doc__ = (
+            f"{description.rstrip()}\n\n"
+            "Use input_file from a compatible chat attachment or from the Uthana upload portal. "
+            "This hosted tool cannot read local paths or arbitrary share links. "
+            f"For a local file, ask the user to upload it at {origin}/files and paste the returned file details here. "
+            "Then use those details with this tool."
+        )
     return invoke, {"meta": {"openai/fileParams": ["input_file"]}} if has_input_file else {}
 
 
@@ -184,7 +193,7 @@ def create_app(
 
     server = create_server(
         operations_provider=current,
-        tool_transform=transform_tool,
+        tool_transform=functools.partial(transform_tool, origin=origin),
         server_class=HostedMCP,
         api_domain=urlsplit(issuer).netloc,
         http_settings={
